@@ -2,8 +2,8 @@
 
 Site-level network monitoring inside the existing SmartNetOps Hub. The landing page still supplies **Region → Country → Site ID**. The Monitoring page reads `localStorage.selectedSite` (first `|`-separated token) and asks the proxy backend for Prometheus data. The browser never sends PromQL and never talks to Prometheus directly.
 
-Prometheus: `http://cussya5x.carcgl.com:9090` (override with `PROMETHEUS_URL`).  
-Proxy: existing `SmartNetOps/proxy-server` on port 8080.
+Prometheus (tried in order, first success is pinned): `127.0.0.1:9090`, `localhost:9090`, `cussya5x.carcgl.com:9090`, `cussya5w.carcgl.com:9090`. Override with `PROMETHEUS_URL` (comma-separated allowed).  
+Proxy: existing `SmartNetOps/proxy-server` on port 8080 — it also serves the SmartNetOps HTML/CSS/JS so Dashboard and Monitoring hit `/api/dashboard` and `/api/monitoring` on the same origin.
 
 ## New page
 

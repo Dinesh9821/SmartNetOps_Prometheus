@@ -1,6 +1,7 @@
 const express = require("express");
 const request = require("request");
 const cors = require("cors");
+const path = require("path");
 
 const app = express();
 app.use(express.json());
@@ -243,4 +244,6 @@ async function handleDashboard(req, res) {
 
 app.get("/api/dashboard/:siteId", handleDashboard);
 app.get("/api/dashboard", handleDashboard);
+
+app.use(express.static(path.join(__dirname, "..")));
 

@@ -211,7 +211,16 @@
 <script defer src="theme.js"></script>
 <script>
 (function () {
-  var MONITOR_API = "http://cussya5w.carcgl.com:8080/api/monitoring";
+  function proxyOrigin() {
+    try {
+      if (location.protocol === "http:" || location.protocol === "https:") {
+        if (location.port === "8080") return "";
+        return location.protocol + "//" + location.hostname + ":8080";
+      }
+    } catch (e) {}
+    return "http://cussya5w.carcgl.com:8080";
+  }
+  var MONITOR_API = proxyOrigin() + "/api/monitoring";
   var token = 0;
   var timer = null;
   var lastSite = null;

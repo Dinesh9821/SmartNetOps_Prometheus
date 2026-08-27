@@ -601,7 +601,16 @@
     items.forEach(it => it.style.display = it.textContent.toLowerCase().includes(filter) ? '' : 'none');
   }
 
-  const DASH_API = "http://cussya5w.carcgl.com:8080/api/dashboard";
+  function proxyOrigin() {
+    try {
+      if (location.protocol === "http:" || location.protocol === "https:") {
+        if (location.port === "8080") return "";
+        return location.protocol + "//" + location.hostname + ":8080";
+      }
+    } catch (e) {}
+    return "http://cussya5w.carcgl.com:8080";
+  }
+  const DASH_API = proxyOrigin() + "/api/dashboard";
   const C = { cyan: '#22D3EE', emerald: '#34D399', violet: '#A78BFA', amber: '#FBBF24' };
 
   function extractSiteId(raw) {

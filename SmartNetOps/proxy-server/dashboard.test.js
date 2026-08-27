@@ -104,12 +104,33 @@ async function testGetDashboardMock() {
   assert.ok(bad.error);
 }
 
+async function testPromFailover() {
+  const { PrometheusClient } = require("./prometheusClient");
+  const calls = [];
+  const client = new PrometheusClient({
+    candidates: ["http://127.0.0.1:9090", "http://cussya5x.carcgl.com:9090"],
+    fetchFn: async (url) => {
+      calls.push(url);
+      if (url.includes("127.0.0.1")) throw new TypeError("fetch failed");
+      return {
+        ok: true,
+        json: async () => ({ status: "success", data: { resultType: "vector", result: [] } })
+      };
+    }
+  });
+  const result = await client.query("up");
+  assert.ok(Array.isArray(result));
+  assert.ok(calls[0].includes("127.0.0.1"));
+  assert.ok(calls.some((u) => u.includes("cussya5x")));
+  assert.strictEqual(client.baseUrl, "http://cussya5x.carcgl.com:9090");
+}
+
 function run() {
   testSiteScopedPromql();
   testKpis();
   testTopologyAndEvents();
   testHeatmapAndScale();
-  return testGetDashboardMock();
+  return testGetDashboardMock().then(testPromFailover);
 }
 
 run().then(() => {
