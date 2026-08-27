@@ -54,6 +54,16 @@ From `Network_Telemetry/wan-dashboard.json` Peak Utilisation + “links over 80%
 
 WAN `up == 0` is CRITICAL. Meraki `0.5` (alerting) is WARNING / DEGRADED.
 
+Latency and loss/drops are filled in this order when present:
+
+1. Unified recording rules `wan_link_latency_milliseconds` / `wan_link_loss_percent`
+2. Exporter `vmanage_wan_link_latency_ms` / `vmanage_wan_link_loss_percent`
+3. BFD session averages by hostname/colour
+4. Meraki `meraki_uplink_latency_milliseconds` / `meraki_uplink_loss_percent` joined on `serial` to `meraki_device_up{site_id}`
+5. Packet **drops** from `vmanage_wan_link_rx_drops` + `vmanage_wan_link_tx_drops`
+
+Meraki uplink series do not carry `site_id`; they are attached to the same WAN row as utilization by matching `network`/`uplink` or `serial`/`uplink`.
+
 ## Grafana mapping
 
 | Monitoring section | Prometheus metric(s) | PromQL (site filtered) | Grafana reference |

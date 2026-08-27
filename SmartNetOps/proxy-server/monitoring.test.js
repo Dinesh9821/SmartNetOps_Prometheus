@@ -318,6 +318,47 @@ async function testQueryManyConcurrency() {
   assert.strictEqual(seen.length, 4);
 }
 
+function testMerakiLatencyJoinsSameWanRow() {
+  const q = {
+    wanUp: ok([vec({ device: "BranchNet", link: "wan1", source: "meraki" }, 1)]),
+    merakiLatency: ok([vec({ network: "BranchNet", uplink: "wan1", serial: "Q2XX" }, 27.4)]),
+    merakiLoss: ok([vec({ network: "BranchNet", uplink: "wan1", serial: "Q2XX" }, 0.8)]),
+    wanRxDrops: ok([]),
+    wanTxDrops: ok([])
+  };
+  const wan = buildWan(q);
+  assert.strictEqual(wan.links.length, 1);
+  assert.strictEqual(wan.links[0].latency_ms, 27.4);
+  assert.strictEqual(wan.links[0].loss_percent, 0.8);
+}
+
+function testVmanageLatencyRecordingAndDrops() {
+  const q = {
+    wanUp: ok([vec({ device: "r1", link: "ge0/0", source: "vmanage" }, 1)]),
+    wanLatencyRec: ok([vec({ device: "r1", link: "ge0/0", source: "vmanage" }, 41)]),
+    wanLossRec: ok([vec({ device: "r1", link: "ge0/0", source: "vmanage" }, 1.2)]),
+    wanRxDrops: ok([vec({ hostname: "r1", link: "ge0/0" }, 9)]),
+    wanTxDrops: ok([vec({ hostname: "r1", link: "ge0/0" }, 3)]),
+    bfdLatByColor: ok([vec({ hostname: "r1", local_color: "lte" }, 99)])
+  };
+  const wan = buildWan(q);
+  assert.strictEqual(wan.links.length, 1);
+  assert.strictEqual(wan.links[0].latency_ms, 41);
+  assert.strictEqual(wan.links[0].loss_percent, 1.2);
+  assert.strictEqual(wan.links[0].drops, 12);
+}
+
+function testBfdFallbackLatency() {
+  const q = {
+    wanUp: ok([vec({ device: "r1", link: "ge0/0", source: "vmanage" }, 1)]),
+    bfdLatByColor: ok([vec({ hostname: "r1", local_color: "biz-internet" }, 55)]),
+    bfdLossByColor: ok([vec({ hostname: "r1", local_color: "biz-internet" }, 0.4)])
+  };
+  const wan = buildWan(q);
+  assert.strictEqual(wan.links[0].latency_ms, 55);
+  assert.strictEqual(wan.links[0].loss_percent, 0.4);
+}
+
 function testSamplesHelper() {
   const r = samples([vec({ a: "1" }, "3.5"), vec({ a: "2" }, "NaN")]);
   assert.strictEqual(r.length, 1);
@@ -338,7 +379,10 @@ async function run() {
   testSamplesHelper();
   await testPrometheusTimeoutAndUnavailable();
   await testPartialSectionFailure();
-  await testQueryManyConcurrency();
+  await   testQueryManyConcurrency();
+  testMerakiLatencyJoinsSameWanRow();
+  testVmanageLatencyRecordingAndDrops();
+  testBfdFallbackLatency();
   console.log("All monitoring tests passed");
 }
 

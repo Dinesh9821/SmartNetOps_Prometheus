@@ -154,7 +154,7 @@
     <div class="charts" style="margin-top:16px">
       <div class="chart-box"><div class="eyebrow">Inbound vs outbound</div><canvas id="chartWan" width="640" height="140"></canvas></div>
       <div class="chart-box"><div class="eyebrow">Latency</div><canvas id="chartLat" width="640" height="140"></canvas></div>
-      <div class="chart-box"><div class="eyebrow">Packet loss</div><canvas id="chartLoss" width="640" height="140"></canvas></div>
+      <div class="chart-box"><div class="eyebrow">Packet loss / drops</div><canvas id="chartLoss" width="640" height="140"></canvas></div>
       <div class="chart-box"><div class="eyebrow">Device availability</div><canvas id="chartDev" width="640" height="140"></canvas></div>
     </div>
   </section>
@@ -345,13 +345,16 @@
     }).join("") : empty(availText(w) === "Available" ? "No WAN links returned." : availText(w));
 
     document.getElementById("wanTable").innerHTML = links.length ? table(
-      ["WAN Link", "Provider", "Interface", "Admin", "Oper", "Status", "RX", "TX", "Latency", "Jitter", "Packet Loss"],
+      ["WAN Link", "Provider", "Interface", "Admin", "Oper", "Status", "RX", "TX", "Latency", "Jitter", "Loss", "Drops"],
       links.map(function (l) {
+        var loss = l.loss_percent == null ? "—" : l.loss_percent + "%";
+        var lat = l.latency_ms == null ? "—" : l.latency_ms + " ms";
+        var jit = l.jitter_ms == null ? "—" : l.jitter_ms + " ms";
         return "<tr><td>" + esc(l.link) + "</td><td>" + esc(dash(l.provider)) + "</td><td>" +
           esc(dash(l.interface)) + "</td><td>" + pill(l.admin || "UNKNOWN") + "</td><td>" +
           pill(l.oper || "UNKNOWN") + "</td><td>" + pill(l.status) + "</td><td>" + esc(dash(l.rx)) +
-          "</td><td>" + esc(dash(l.tx)) + "</td><td>" + esc(dash(l.latency_ms)) +
-          "</td><td>" + esc(dash(l.jitter_ms)) + "</td><td>" + esc(dash(l.loss_percent)) + "</td></tr>";
+          "</td><td>" + esc(dash(l.tx)) + "</td><td>" + esc(lat) +
+          "</td><td>" + esc(jit) + "</td><td>" + esc(loss) + "</td><td>" + esc(dash(l.drops)) + "</td></tr>";
       }).join("")
     ) : empty(availText(w));
 
@@ -565,7 +568,9 @@
     var c = data.charts || {};
     drawChart(document.getElementById("chartWan"), sumSeries(c.wan_rx).concat(sumSeries(c.wan_tx)), ["#22D3EE", "#A78BFA"]);
     drawChart(document.getElementById("chartLat"), flattenCharts(c.latency), ["#FBBF24"]);
-    drawChart(document.getElementById("chartLoss"), flattenCharts(c.loss), ["#FB7185"]);
+    drawChart(document.getElementById("chartLoss"),
+      flattenCharts(c.loss).length ? flattenCharts(c.loss) : flattenCharts(c.drops),
+      ["#FB7185"]);
     drawChart(document.getElementById("chartDev"), flattenCharts(c.devices_up).concat(flattenCharts(c.devices_total)), ["#34D399", "#5D6B80"]);
   }
 

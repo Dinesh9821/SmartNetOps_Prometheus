@@ -40,8 +40,10 @@ function siteSel(siteId) {
 }
 
 function merakiAtSite(metric, siteId) {
-  // Meraki uplink gauges do not carry site_id; join through meraki_device_up.
-  return `${metric} and on(serial) meraki_device_up{${siteSel(siteId)}}`;
+  // Uplink gauges have no site_id. Join through serial onto devices at the site.
+  // group_left avoids many-to-many failures when a serial has several uplinks.
+  return `max by (serial, uplink, network) (${metric}) ` +
+    `and on (serial) group_left () (max by (serial) (meraki_device_up{${siteSel(siteId)}}))`;
 }
 
 function num(v, digits) {
@@ -144,6 +146,14 @@ function snapshotQueries(siteId) {
     wanLatency: `vmanage_wan_link_latency_ms{${s}}`,
     wanJitter: `vmanage_wan_link_jitter_ms{${s}}`,
     wanLoss: `vmanage_wan_link_loss_percent{${s}}`,
+    wanLatencyRec: `wan_link_latency_milliseconds{${s}}`,
+    wanJitterRec: `wan_link_jitter_milliseconds{${s}}`,
+    wanLossRec: `wan_link_loss_percent{${s}}`,
+    wanRxDrops: `vmanage_wan_link_rx_drops{${s}}`,
+    wanTxDrops: `vmanage_wan_link_tx_drops{${s}}`,
+    bfdLatByColor: `avg by (hostname, local_color) (vmanage_bfd_session_latency_ms{${s}})`,
+    bfdLossByColor: `avg by (hostname, local_color) (vmanage_bfd_session_loss_percent{${s}})`,
+    bfdJitByColor: `avg by (hostname, local_color) (vmanage_bfd_session_jitter_ms{${s}})`,
     defaultRoute: `vmanage_default_route_present{${s}}`,
     merakiLatency: merakiAtSite("meraki_uplink_latency_milliseconds", siteId),
     merakiLoss: merakiAtSite("meraki_uplink_loss_percent", siteId),
@@ -227,25 +237,34 @@ function buildWan(q) {
   const availability = sectionFrom(q, ["wanUp", "wanRx", "wanTx", "wanUtil", "merakiUplinkStatus"]);
   const links = new Map();
 
+  function rowKeysFrom(metric) {
+    metric = metric || {};
+    const device = metric.device || metric.hostname || metric.network || metric.device_name || "";
+    const link = metric.link || metric.uplink || metric.ifname || "";
+    const serial = metric.serial || "";
+    const keys = [];
+    if (serial && (metric.uplink || link)) keys.push("s:" + serial + "|" + (metric.uplink || link));
+    if (device && link) keys.push("d:" + device + "|" + link);
+    return { device, link, serial, keys };
+  }
+
   function ensure(metric, extra) {
     extra = extra || {};
-    metric = metric || {};
-    const device = metric.device || metric.hostname || metric.network || "";
-    const link = metric.link || metric.uplink || metric.ifname || "";
-    const source = metric.source || extra.source || "";
-    const serial = metric.serial || "";
-    const k = serial && (metric.uplink || link)
-      ? "s:" + serial + "|" + (metric.uplink || link)
-      : device + "|" + link;
-    if (!links.has(k)) {
-      links.set(k, {
-        device,
-        link,
-        source,
+    metric = Object.assign({}, extra, metric || {});
+    const info = rowKeysFrom(metric);
+    let row = null;
+    info.keys.forEach((k) => {
+      if (!row && links.has(k)) row = links.get(k);
+    });
+    if (!row) {
+      row = {
+        device: info.device,
+        link: info.link,
+        source: metric.source || extra.source || "",
         provider: metric.provider || null,
         circuit: metric.circuit_id || metric.circuit || null,
         interface: metric.ifname || metric.link || metric.uplink || null,
-        transport: metric.transport || metric.color || null,
+        transport: metric.transport || metric.color || metric.local_color || null,
         status: "UNKNOWN",
         up: null,
         admin_up: null,
@@ -256,16 +275,22 @@ function buildWan(q) {
         latency_ms: null,
         jitter_ms: null,
         loss_percent: null,
+        rx_drops: null,
+        tx_drops: null,
         role: metric.role || null,
-        ip: metric.ip || null
-      });
-    } else {
-      const row = links.get(k);
-      if (!row.source && source) row.source = source;
-      if (!row.device && device) row.device = device;
-      if (!row.link && link) row.link = link;
+        ip: metric.ip || null,
+        serial: info.serial || null
+      };
     }
-    return links.get(k);
+    info.keys.forEach((k) => { links.set(k, row); });
+    if (!row.source && (metric.source || extra.source)) row.source = metric.source || extra.source;
+    if (!row.device && info.device) row.device = info.device;
+    if (!row.link && info.link) row.link = info.link;
+    if (!row.serial && info.serial) row.serial = info.serial;
+    if (!row.transport && (metric.transport || metric.color || metric.local_color)) {
+      row.transport = metric.transport || metric.color || metric.local_color;
+    }
+    return row;
   }
 
   samples(q.wanUp && q.wanUp.result).forEach((s) => {
@@ -296,6 +321,20 @@ function buildWan(q) {
   samples(q.wanLatency && q.wanLatency.result).forEach((s) => { ensure(s.metric).latency_ms = s.value; });
   samples(q.wanJitter && q.wanJitter.result).forEach((s) => { ensure(s.metric).jitter_ms = s.value; });
   samples(q.wanLoss && q.wanLoss.result).forEach((s) => { ensure(s.metric).loss_percent = s.value; });
+  samples(q.wanLatencyRec && q.wanLatencyRec.result).forEach((s) => {
+    const row = ensure(s.metric);
+    if (row.latency_ms == null) row.latency_ms = s.value;
+  });
+  samples(q.wanJitterRec && q.wanJitterRec.result).forEach((s) => {
+    const row = ensure(s.metric);
+    if (row.jitter_ms == null) row.jitter_ms = s.value;
+  });
+  samples(q.wanLossRec && q.wanLossRec.result).forEach((s) => {
+    const row = ensure(s.metric);
+    if (row.loss_percent == null) row.loss_percent = s.value;
+  });
+  samples(q.wanRxDrops && q.wanRxDrops.result).forEach((s) => { ensure(s.metric).rx_drops = s.value; });
+  samples(q.wanTxDrops && q.wanTxDrops.result).forEach((s) => { ensure(s.metric).tx_drops = s.value; });
 
   samples(q.merakiUplinkStatus && q.merakiUplinkStatus.result).forEach((s) => {
     const m = Object.assign({}, s.metric, {
@@ -347,7 +386,23 @@ function buildWan(q) {
     row.circuit = row.circuit || s.metric.circuit_id;
   });
 
-  const rows = Array.from(links.values()).map((r) => {
+  function applyBfdQuality(result, field) {
+    samples(result).forEach((s) => {
+      const host = s.metric.hostname;
+      const color = s.metric.local_color;
+      Array.from(new Set(links.values())).forEach((row) => {
+        if (row[field] != null) return;
+        if (row.device !== host && row.serial !== host) return;
+        if (color && row.transport && row.transport !== color && row.link !== color) return;
+        row[field] = s.value;
+      });
+    });
+  }
+  applyBfdQuality(q.bfdLatByColor && q.bfdLatByColor.result, "latency_ms");
+  applyBfdQuality(q.bfdJitByColor && q.bfdJitByColor.result, "jitter_ms");
+  applyBfdQuality(q.bfdLossByColor && q.bfdLossByColor.result, "loss_percent");
+
+  const rows = Array.from(new Set(links.values())).map((r) => {
     r.status = wanStatusFrom(r.up, r.utilization, r.admin_up);
     r.admin = r.admin_up == null ? null : (r.admin_up === 1 ? "UP" : "DOWN");
     r.oper = r.up == null ? null : (r.up >= 1 ? "UP" : (r.up === 0.5 ? "DEGRADED" : "DOWN"));
@@ -358,6 +413,11 @@ function buildWan(q) {
     r.latency_ms = num(r.latency_ms, 1);
     r.jitter_ms = num(r.jitter_ms, 1);
     r.loss_percent = num(r.loss_percent, 2);
+    r.rx_drops = r.rx_drops == null ? null : r.rx_drops;
+    r.tx_drops = r.tx_drops == null ? null : r.tx_drops;
+    r.drops = (r.rx_drops == null && r.tx_drops == null)
+      ? null
+      : (r.rx_drops || 0) + (r.tx_drops || 0);
     return r;
   });
 
@@ -1001,8 +1061,15 @@ async function getSiteSeries(siteId, rangeKey, client) {
   const charts = {
     wan_rx: `wan_link_rx_bits_per_second{${s}}`,
     wan_tx: `wan_link_tx_bits_per_second{${s}}`,
-    latency: `(avg(vmanage_wan_link_latency_ms{${s}}) or avg(${merakiAtSite("meraki_uplink_latency_milliseconds", siteId)}))`,
-    loss: `(avg(vmanage_wan_link_loss_percent{${s}}) or avg(${merakiAtSite("meraki_uplink_loss_percent", siteId)}))`,
+    latency_rec: `avg(wan_link_latency_milliseconds{${s}})`,
+    latency_vmanage: `avg(vmanage_wan_link_latency_ms{${s}})`,
+    latency_bfd: `avg(vmanage_bfd_session_latency_ms{${s}})`,
+    latency_meraki: `avg(${merakiAtSite("meraki_uplink_latency_milliseconds", siteId)})`,
+    loss_rec: `avg(wan_link_loss_percent{${s}})`,
+    loss_vmanage: `avg(vmanage_wan_link_loss_percent{${s}})`,
+    loss_bfd: `avg(vmanage_bfd_session_loss_percent{${s}})`,
+    loss_meraki: `avg(${merakiAtSite("meraki_uplink_loss_percent", siteId)})`,
+    drops: `sum(vmanage_wan_link_rx_drops{${s}}) + sum(vmanage_wan_link_tx_drops{${s}})`,
     devices_up: `site_devices_up:all{${s}}`,
     devices_total: `site_devices_total:all{${s}}`,
     if_rx: `sum(vmanage_interface_rx_bits_per_second{${s}})`,
@@ -1024,6 +1091,16 @@ async function getSiteSeries(siteId, rangeKey, client) {
       out[name] = { available: false, error: err.message, series: [] };
     }
   }));
+
+  function firstChart(names) {
+    for (let i = 0; i < names.length; i++) {
+      const n = names[i];
+      if (out[n] && out[n].available && out[n].series && out[n].series.length) return out[n];
+    }
+    return { available: false, series: [] };
+  }
+  out.latency = firstChart(["latency_rec", "latency_vmanage", "latency_bfd", "latency_meraki"]);
+  out.loss = firstChart(["loss_rec", "loss_vmanage", "loss_bfd", "loss_meraki"]);
 
   return {
     site_id: siteId,
