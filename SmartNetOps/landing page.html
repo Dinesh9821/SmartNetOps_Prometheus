@@ -198,6 +198,13 @@
         <button class="primary" onclick="openCard('dashboard')">Open Dashboard</button>
       </div>
 
+      <div class="card locked reveal" data-mod="monitoring">
+        <div class="card-top"><div class="icon-box sky">📡</div><span class="req">Needs site</span></div>
+        <div class="title">Monitoring</div>
+        <div class="desc">Site-level WAN, routing, device, Meraki and SD-WAN health from Prometheus for the selected Site ID.</div>
+        <button onclick="openCard('monitoring')">Open Monitoring</button>
+      </div>
+
       <div class="card locked reveal" data-mod="Network Diagram">
         <div class="card-top"><div class="icon-box sky">🕸️</div><span class="req">Needs site</span></div>
         <div class="title">Network Diagram</div>
@@ -625,6 +632,7 @@ const mapping = {
   cloudautomationflow: "cloud-automation-flow.html",
   pathanalysisflow: "path-analysis-flow.html",
   dashboard: "dashboard.html",
+  monitoring: "monitoring.html",
   logicmonitor: "logicmonitor.html",
   network_diagram: "Network Diagram.html",
   "circuit-diversity": "circuit-diversity.html"
@@ -635,6 +643,7 @@ const moduleNames = {
   netchatops: "Network's Vedas",
   netautomationflow: "NetAutomation Flow",
   dashboard: "Dashboard",
+  monitoring: "Monitoring",
   logicmonitor: "Logic Monitor Operations",
   network_diagram: "Network Diagram",
   serverautomationflow: "Server Automation Flow",

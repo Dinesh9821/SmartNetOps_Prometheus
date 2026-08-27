@@ -149,3 +149,64 @@ app.options("/proxy4", (req, res) => {
   res.status(200).end();
 });
 
+// ---------------------------------------------------------------------------
+// Site monitoring — Prometheus queries stay on the backend.
+// Frontend sends site_id only (never PromQL).
+// ---------------------------------------------------------------------------
+const {
+  validateSiteId,
+  getSiteSnapshot,
+  getSiteSeries,
+  RANGE_WINDOWS
+} = require("./monitoringService");
+
+function sendMonitoringError(res, status, message, extra) {
+  res.status(status).json(Object.assign({
+    error: message,
+    overall_status: "UNKNOWN"
+  }, extra || {}));
+}
+
+async function handleMonitoringSnapshot(req, res) {
+  const raw = req.params.siteId || req.query.site_id || req.body && req.body.site_id;
+  const check = validateSiteId(raw);
+  if (!check.ok) return sendMonitoringError(res, 400, check.error, { site_id: raw || null });
+  try {
+    const data = await getSiteSnapshot(check.siteId);
+    if (data.prometheus_unavailable) {
+      return res.status(503).json(data);
+    }
+    return res.json(data);
+  } catch (err) {
+    return sendMonitoringError(res, 503, "Monitoring data temporarily unavailable", {
+      site_id: check.siteId,
+      detail: String(err.message || err)
+    });
+  }
+}
+
+async function handleMonitoringSeries(req, res) {
+  const raw = req.params.siteId || req.query.site_id;
+  const check = validateSiteId(raw);
+  if (!check.ok) return sendMonitoringError(res, 400, check.error, { site_id: raw || null });
+  const range = req.query.range || "1h";
+  if (!RANGE_WINDOWS[range]) {
+    return sendMonitoringError(res, 400, "Invalid range", {
+      allowed: Object.keys(RANGE_WINDOWS)
+    });
+  }
+  try {
+    const data = await getSiteSeries(check.siteId, range);
+    return res.json(data);
+  } catch (err) {
+    return sendMonitoringError(res, 503, "Monitoring data temporarily unavailable", {
+      site_id: check.siteId,
+      detail: String(err.message || err)
+    });
+  }
+}
+
+app.get("/api/monitoring/:siteId/series", handleMonitoringSeries);
+app.get("/api/monitoring/:siteId", handleMonitoringSnapshot);
+app.get("/api/monitoring", handleMonitoringSnapshot);
+

@@ -13,6 +13,7 @@
   var ROUTES = [
     { id: 'landing page.html',       icon: '◈', name: 'Operations Home',    hint: 'Home',     crumb: 'Home' },
     { id: 'dashboard.html',          icon: '▦', name: 'Dashboard',          hint: 'Telemetry',crumb: 'Dashboard' },
+    { id: 'monitoring.html',         icon: '◎', name: 'Monitoring',         hint: 'Telemetry',crumb: 'Monitoring' },
     { id: 'chatops.html',            icon: '◍', name: 'ChatOps',            hint: 'Assistant',crumb: 'ChatOps' },
     { id: 'netchatops.html',         icon: '◉', name: 'Network with Us',    hint: 'Assistant',crumb: 'Network with Us' },
     { id: 'Netautomation Flow.html', icon: '⟐', name: 'NetAutomation Flow', hint: 'Workflows',crumb: 'NetAutomation Flow' },
