@@ -210,3 +210,37 @@ app.get("/api/monitoring/:siteId/series", handleMonitoringSeries);
 app.get("/api/monitoring/:siteId", handleMonitoringSnapshot);
 app.get("/api/monitoring", handleMonitoringSnapshot);
 
+const { getDashboard } = require("./dashboardService");
+
+async function handleDashboard(req, res) {
+  const raw = req.params.siteId || req.query.site_id || "";
+  let siteId = "";
+  if (raw) {
+    const check = validateSiteId(raw);
+    if (!check.ok) {
+      return res.status(400).json({ error: check.error, site_id: raw, scope: "invalid" });
+    }
+    siteId = check.siteId;
+  }
+  try {
+    const data = await getDashboard(siteId);
+    if (data.error && data.scope === "invalid") {
+      return res.status(400).json(data);
+    }
+    if (data.prometheus_unavailable) {
+      return res.status(503).json(data);
+    }
+    return res.json(data);
+  } catch (err) {
+    return res.status(503).json({
+      error: "Monitoring data temporarily unavailable",
+      scope: siteId ? "site" : "global",
+      site_id: siteId || null,
+      detail: String(err.message || err)
+    });
+  }
+}
+
+app.get("/api/dashboard/:siteId", handleDashboard);
+app.get("/api/dashboard", handleDashboard);
+

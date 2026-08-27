@@ -20,6 +20,24 @@ All PromQL is constructed in `proxy-server/monitoringService.js`.
 | GET | `/api/monitoring/:siteId` | Consolidated snapshot for one site |
 | GET | `/api/monitoring?site_id=` | Same, query-string form |
 | GET | `/api/monitoring/:siteId/series?range=15m\|1h\|6h\|24h` | Time-series for charts |
+| GET | `/api/dashboard` | Global fleet snapshot for the Dashboard page |
+| GET | `/api/dashboard/:siteId` | Same snapshot filtered to one `site_id` |
+
+Dashboard PromQL lives in `proxy-server/dashboardService.js`. **Global** is unscoped; **Site specific** uses the selected Site ID (first `|` token), same as Monitoring. The browser never talks to Prometheus.
+
+KPI mapping (existing metrics only; Prometheus config is unchanged):
+
+| Card | Metric |
+| ---- | ------ |
+| Total devices | `site_devices_total:all` / `count(device_info)` |
+| Uptime | `site_health_percent`, else devices up / total |
+| Active clients | `sum(meraki_switch_client_count)` (not a user-login series) |
+| p95 latency | `quantile(0.95, wan_link_latency_milliseconds)` with vManage / BFD / Meraki fallbacks |
+| Throughput | WAN rx/tx bps scaled to % of max in the window, or util % |
+| Topology | Global: `count by (region\|source) (device_info)`; site: devices + WAN |
+| Events | `ALERTS{alertstate="firing"}` plus down WAN / devices |
+| Load pattern | 7-day hourly `wan_link_bits_per_second` |
+| Disk | no Prometheus metric — shown as n/a |
 
 `site_id` is validated (`^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$`). Invalid values return **400** with `Invalid or unknown Site ID`. Prometheus down/timeout returns **503** with `Monitoring data temporarily unavailable`. A live Prometheus with no series for that site returns **200** and `overall_status: UNKNOWN` so the UI can show **No telemetry data available for this site**.
 

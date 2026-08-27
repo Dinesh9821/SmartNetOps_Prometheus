@@ -57,7 +57,8 @@
   }
 
   /* ── streaming area chart ─────────────────────────────────── */
-  function Stream(el, series) {
+  function Stream(el, series, opts) {
+    opts = opts || {};
     var W = 760, H = 210, PAD = 26;
     var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
@@ -113,7 +114,7 @@
     }
 
     draw();
-    if (!REDUCED) {
+    if (!REDUCED && !opts.static) {
       setInterval(function () {
         series.forEach(function (s) {
           var last = s.data[s.data.length - 1];
@@ -157,16 +158,20 @@
   }
 
   /* ── 7×24 heatmap ─────────────────────────────────────────── */
-  function heatmap(el) {
+  function heatmap(el, matrix) {
     var days = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
     var html = '<div class="hm">';
     for (var d = 0; d < 7; d++) {
       html += '<span class="hm-day">' + days[d] + '</span>';
       for (var h = 0; h < 24; h++) {
-        // load peaks in business hours, dips overnight — a plausible shape
-        var biz = Math.exp(-Math.pow(h - 14, 2) / 42);
-        var wk = (d === 0 || d === 6) ? 0.35 : 1;
-        var v = Math.min(1, biz * wk * (0.65 + Feed.rand() * 0.6));
+        var v;
+        if (matrix && matrix[d] && matrix[d][h] != null) {
+          v = matrix[d][h];
+        } else {
+          var biz = Math.exp(-Math.pow(h - 14, 2) / 42);
+          var wk = (d === 0 || d === 6) ? 0.35 : 1;
+          v = Math.min(1, biz * wk * (0.65 + Feed.rand() * 0.6));
+        }
         var col = v > 0.78 ? C.rose : v > 0.55 ? C.amber : v > 0.3 ? C.cyan : C.blue;
         html += '<i style="background:' + col + ';opacity:' + (0.1 + v * 0.85).toFixed(2) + '" ' +
                 'title="' + days[d] + ' ' + String(h).padStart(2, '0') + ':00 · ' +
@@ -184,8 +189,8 @@
   }
 
   /* ── topology map ─────────────────────────────────────────── */
-  function topology(el) {
-    var nodes = [
+  function topology(el, model) {
+    var nodes = (model && model.nodes && model.nodes.length) ? model.nodes : [
       { id: 'core',  x: 260, y: 105, r: 22, label: 'Core',    st: 'ok' },
       { id: 'edge1', x: 110, y: 48,  r: 15, label: 'EDGE-01', st: 'ok' },
       { id: 'edge2', x: 110, y: 165, r: 15, label: 'EDGE-02', st: 'ok' },
@@ -193,7 +198,7 @@
       { id: 'dc',    x: 405, y: 165, r: 15, label: 'DC-SW',   st: 'ok' },
       { id: 'wan',   x: 520, y: 105, r: 13, label: 'WAN',     st: 'crit' }
     ];
-    var links = [['edge1','core'],['edge2','core'],['core','fw'],['core','dc'],['fw','wan'],['dc','wan']];
+    var links = (model && model.links && model.links.length) ? model.links : [['edge1','core'],['edge2','core'],['core','fw'],['core','dc'],['fw','wan'],['dc','wan']];
     var at = {};
     nodes.forEach(function (n) { at[n.id] = n; });
     var tint = { ok: C.emerald, warn: C.amber, crit: C.rose };
@@ -241,21 +246,22 @@
     { s: 'ok',   t: 'Security scan passed', m: '0 critical findings' }
   ];
 
-  function stream(el) {
-    var t = Date.now();
-    el.innerHTML = EVENTS.map(function (e, i) {
-      var ago = Math.round((i + 1) * 7 + Feed.rand() * 5);
+  function stream(el, events) {
+    var list = (events && events.length) ? events : EVENTS;
+    el.innerHTML = list.map(function (e, i) {
+      var ago = e.ago || Math.round((i + 1) * 7 + Feed.rand() * 5) + 'm';
       return '<div class="ev">' +
                '<span class="led ' + (e.s === 'ok' ? '' : e.s) + '"></span>' +
-               '<div class="ev-body"><div class="ev-t">' + e.t + '</div>' +
-               '<div class="ev-m">' + e.m + '</div></div>' +
-               '<span class="ev-time mono">' + ago + 'm</span>' +
+               '<div class="ev-body"><div class="ev-t">' + String(e.t || '') + '</div>' +
+               '<div class="ev-m">' + String(e.m || '') + '</div></div>' +
+               '<span class="ev-time mono">' + ago + '</span>' +
              '</div>';
     }).join('');
   }
 
   /* ── boot ─────────────────────────────────────────────────── */
   function init() {
+    if (document.body && document.body.hasAttribute('data-dash-live')) return;
     var $ = function (id) { return document.getElementById(id); };
 
     // KPI sparklines
@@ -288,6 +294,8 @@
       });
     }, 120);
   }
+
+  window.NetOpsViz = { sparkline: sparkline, Stream: Stream, gauge: gauge, heatmap: heatmap, topology: topology, stream: stream, colors: C };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);

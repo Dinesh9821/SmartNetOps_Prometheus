@@ -126,7 +126,7 @@
   }
 </style>
 </head>
-<body>
+<body data-dash-live>
 
 <div class="page">
 
@@ -165,7 +165,7 @@
       <div>
         <span class="eyebrow">Live telemetry</span>
         <h1 class="title gradient-text">Dashboard</h1>
-        <div class="subtitle">Fleet health, throughput, and events — refreshing every 2 seconds.</div>
+        <div class="subtitle" id="dash-subtitle">Fleet health, throughput, and events from Prometheus — global or site scoped.</div>
       </div>
       <div class="toolbar">
         <button onclick="NetOps.palette()">⌘K Search</button>
@@ -177,27 +177,27 @@
     <!-- KPI STRIP -->
     <section class="grid">
       <div class="card kpi stat-card reveal">
-        <h3>Total servers</h3>
-        <div class="big" data-count="45">0</div>
-        <div class="foot"><span class="delta up">+3</span> vs last month</div>
+        <h3>Total devices</h3>
+        <div class="big" id="kpi-devices">—</div>
+        <div class="foot" id="kpi-devices-foot"><span class="delta flat">Prometheus</span> device_info</div>
         <div class="spark" id="sp-servers"></div>
       </div>
       <div class="card kpi stat-card reveal">
         <h3>Uptime</h3>
-        <div class="big" data-count="99.9" data-suffix="%">0</div>
-        <div class="foot"><span class="delta flat">±0.0</span> last 30 days</div>
+        <div class="big" id="kpi-uptime">—</div>
+        <div class="foot" id="kpi-uptime-foot"><span class="delta flat">site health</span> devices up / total</div>
         <div class="spark" id="sp-uptime"></div>
       </div>
       <div class="card kpi stat-card reveal">
-        <h3>Active users</h3>
-        <div class="big" data-count="127">0</div>
-        <div class="foot"><span class="delta up">+12%</span> vs last week</div>
+        <h3>Active clients</h3>
+        <div class="big" id="kpi-clients">—</div>
+        <div class="foot" id="kpi-clients-foot"><span class="delta flat">Meraki</span> switch client count</div>
         <div class="spark" id="sp-users"></div>
       </div>
       <div class="card kpi stat-card reveal">
         <h3>p95 latency</h3>
-        <div class="big" data-count="62" data-suffix="ms">0</div>
-        <div class="foot"><span class="delta down">+8ms</span> above target</div>
+        <div class="big" id="kpi-latency">—</div>
+        <div class="foot" id="kpi-latency-foot"><span class="delta flat">WAN</span> quantile across links</div>
         <div class="spark" id="sp-latency"></div>
       </div>
     </section>
@@ -233,31 +233,31 @@
     <section class="row-3">
       <div class="card reveal">
         <header><div class="hd"><h3>Topology</h3>
-          <span class="muted">Live path health</span></div>
-          <span class="chip crit">1 critical</span>
+          <span class="muted" id="topo-muted">Live path health</span></div>
+          <span class="chip" id="topo-chip">—</span>
         </header>
         <div id="topology"></div>
       </div>
 
       <div class="card reveal">
         <header><div class="hd"><h3>Resources</h3>
-          <span class="muted">Cluster average</span></div></header>
+          <span class="muted">Device average from Prometheus</span></div></header>
         <div class="res">
           <div class="res-row">
-            <div class="lab"><span>CPU</span><b>45%</b></div>
-            <div class="meter"><i data-w="45"></i></div>
+            <div class="lab"><span>CPU</span><b id="res-cpu-val">—</b></div>
+            <div class="meter"><i id="res-cpu-bar" data-w="0"></i></div>
           </div>
           <div class="res-row">
-            <div class="lab"><span>Memory</span><b>62%</b></div>
-            <div class="meter violet"><i data-w="62"></i></div>
+            <div class="lab"><span>Memory</span><b id="res-memory-val">—</b></div>
+            <div class="meter violet"><i id="res-memory-bar" data-w="0"></i></div>
           </div>
           <div class="res-row">
-            <div class="lab"><span>Disk</span><b>38%</b></div>
-            <div class="meter emerald"><i data-w="38"></i></div>
+            <div class="lab"><span>Disk</span><b id="res-disk-val">—</b></div>
+            <div class="meter emerald"><i id="res-disk-bar" data-w="0"></i></div>
           </div>
           <div class="res-row">
-            <div class="lab"><span>Network</span><b>71%</b></div>
-            <div class="meter amber"><i data-w="71"></i></div>
+            <div class="lab"><span>Network</span><b id="res-network-val">—</b></div>
+            <div class="meter amber"><i id="res-network-bar" data-w="0"></i></div>
           </div>
         </div>
       </div>
@@ -279,24 +279,10 @@
 
       <div class="card ai reveal">
         <header><div class="hd"><h3>AI insights</h3>
-          <span class="muted">Generated from the last hour</span></div>
-          <span class="chip info">3 new</span>
+          <span class="muted">Derived from Prometheus events and KPIs</span></div>
+          <span class="chip info" id="insights-chip">—</span>
         </header>
-        <div class="ins">
-          <div class="ins-i">◈</div>
-          <div><div class="ins-t">WAN uplink has flapped 3 times in 5 minutes. The pattern matches the optics failure on this link in March.</div>
-            <span class="ins-a" onclick="NetOps.toast('Opening WAN diagnostics…')">Run diagnostics →</span></div>
-        </div>
-        <div class="ins">
-          <div class="ins-i">◈</div>
-          <div><div class="ins-t">FW-A has held above 80% CPU for 12 minutes. Rule set grew 22% this week.</div>
-            <span class="ins-a" onclick="NetOps.toast('Opening rule analysis…')">Review rules →</span></div>
-        </div>
-        <div class="ins">
-          <div class="ins-i">◈</div>
-          <div><div class="ins-t">Egress will reach provisioned capacity in about 6 weeks at the current trend.</div>
-            <span class="ins-a" onclick="NetOps.toast('Opening capacity plan…')">See forecast →</span></div>
-        </div>
+        <div id="insights"></div>
       </div>
 
       <div class="card reveal">
@@ -306,9 +292,9 @@
       </div>
     </section>
 
-    <div class="note">
-      Charts, gauges, topology, heatmap, and events render from <code>viz.js</code> demo data.
-      Region, country, and site selection run against your live APIs.
+    <div class="note" id="dash-note">
+      Charts, gauges, topology, heatmap, and events are queried from Prometheus through the proxy.
+      Region, country, and site selection still run against your live site-list APIs.
     </div>
 
   </main>
@@ -319,6 +305,7 @@
 <script>
 // Global / Site Specific toggle
   function selectMode(mode){
+    localStorage.setItem("dashMode", mode);
     if(mode==='global'){
       document.getElementById('siteSpecificPanel').style.display='none';
       document.getElementById('globalBtn').style.background='rgba(255,255,255,0.26)';
@@ -328,6 +315,7 @@
       document.getElementById('siteBtn').style.background='rgba(255,255,255,0.26)';
       document.getElementById('globalBtn').style.background='rgba(255,255,255,0.18)';
     }
+    loadDashboard();
   }
 
   // API endpoints
@@ -596,6 +584,7 @@
     if (region && country && site) {
       fetchSiteInfo(region, country, site);
     }
+    loadDashboard();
   }
 
   function filterDropdown(kind){
@@ -612,21 +601,186 @@
     items.forEach(it => it.style.display = it.textContent.toLowerCase().includes(filter) ? '' : 'none');
   }
 
-  const activityEvents = [
-    {time:'2 min ago', text:'Server backup completed successfully'},
-    {time:'15 min ago', text:'New user registered: john.doe@example.com'},
-    {time:'1 hour ago', text:'System update deployed to production'},
-    {time:'2 hours ago', text:'Database optimization completed'},
-    {time:'3 hours ago', text:'Security scan passed all checks'}
-  ];
+  const DASH_API = "http://cussya5w.carcgl.com:8080/api/dashboard";
+  const C = { cyan: '#22D3EE', emerald: '#34D399', violet: '#A78BFA', amber: '#FBBF24' };
+
+  function extractSiteId(raw) {
+    if (!raw) return "";
+    return String(raw).split("|")[0].trim();
+  }
+
+  function esc(s) {
+    return String(s == null ? "" : s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+
+  function padSeries(arr) {
+    if (!arr || !arr.length) return [0, 0];
+    if (arr.length === 1) return [arr[0], arr[0]];
+    return arr;
+  }
+
+  function sparkOrEmpty(id, data, color) {
+    var el = document.getElementById(id);
+    if (!el || !window.NetOpsViz) return;
+    var series = (data && data.length) ? data : [0, 0];
+    NetOpsViz.sparkline(el, series, color);
+  }
+
+  function setRes(key, rec) {
+    var valEl = document.getElementById("res-" + key + "-val");
+    var bar = document.getElementById("res-" + key + "-bar");
+    if (!valEl || !bar) return;
+    if (!rec || !rec.available) {
+      valEl.textContent = rec && rec.reason ? "n/a" : "—";
+      bar.style.width = "0%";
+      bar.dataset.w = "0";
+      return;
+    }
+    valEl.textContent = rec.value + "%";
+    bar.dataset.w = String(rec.value);
+    bar.style.width = Math.max(0, Math.min(100, rec.value)) + "%";
+  }
+
+  function currentDashMode() {
+    return localStorage.getItem("dashMode") === "site" ? "site" : "global";
+  }
+
+  function applyDashboard(data) {
+    var V = window.NetOpsViz;
+    if (!data) return;
+    var k = data.kpis || {};
+    var sub = document.getElementById("dash-subtitle");
+    var note = document.getElementById("dash-note");
+    var scopeLabel = data.scope === "site" ? ("Site " + (data.site_id || "")) : "Global fleet";
+    if (sub) {
+      sub.textContent = scopeLabel + " · Prometheus snapshot " + (data.last_updated || "").replace("T", " ").replace("Z", " UTC");
+    }
+    if (note) {
+      note.textContent = data.prometheus_unavailable
+        ? "Prometheus is unavailable. Site pickers still use your live APIs."
+        : "Charts, gauges, topology, heatmap, and events are queried from Prometheus through the proxy. Disk has no Prometheus metric.";
+    }
+
+    var dEl = document.getElementById("kpi-devices");
+    var uEl = document.getElementById("kpi-uptime");
+    var cEl = document.getElementById("kpi-clients");
+    var lEl = document.getElementById("kpi-latency");
+    if (dEl) dEl.textContent = k.devices && k.devices.available ? String(Math.round(k.devices.value)) : "—";
+    if (uEl) uEl.textContent = k.uptime && k.uptime.available ? k.uptime.value + "%" : "—";
+    if (cEl) cEl.textContent = k.clients && k.clients.available ? String(Math.round(k.clients.value)) : "—";
+    if (lEl) lEl.textContent = k.latency && k.latency.available ? k.latency.value + " ms" : "—";
+
+    sparkOrEmpty("sp-servers", (data.sparks || {}).devices, C.cyan);
+    sparkOrEmpty("sp-uptime", (data.sparks || {}).uptime, C.emerald);
+    sparkOrEmpty("sp-users", (data.sparks || {}).clients, C.violet);
+    sparkOrEmpty("sp-latency", (data.sparks || {}).latency, C.amber);
+
+    var g = data.gauges || {};
+    if (V) {
+      if (document.getElementById("g-health")) {
+        V.gauge(document.getElementById("g-health"), g.health != null ? Math.round(g.health) : 0, "Fleet health", "SCORE", C.emerald);
+      }
+      if (document.getElementById("g-latency")) {
+        var lat = g.latency != null ? Math.round(g.latency) : 0;
+        V.gauge(document.getElementById("g-latency"), lat, "p95 latency", "MS", C.cyan);
+      }
+      if (document.getElementById("g-error")) {
+        var err = g.error != null ? Math.round(g.error) : 0;
+        V.gauge(document.getElementById("g-error"), err, "WAN down", "%", "#FB7185");
+      }
+      var tp = data.throughput || {};
+      if (document.getElementById("stream")) {
+        new V.Stream(document.getElementById("stream"), [
+          { name: "Ingress", color: C.cyan, data: padSeries(tp.ingress), min: 0, max: 100, vol: 0 },
+          { name: "Egress", color: C.violet, data: padSeries(tp.egress), min: 0, max: 100, vol: 0 }
+        ], { static: true });
+      }
+      if (document.getElementById("heatmap")) V.heatmap(document.getElementById("heatmap"), data.heatmap);
+      if (document.getElementById("topology")) V.topology(document.getElementById("topology"), data.topology);
+      var liveEvents = (data.events || []).map(function (e) {
+        return { s: e.s, t: esc(e.t), m: esc(e.m), ago: "now" };
+      });
+      if (document.getElementById("events")) V.stream(document.getElementById("events"), liveEvents);
+    }
+
+    var chip = document.getElementById("topo-chip");
+    var crit = data.topology && data.topology.critical || 0;
+    if (chip) {
+      chip.textContent = crit ? (crit + " critical") : "healthy";
+      chip.className = crit ? "chip crit" : "chip";
+    }
+    var tm = document.getElementById("topo-muted");
+    if (tm) tm.textContent = data.scope === "site" ? "Devices and WAN at this site" : "Regions and telemetry sources";
+
+    var res = data.resources || {};
+    setRes("cpu", res.cpu);
+    setRes("memory", res.memory);
+    setRes("disk", res.disk);
+    setRes("network", res.network);
+
+    var box = document.getElementById("insights");
+    var ichip = document.getElementById("insights-chip");
+    var insights = data.insights || [];
+    if (ichip) ichip.textContent = insights.length ? (insights.length + " item" + (insights.length === 1 ? "" : "s")) : "none";
+    if (box) {
+      box.innerHTML = insights.length ? insights.map(function (ins) {
+        return '<div class="ins"><div class="ins-i">◈</div><div><div class="ins-t">' + esc(ins.t) + '</div>' +
+               '<span class="ins-a" onclick="location.href=\'monitoring.html\'">' + esc(ins.a || "Open Monitoring") + " →</span></div></div>";
+      }).join("") : '<div class="ins"><div class="ins-i">◈</div><div><div class="ins-t">No derived insights for this Prometheus snapshot.</div></div></div>';
+    }
+
+    var actBox = document.getElementById("activityList");
+    if (actBox) {
+      var evs = data.events || [];
+      actBox.innerHTML = evs.length ? evs.map(function (e) {
+        return "<p>• " + esc(e.t) + " <span style=\"display:block;color:rgba(255,255,255,0.6);font-size:12px;margin-top:4px;\">" + esc(e.m) + "</span></p>";
+      }).join("") : "<p>• No Prometheus events in this scope</p>";
+    }
+  }
+
+  async function loadDashboard() {
+    var mode = currentDashMode();
+    var sid = extractSiteId(localStorage.getItem("selectedSite"));
+    var url = DASH_API;
+    if (mode === "site") {
+      if (!sid) {
+        document.getElementById("dash-subtitle").textContent = "Site specific — select a Site ID to load Prometheus telemetry.";
+        return;
+      }
+      url = DASH_API + "/" + encodeURIComponent(sid);
+    }
+    try {
+      var res = await fetch(url, { headers: { Accept: "application/json" } });
+      var data = await res.json().catch(function () { return null; });
+      if (!data) throw new Error("empty");
+      applyDashboard(data);
+    } catch (err) {
+      document.getElementById("dash-subtitle").textContent = "Could not reach the Prometheus dashboard API.";
+      document.getElementById("dash-note").textContent = "Start the proxy so /api/dashboard can query Prometheus.";
+    }
+  }
+
+  function bootDash() {
+    if (!window.NetOpsViz) {
+      document.addEventListener("DOMContentLoaded", bootDash);
+      return;
+    }
+    var mode = currentDashMode();
+    if (mode === "site" || localStorage.getItem("selectedSite")) {
+      if (mode === "site") selectMode("site");
+      else selectMode("global");
+    } else {
+      selectMode("global");
+    }
+    setInterval(loadDashboard, 60000);
+  }
+
   const actBox = document.getElementById('activityList');
-  activityEvents.forEach(a=>{
-    const p = document.createElement('p');
-    p.innerHTML = `• ${a.text} <span style="display:block;color:rgba(255,255,255,0.6);font-size:12px;margin-top:4px;">${a.time}</span>`;
-    actBox.appendChild(p);
-  });
+  if (actBox) actBox.innerHTML = "<p>• Loading Prometheus events…</p>";
 
   populateRegions();
+  bootDash();
 </script>
 
 </body>

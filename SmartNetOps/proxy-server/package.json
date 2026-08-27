@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "node monitoring.test.js"
+    "test": "node monitoring.test.js && node dashboard.test.js"
   },
   "keywords": [],
   "author": "",
