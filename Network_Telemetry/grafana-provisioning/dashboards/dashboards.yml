@@ -1,0 +1,11 @@
+apiVersion: 1
+providers:
+  - name: network-telemetry
+    orgId: 1
+    folder: Network
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 60
+    allowUiUpdates: true
+    options:
+      path: /home/s-p.net.automation/Network_Telemetry/dashboards

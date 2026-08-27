@@ -1,0 +1,13 @@
+organizations:
+  - id: "793196484370628661"
+    name: Carrier-EMEA
+    slug: carrier-emea
+  - id: "793196484370628847"
+    name: Carrier-APAC
+    slug: carrier-apac
+  - id: "968673"
+    name: Carrier-AMER
+    slug: carrier-amer
+  - id: "1146023"
+    name: Carrier-CHINA
+    slug: carrier-china

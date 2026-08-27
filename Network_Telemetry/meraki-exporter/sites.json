@@ -1,0 +1,1670 @@
+{
+ "country_region": {
+  "Malaysia": "APAC",
+  "Mexico": "AMER",
+  "Netherlands": "EMEA",
+  "New Zealand": "APAC",
+  "Norway": "EMEA",
+  "Poland": "EMEA",
+  "Portugal": "EMEA",
+  "Qatar": "EMEA",
+  "Romania": "EMEA",
+  "Saudi Arabia": "EMEA",
+  "Serbia": "EMEA",
+  "Singapore": "APAC",
+  "Slovakia": "EMEA",
+  "Slovenia": "EMEA",
+  "Sweden": "EMEA",
+  "Taiwan": "APAC",
+  "Thailand": "APAC",
+  "Turkey": "EMEA",
+  "Ukraine": "EMEA",
+  "United States": "AMER",
+  "Vietnam(inactive)": "APAC"
+ },
+ "prefix_country": {
+  "MX": "Mexico",
+  "MY": "Malaysia",
+  "NL": "Netherlands",
+  "NO": "Norway",
+  "NZ": "New Zealand",
+  "PL": "Poland",
+  "PT": "Portugal",
+  "QA": "Qatar",
+  "RO": "Romania",
+  "RS": "Serbia",
+  "SA": "Saudi Arabia",
+  "SE": "Sweden",
+  "SG": "Singapore",
+  "SK": "Slovakia",
+  "SL": "Slovenia",
+  "TH": "Thailand",
+  "TR": "Turkey",
+  "TW": "Taiwan",
+  "UA": "Ukraine",
+  "US": "United States",
+  "VN": "Vietnam(inactive)"
+ },
+ "sites": {
+  "MX-7633": {
+   "country": "Mexico",
+   "priority": "P1",
+   "region": "AMER"
+  },
+  "MX-7634": {
+   "country": "Mexico",
+   "priority": "P1",
+   "region": "AMER"
+  },
+  "MX-8187": {
+   "country": "Mexico",
+   "priority": "P1",
+   "region": "AMER"
+  },
+  "MY-0688": {
+   "country": "Malaysia",
+   "priority": "P4",
+   "region": "APAC"
+  },
+  "MY-1800": {
+   "country": "Malaysia",
+   "priority": "P1",
+   "region": "APAC"
+  },
+  "MY-5252": {
+   "country": "Malaysia",
+   "priority": "P4",
+   "region": "APAC"
+  },
+  "MY-5255": {
+   "country": "Malaysia",
+   "priority": "P4",
+   "region": "APAC"
+  },
+  "MY-8285": {
+   "country": "Malaysia",
+   "priority": "P4",
+   "region": "APAC"
+  },
+  "NL-0031": {
+   "country": "Netherlands",
+   "priority": "P4",
+   "region": "EMEA"
+  },
+  "NL-0034": {
+   "country": "Netherlands",
+   "priority": "P2",
+   "region": "EMEA"
+  },
+  "NL-0036": {
+   "country": "Netherlands",
+   "priority": "P4",
+   "region": "EMEA"
+  },
+  "NL-0037": {
+   "country": "Netherlands",
+   "priority": "P2",
+   "region": "EMEA"
+  },
+  "NL-0041": {
+   "country": "Netherlands",
+   "priority": "P2",
+   "region": "EMEA"
+  },
+  "NL-0042": {
+   "country": "Netherlands",
+   "priority": "P4",
+   "region": "EMEA"
+  },
+  "NL-2410": {
+   "country": "Netherlands",
+   "priority": "P4",
+   "region": "EMEA"
+  },
+  "NL-2411": {
+   "country": "Netherlands",
+   "priority": "P4",
+   "region": "EMEA"
+  },
+  "NL-2931": {
+   "country": "Netherlands",
+   "priority": "P4",
+   "region": "EMEA"
+  },
+  "NL-3170": {
+   "country": "Netherlands",
+   "priority": "P4",
+   "region": "EMEA"
+  },
+  "NL-5913": {
+   "country": "Netherlands",
+   "priority": "P4",
+   "region": "EMEA"
+  },
+  "NL-6517": {
+   "country": "Netherlands",
+   "priority": "P4",
+   "region": "EMEA"
+  },
+  "NL-6551": {
+   "country": "Netherlands",
+   "priority": "P4",
+   "region": "EMEA"
+  },
+  "NL-7233": {
+   "country": "Netherlands",
+   "priority": "P3",
+   "region": "EMEA"
+  },
+  "NL-7692": {
+   "country": "Netherlands",
+   "priority": "P4",
+   "region": "EMEA"
+  },
+  "NL-8168": {
+   "country": "Netherlands",
+   "priority": "P4",
+   "region": "EMEA"
+  },
+  "NO-1257": {
+   "country": "Norway",
+   "priority": "P4",
+   "region": "EMEA"
+  },
+  "NO-2063": {
+   "country": "Norway",
+   "priority": "P4",
+   "region": "EMEA"
+  },
+  "NZ-0744": {
+   "country": "New Zealand",
+   "priority": "P4",
+   "region": "APAC"
+  },
+  "NZ-0746": {
+   "country": "New Zealand",
+   "priority": "P4",
+   "region": "APAC"
+  },
+  "NZ-0751": {
+   "country": "New Zealand",
+   "priority": "P4",
+   "region": "APAC"
+  },
+  "NZ-0762": {
+   "country": "New Zealand",
+   "priority": "P4",
+   "region": "APAC"
+  },
+  "NZ-0865": {
+   "country": "New Zealand",
+   "priority": "P4",
+   "region": "APAC"
+  },
+  "NZ-0866": {
+   "country": "New Zealand",
+   "priority": "P4",
+   "region": "APAC"
+  },
+  "NZ-0869": {
+   "country": "New Zealand",
+   "priority": "P4",
+   "region": "APAC"
+  },
+  "NZ-0872": {
+   "country": "New Zealand",
+   "priority": "P4",
+   "region": "APAC"
+  },
+  "NZ-0875": {
+   "country": "New Zealand",
+   "priority": "P4",
+   "region": "APAC"
+  },
+  "PL-0032": {
+   "country": "Poland",
+   "priority": "P4",
+   "region": "EMEA"
+  },
+  "PL-0033": {
+   "country": "Poland",
+   "priority": "P4",
+   "region": "EMEA"
+  },
+  "PL-0034": {
+   "country": "Poland",
+   "priority": "P4",
+   "region": "EMEA"
+  },
+  "PL-0035": {
+   "country": "Poland",
+   "priority": "P1",
+   "region": "EMEA"
+  },
+  "PL-0038": {
+   "country": "Poland",
+   "priority": "P1",
+   "region": "EMEA"
+  },
+  "PL-0040": {
+   "country": "Poland",
+   "priority": "P4",
+   "region": "EMEA"
+  },
+  "PL-0041": {
+   "country": "Poland",
+   "priority": "P4",
+   "region": "EMEA"
+  },
+  "PL-0042": {
+   "country": "Poland",
+   "priority": "P4",
+   "region": "EMEA"
+  },
+  "PL-0043": {
+   "country": "Poland",
+   "priority": "P4",
+   "region": "EMEA"
+  },
+  "PL-0044": {
+   "country": "Poland",
+   "priority": "P2",
+   "region": "EMEA"
+  },
+  "PL-0045": {
+   "country": "Poland",
+   "priority": "P4",
+   "region": "EMEA"
+  },
+  "PL-0046": {
+   "country": "Poland",
+   "priority": "P4",
+   "region": "EMEA"
+  },
+  "PL-0047": {
+   "country": "Poland",
+   "priority": "P3",
+   "region": "EMEA"
+  },
+  "PL-4281": {
+   "country": "Poland",
+   "priority": "P4",
+   "region": "EMEA"
+  },
+  "PL-4283": {
+   "country": "Poland",
+   "priority": "P4",
+   "region": "EMEA"
+  },
+  "PL-5646": {
+   "country": "Poland",
+   "priority": "P4",
+   "region": "EMEA"
+  },
+  "PL-6261": {
+   "country": "Poland",
+   "priority": "P4",
+   "region": "EMEA"
+  },
+  "PL-7911": {
+   "country": "Poland",
+   "priority": "P4",
+   "region": "EMEA"
+  },
+  "PT-0030": {
+   "country": "Portugal",
+   "priority": "P4",
+   "region": "EMEA"
+  },
+  "PT-4505": {
+   "country": "Portugal",
+   "priority": "P4",
+   "region": "EMEA"
+  },
+  "PT-5706": {
+   "country": "Portugal",
+   "priority": "P4",
+   "region": "EMEA"
+  },
+  "PT-6690": {
+   "country": "Portugal",
+   "priority": "P4",
+   "region": "EMEA"
+  },
+  "QA-2549": {
+   "country": "Qatar",
+   "priority": "P4",
+   "region": "EMEA"
+  },
+  "RO-0030": {
+   "country": "Romania",
+   "priority": "P4",
+   "region": "EMEA"
+  },
+  "RO-0031": {
+   "country": "Romania",
+   "priority": "P4",
+   "region": "EMEA"
+  },
+  "RO-0032": {
+   "country": "Romania",
+   "priority": "P4",
+   "region": "EMEA"
+  },
+  "RO-0033": {
+   "country": "Romania",
+   "priority": "P4",
+   "region": "EMEA"
+  },
+  "RO-4207": {
+   "country": "Romania",
+   "priority": "P4",
+   "region": "EMEA"
+  },
+  "RS-0030": {
+   "country": "Serbia",
+   "priority": "P4",
+   "region": "EMEA"
+  },
+  "SA-1930": {
+   "country": "Saudi Arabia",
+   "priority": "P4",
+   "region": "EMEA"
+  },
+  "SA-2034": {
+   "country": "Saudi Arabia",
+   "priority": "P4",
+   "region": "EMEA"
+  },
+  "SA-3538": {
+   "country": "Saudi Arabia",
+   "priority": "P4",
+   "region": "EMEA"
+  },
+  "SA-5797": {
+   "country": "Saudi Arabia",
+   "priority": "P4",
+   "region": "EMEA"
+  },
+  "SA-5801": {
+   "country": "Saudi Arabia",
+   "priority": "P4",
+   "region": "EMEA"
+  },
+  "SA-7866": {
+   "country": "Saudi Arabia",
+   "priority": "P4",
+   "region": "EMEA"
+  },
+  "SE-0030": {
+   "country": "Sweden",
+   "priority": "P4",
+   "region": "EMEA"
+  },
+  "SE-1471": {
+   "country": "Sweden",
+   "priority": "P3",
+   "region": "EMEA"
+  },
+  "SE-3365": {
+   "country": "Sweden",
+   "priority": "P4",
+   "region": "EMEA"
+  },
+  "SE-6338": {
+   "country": "Sweden",
+   "priority": "P4",
+   "region": "EMEA"
+  },
+  "SE-8411": {
+   "country": "Sweden",
+   "priority": "P4",
+   "region": "EMEA"
+  },
+  "SG-0030": {
+   "country": "Singapore",
+   "priority": "P4",
+   "region": "APAC"
+  },
+  "SG-0031": {
+   "country": "Singapore",
+   "priority": "P4",
+   "region": "APAC"
+  },
+  "SG-0032": {
+   "country": "Singapore",
+   "priority": "P4",
+   "region": "APAC"
+  },
+  "SG-0033": {
+   "country": "Singapore",
+   "priority": "P1",
+   "region": "APAC"
+  },
+  "SG-0034": {
+   "country": "Singapore",
+   "priority": "P4",
+   "region": "APAC"
+  },
+  "SG-0035": {
+   "country": "Singapore",
+   "priority": "P4",
+   "region": "APAC"
+  },
+  "SG-0183": {
+   "country": "Singapore",
+   "priority": "P4",
+   "region": "APAC"
+  },
+  "SG-0339": {
+   "country": "Singapore",
+   "priority": "P1",
+   "region": "APAC"
+  },
+  "SG-1613": {
+   "country": "Singapore",
+   "priority": "P4",
+   "region": "APAC"
+  },
+  "SG-1785": {
+   "country": "Singapore",
+   "priority": "P1",
+   "region": "APAC"
+  },
+  "SG-339": {
+   "country": "Singapore",
+   "priority": "P4",
+   "region": "APAC"
+  },
+  "SG-3835": {
+   "country": "Singapore",
+   "priority": "P4",
+   "region": "APAC"
+  },
+  "SK-0030": {
+   "country": "Slovakia",
+   "priority": "P4",
+   "region": "EMEA"
+  },
+  "SL-0030": {
+   "country": "Slovenia",
+   "priority": "P4",
+   "region": "EMEA"
+  },
+  "TH-0030": {
+   "country": "Thailand",
+   "priority": "P4",
+   "region": "APAC"
+  },
+  "TH-0032": {
+   "country": "Thailand",
+   "priority": "P1",
+   "region": "APAC"
+  },
+  "TH-4531": {
+   "country": "Thailand",
+   "priority": "P2",
+   "region": "APAC"
+  },
+  "TR-0030": {
+   "country": "Turkey",
+   "priority": "P4",
+   "region": "EMEA"
+  },
+  "TR-0031": {
+   "country": "Turkey",
+   "priority": "P4",
+   "region": "EMEA"
+  },
+  "TR-0032": {
+   "country": "Turkey",
+   "priority": "P4",
+   "region": "EMEA"
+  },
+  "TR-0033": {
+   "country": "Turkey",
+   "priority": "P4",
+   "region": "EMEA"
+  },
+  "TR-0034": {
+   "country": "Turkey",
+   "priority": "P4",
+   "region": "EMEA"
+  },
+  "TR-0035": {
+   "country": "Turkey",
+   "priority": "P4",
+   "region": "EMEA"
+  },
+  "TR-0036": {
+   "country": "Turkey",
+   "priority": "P4",
+   "region": "EMEA"
+  },
+  "TR-0038": {
+   "country": "Turkey",
+   "priority": "P1",
+   "region": "EMEA"
+  },
+  "TR-0039": {
+   "country": "Turkey",
+   "priority": "P4",
+   "region": "EMEA"
+  },
+  "TR-0040": {
+   "country": "Turkey",
+   "priority": "P4",
+   "region": "EMEA"
+  },
+  "TW-0030": {
+   "country": "Taiwan",
+   "priority": "P3",
+   "region": "APAC"
+  },
+  "TW-1840": {
+   "country": "Taiwan",
+   "priority": "P4",
+   "region": "APAC"
+  },
+  "TW-6312": {
+   "country": "Taiwan",
+   "priority": "P4",
+   "region": "APAC"
+  },
+  "TW-7207": {
+   "country": "Taiwan",
+   "priority": "P4",
+   "region": "APAC"
+  },
+  "TW-8408": {
+   "country": "Taiwan",
+   "priority": "P4",
+   "region": "APAC"
+  },
+  "UA-0030": {
+   "country": "Ukraine",
+   "priority": "P4",
+   "region": "EMEA"
+  },
+  "UA-0031": {
+   "country": "Ukraine",
+   "priority": "P4",
+   "region": "EMEA"
+  },
+  "UA-0032": {
+   "country": "Ukraine",
+   "priority": "P4",
+   "region": "EMEA"
+  },
+  "US-0030": {
+   "country": "United States",
+   "priority": "P1",
+   "region": "AMER"
+  },
+  "US-0031": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0032": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0033": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0034": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0035": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0036": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0037": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0039": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0040": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0041": {
+   "country": "United States",
+   "priority": "P2",
+   "region": "AMER"
+  },
+  "US-0042": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0043": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0044": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0045": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0046": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0047": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0048": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0049": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0050": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0052": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0054": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0056": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0057": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0058": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0059": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0060": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0061": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0062": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0063": {
+   "country": "United States",
+   "priority": "P1",
+   "region": "AMER"
+  },
+  "US-0064": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0065": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0066": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0067": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0069": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0071": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0072": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0073": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0074": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0075": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0076": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0078": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0079": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0080": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0081": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0082": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0083": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0084": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0085": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0086": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0087": {
+   "country": "United States",
+   "priority": "P1",
+   "region": "AMER"
+  },
+  "US-0088": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0089": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0090": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0092": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0093": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0094": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0095": {
+   "country": "United States",
+   "priority": "P2",
+   "region": "AMER"
+  },
+  "US-0096": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0098": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0099": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0100": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0101": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0102": {
+   "country": "United States",
+   "priority": "P3",
+   "region": "AMER"
+  },
+  "US-0103": {
+   "country": "United States",
+   "priority": "P1",
+   "region": "AMER"
+  },
+  "US-0104": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0105": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0106": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0108": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0109": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0110": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0111": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0112": {
+   "country": "United States",
+   "priority": "P1",
+   "region": "AMER"
+  },
+  "US-0113": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0114": {
+   "country": "United States",
+   "priority": "P1",
+   "region": "AMER"
+  },
+  "US-0115": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0116": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0125": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0156": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0181": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0188": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0200": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0280": {
+   "country": "United States",
+   "priority": "P1",
+   "region": "AMER"
+  },
+  "US-0290": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0295": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0315": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0336": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0483": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0533": {
+   "country": "United States",
+   "priority": "P3",
+   "region": "AMER"
+  },
+  "US-0617": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0724": {
+   "country": "United States",
+   "priority": "P1",
+   "region": "AMER"
+  },
+  "US-0769": {
+   "country": "United States",
+   "priority": "P2",
+   "region": "AMER"
+  },
+  "US-0884": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-0948": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-10125": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-10200": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-1041": {
+   "country": "United States",
+   "priority": "P1",
+   "region": "AMER"
+  },
+  "US-1056": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-1057": {
+   "country": "United States",
+   "priority": "P1",
+   "region": "AMER"
+  },
+  "US-1130": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-1222": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-1240": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-1318": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-1326": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-1342": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-1473": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-1668": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-1766": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-1856": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-1902": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-1957": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-1965": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-1971": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-1993": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-2003": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-2016": {
+   "country": "United States",
+   "priority": "P1",
+   "region": "AMER"
+  },
+  "US-2125": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-2247": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-2522": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-2587": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-2631": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-2687": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-2753": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-2767": {
+   "country": "United States",
+   "priority": "P1",
+   "region": "AMER"
+  },
+  "US-2908": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-2933": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-3507": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-3913": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-4200": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-4249": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-4430": {
+   "country": "United States",
+   "priority": "P1",
+   "region": "AMER"
+  },
+  "US-4790": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-5102": {
+   "country": "United States",
+   "priority": "P3",
+   "region": "AMER"
+  },
+  "US-5229": {
+   "country": "United States",
+   "priority": "P2",
+   "region": "AMER"
+  },
+  "US-5277": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-5443": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-5506": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-5709": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-5710": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-5711": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-5806": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-5808": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-5816": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-5916": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-6009": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-6033": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-6225": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-6287": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-6392": {
+   "country": "United States",
+   "priority": "P3",
+   "region": "AMER"
+  },
+  "US-6399": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-6402": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-6405": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-6407": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-6410": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-6415": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-6425": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-6481": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-6536": {
+   "country": "United States",
+   "priority": "P1",
+   "region": "AMER"
+  },
+  "US-6538": {
+   "country": "United States",
+   "priority": "P2",
+   "region": "AMER"
+  },
+  "US-6724": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-6764": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-6766": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-6767": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-6841": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-7209": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-7348": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-7437": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-7502": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-7531": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-7566": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-7567": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-7601": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-7602": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-7604": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-7606": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-7607": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-7609": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-7610": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-7613": {
+   "country": "United States",
+   "priority": "P2",
+   "region": "AMER"
+  },
+  "US-7618": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-7630": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-7648": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-7838": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-7855": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-7863": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-7881": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-7912": {
+   "country": "United States",
+   "priority": "P1",
+   "region": "AMER"
+  },
+  "US-7914": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-7938": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-7939": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-7956": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-8008": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-8056": {
+   "country": "United States",
+   "priority": "P2",
+   "region": "AMER"
+  },
+  "US-8065": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-8072": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-8087": {
+   "country": "United States",
+   "priority": "P1",
+   "region": "AMER"
+  },
+  "US-8105": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-8122": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-8140": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-8150": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-8151": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-8172": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-8173": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-8175": {
+   "country": "United States",
+   "priority": "P2",
+   "region": "AMER"
+  },
+  "US-8342": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-8349": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-8355": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-8376": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-8409": {
+   "country": "United States",
+   "priority": "P1",
+   "region": "AMER"
+  },
+  "US-8429": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-8653": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "US-8846": {
+   "country": "United States",
+   "priority": "P4",
+   "region": "AMER"
+  },
+  "VN-0030": {
+   "country": "Vietnam(inactive)",
+   "priority": "P4",
+   "region": "APAC"
+  },
+  "VN-2202": {
+   "country": "Vietnam(inactive)",
+   "priority": "P4",
+   "region": "APAC"
+  }
+ }
+}

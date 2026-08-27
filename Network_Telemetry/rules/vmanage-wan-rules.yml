@@ -1,0 +1,205 @@
+# Viptela WAN recording rules -- standalone, drop-in.
+#
+# WHY A SEPARATE FILE
+#   unified-rules.yml already defines wan_link_* rules for both vendors. Its
+#   Viptela half sources from vmanage_interface_*{vpn_id="0"}, which on a
+#   fabric whose state Interface entity holds controllers only matches ~18
+#   series and produces nothing usable.
+#
+#   Hand-editing four blocks inside a large working file, on a production
+#   box, is how a WAN dashboard becomes a Meraki outage. This file is
+#   additive instead: it publishes the same wan_link_* names from the
+#   exporter's vmanage_wan_link_* family, and the stale Viptela rules in
+#   unified-rules.yml simply keep evaluating to nothing.
+#
+#   Two rules recording the same metric name is safe HERE precisely because
+#   the old ones produce no series. Once the panels are confirmed working,
+#   delete the Viptela rules from unified-rules.yml -- see the note at the
+#   bottom. Leaving both indefinitely is untidy and will confuse whoever
+#   debugs this next.
+#
+# LABEL MAPPING
+#   The exporter already emits region, country, site_id, priority and link in
+#   the unified spelling. Only hostname -> device needs relabelling.
+#
+# INSTALL
+#   sudo cp vmanage-wan-rules.yml /etc/prometheus/rules/vmanage-wan-rules.yml
+#   sudo promtool check rules /etc/prometheus/rules/vmanage-wan-rules.yml
+#   sudo systemctl reload prometheus     (or: kill -HUP the process)
+#
+#   Confirm rule_files in prometheus.yml actually globs that directory:
+#     sudo grep -A5 rule_files /etc/prometheus/prometheus.yml
+
+groups:
+  # =======================================================================
+  # Throughput and state -- the series the dashboards read
+  # =======================================================================
+  - name: vmanage_wan_links
+    interval: 60s
+    rules:
+      - record: wan_link_rx_bits_per_second
+        expr: |
+          max by (region, country, site_id, priority, device, link) (
+            label_replace(vmanage_wan_link_rx_bits_per_second,
+                          "device", "$1", "hostname", "(.*)")
+          )
+        labels: {source: vmanage}
+
+      - record: wan_link_tx_bits_per_second
+        expr: |
+          max by (region, country, site_id, priority, device, link) (
+            label_replace(vmanage_wan_link_tx_bits_per_second,
+                          "device", "$1", "hostname", "(.*)")
+          )
+        labels: {source: vmanage}
+
+      - record: wan_link_up
+        expr: |
+          max by (region, country, site_id, priority, device, link) (
+            label_replace(vmanage_wan_link_up,
+                          "device", "$1", "hostname", "(.*)")
+          )
+        labels: {source: vmanage}
+
+      # Admin state was never surfaced for Viptela before. Without it an L1
+      # cannot separate a circuit outage from a shut port -- identical red
+      # squares, completely different tickets.
+      - record: wan_link_admin_up
+        expr: |
+          max by (region, country, site_id, priority, device, link) (
+            label_replace(vmanage_wan_link_admin_up,
+                          "device", "$1", "hostname", "(.*)")
+          )
+        labels: {source: vmanage}
+
+      # Busier direction. A full-duplex circuit is congested when EITHER
+      # direction is congested; averaging the two understates it by half.
+      - record: wan_link_bits_per_second
+        expr: |
+          max without (direction) (
+            label_replace(wan_link_rx_bits_per_second{source="vmanage"},
+                          "direction", "rx", "", "")
+            or
+            label_replace(wan_link_tx_bits_per_second{source="vmanage"},
+                          "direction", "tx", "", "")
+          )
+
+  # =======================================================================
+  # Capacity and utilisation
+  # =======================================================================
+  - name: vmanage_wan_capacity
+    interval: 60s
+    rules:
+      # The exporter resolves capacity itself and stamps `basis` with where
+      # it came from: "cir" from wan_links.json, "configured" from the
+      # statistics store's bw_down, "port_speed" as the last resort. Carrying
+      # basis through means a panel can render "42% (of port speed)" rather
+      # than an unqualified 42% that understates a shaped circuit tenfold.
+      - record: wan_link_capacity_bits_per_second
+        expr: |
+          max by (region, country, site_id, priority, device, link, basis) (
+            label_replace(vmanage_wan_link_capacity_bits_per_second > 0,
+                          "device", "$1", "hostname", "(.*)")
+          )
+        labels: {source: vmanage}
+
+      - record: wan_link_utilization_percent
+        expr: |
+          max by (region, country, site_id, priority, device, link, basis) (
+            label_replace(vmanage_wan_link_utilization_percent,
+                          "device", "$1", "hostname", "(.*)")
+          )
+        labels: {source: vmanage}
+
+      # Coverage metric: circuits carrying traffic with no known denominator.
+      # This is the first question to ask of any WAN dashboard -- how much of
+      # the estate cannot be expressed as a percentage at all.
+      - record: wan_link_without_capacity
+        expr: |
+          wan_link_bits_per_second
+            unless on (region, country, site_id, priority, device, link)
+              wan_link_capacity_bits_per_second
+
+  # =======================================================================
+  # Path quality
+  # =======================================================================
+  - name: vmanage_wan_quality
+    interval: 60s
+    rules:
+      - record: wan_link_latency_milliseconds
+        expr: |
+          max by (region, country, site_id, priority, device, link) (
+            label_replace(vmanage_wan_link_latency_ms,
+                          "device", "$1", "hostname", "(.*)")
+          )
+        labels: {source: vmanage}
+
+      - record: wan_link_jitter_milliseconds
+        expr: |
+          max by (region, country, site_id, priority, device, link) (
+            label_replace(vmanage_wan_link_jitter_ms,
+                          "device", "$1", "hostname", "(.*)")
+          )
+        labels: {source: vmanage}
+
+      - record: wan_link_loss_percent
+        expr: |
+          max by (region, country, site_id, priority, device, link) (
+            label_replace(vmanage_wan_link_loss_percent,
+                          "device", "$1", "hostname", "(.*)")
+          )
+        labels: {source: vmanage}
+
+  # =======================================================================
+  # Rollups -- so the global view reads a dozen series, not 990
+  # =======================================================================
+  - name: vmanage_wan_rollups
+    interval: 60s
+    rules:
+      - record: wan_link_utilization_percent:max:by_site
+        expr: max by (region, country, site_id, source) (wan_link_utilization_percent)
+      - record: wan_link_utilization_percent:max:by_region
+        expr: max by (region, source) (wan_link_utilization_percent)
+      - record: wan_link_utilization_percent:avg:by_country
+        expr: avg by (region, country, source) (wan_link_utilization_percent)
+      - record: wan_link_bits_per_second:sum:by_region
+        expr: sum by (region, source) (wan_link_bits_per_second)
+      - record: wan_link_count:by_site
+        expr: count by (region, country, site_id, source) (wan_link_up)
+
+      - record: sdwan_site_wan_links_total
+        expr: sum by (region, country, site_id, priority) (vmanage_site_wan_links_total)
+      - record: sdwan_site_wan_links_up
+        expr: sum by (region, country, site_id, priority) (vmanage_site_wan_links_up)
+
+      # A site with every circuit down is an outage. A site with one down is
+      # degraded. Defining both here means the alert rules and the director
+      # view agree, instead of each inventing its own threshold.
+      - record: sdwan_site_wan_down_all
+        expr: (sdwan_site_wan_links_up == 0) and (sdwan_site_wan_links_total > 0)
+      - record: sdwan_site_wan_degraded
+        expr: |
+          (sdwan_site_wan_links_up > 0)
+            and (sdwan_site_wan_links_up < sdwan_site_wan_links_total)
+
+      - record: sdwan_bfd_sessions_up:ratio:by_site
+        expr: |
+          sum by (region, country, site_id) (vmanage_bfd_sessions_up)
+            / clamp_min(sum by (region, country, site_id) (vmanage_bfd_sessions_total), 1)
+      - record: sdwan_omp_peers_up:ratio:by_site
+        expr: |
+          sum by (region, country, site_id) (vmanage_omp_peers_up)
+            / clamp_min(sum by (region, country, site_id) (vmanage_omp_peers_total), 1)
+      - record: sdwan_wan_links_up:ratio:by_region
+        expr: |
+          sum by (region) (vmanage_site_wan_links_up)
+            / clamp_min(sum by (region) (vmanage_site_wan_links_total), 1)
+
+# ---------------------------------------------------------------------------
+# CLEANUP, once the panels are confirmed working
+# ---------------------------------------------------------------------------
+# In prometheus/rules/unified-rules.yml, delete the rules whose expr contains
+# `vmanage_interface_` -- there are five, across groups unified_wan_throughput
+# and unified_wan_capacity. They evaluate to nothing on this fabric and exist
+# only to confuse the next person. Leave every meraki-sourced rule untouched.
+
