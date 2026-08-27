@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Dashboard | Smart NetOps Hub</title>
+<script src="activity-tracker.js"></script>
+<style>
+  body {
+    margin: 0;
+    font-family: "Poppins", system-ui, sans-serif;
+    background: linear-gradient(135deg, #0A0E17, #0E131E);
+    color: #EAF0F8;
+    min-height: 100vh;
+  }
+  .page {
+    max-width: 1200px;
+    margin: 24px auto;
+    padding: 0 16px 40px;
+  }
+  .card {
+    background: rgba(255,255,255,0.04);
+    backdrop-filter: blur(14px);
+    border-radius: 12px;
+    padding: 18px;
+    margin-bottom: 18px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.42);
+  }
+  .row { display: flex; gap: 12px; flex-wrap: wrap; }
+  .btn {
+    padding: 10px 14px;
+    border: none;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.06);
+    color: #EAF0F8;
+    cursor: pointer;
+    transition: 0.2s;
+  }
+  .btn:hover { background: rgba(255,255,255,0.08); }
+  .btn-danger { background: rgba(251,113,133,0.35); }
+  .btn-danger:hover { background: rgba(251,113,133,0.45); }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
+  th, td { padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.04); text-align: left; }
+  th { position: sticky; top: 0; background: rgba(0,0,0,0.42); }
+  .badge {
+    padding: 4px 8px;
+    border-radius: 10px;
+    font-size: 12px;
+    background: rgba(255,255,255,0.05);
+  }
+  .filters input, .filters select {
+    width: 160px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.07);
+    background: rgba(0,0,0,0.42);
+    color: #EAF0F8;
+  }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit,minmax(180px,1fr)); gap: 12px; }
+  .stat { background: rgba(255,255,255,0.035); padding: 12px; border-radius: 10px; }
+  .stat .label { opacity: 0.8; font-size: 13px; }
+  .stat .value { font-size: 24px; font-weight: 700; }
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="theme.css">
+<script defer src="theme.js"></script>
+</head>
+<body>
+<div class="page">
+  <div class="card">
+    <h2 style="margin:0 0 8px;">🔐 Admin Dashboard</h2>
+    <div style="opacity:0.85;">View logins, selections, module access, and tasks.</div>
+    <div class="row" style="margin-top:12px;">
+      <button class="btn" onclick="refresh()">🔄 Refresh</button>
+      <button class="btn" onclick="exportCsv()">📥 Export CSV</button>
+      <button class="btn btn-danger" onclick="clearLogs()">🗑 Clear Logs</button>
+      <button class="btn" onclick="changePassword()">🔑 Change Admin Password</button>
+      <button class="btn" onclick="logout()">🚪 Logout</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="stats" id="stats"></div>
+  </div>
+
+  <div class="card filters row">
+    <input id="f-user" placeholder="User filter" oninput="applyFilters()">
+    <select id="f-type" onchange="applyFilters()">
+      <option value="">All types</option>
+      <option>login</option>
+      <option>region_selection</option>
+      <option>country_selection</option>
+      <option>site_selection</option>
+      <option>module_access</option>
+      <option>task</option>
+      <option>page_view</option>
+    </select>
+    <input id="f-module" placeholder="Module filter" oninput="applyFilters()">
+    <input id="f-region" placeholder="Region filter" oninput="applyFilters()">
+    <input id="f-country" placeholder="Country filter" oninput="applyFilters()">
+    <input id="f-site" placeholder="Site filter" oninput="applyFilters()">
+  </div>
+
+  <div class="card" style="overflow:auto; max-height:65vh;">
+    <table>
+      <thead>
+        <tr>
+          <th>Time</th><th>User</th><th>Type</th><th>Module</th><th>Task</th><th>Region</th><th>Country</th><th>Site</th><th>Page</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+  function guardAdmin() {
+    const user = localStorage.getItem("currentUser");
+    const isAdmin = localStorage.getItem("isAdmin") === "true";
+    if (user !== "Admin" || !isAdmin) {
+      alert("Admin session required. Redirecting to login.");
+      window.location.href = "index.html";
+    }
+  }
+
+  function changePassword() {
+    const current = prompt("Enter current admin password:");
+    const stored = localStorage.getItem("adminPassword");
+    if (!stored || stored !== current) {
+      alert("Incorrect current password.");
+      return;
+    }
+    const next = prompt("Enter new admin password (8-15 chars, include a symbol):");
+    if (!next) return;
+    if (next.length < 8 || next.length > 15 || !/[^A-Za-z0-9]/.test(next)) {
+      alert("Password must be 8-15 characters and include a symbol.");
+      return;
+    }
+    localStorage.setItem("adminPassword", next);
+    alert("Admin password updated.");
+  }
+
+  function logout() {
+    localStorage.removeItem("currentUser");
+    localStorage.removeItem("isAdmin");
+    window.location.href = "index.html";
+  }
+
+  function renderStats(logs) {
+    const statsEl = document.getElementById("stats");
+    const uniqueUsers = new Set(logs.map(l => l.username || "Unknown")).size;
+    const logins = logs.filter(l => l.type === "login").length;
+    const modules = logs.filter(l => l.type === "module_access").length;
+    statsEl.innerHTML = `
+      <div class="stat"><div class="label">Total Activities</div><div class="value">${logs.length}</div></div>
+      <div class="stat"><div class="label">Unique Users</div><div class="value">${uniqueUsers}</div></div>
+      <div class="stat"><div class="label">Logins</div><div class="value">${logins}</div></div>
+      <div class="stat"><div class="label">Module Accesses</div><div class="value">${modules}</div></div>
+    `;
+  }
+
+  function renderTable(logs) {
+    const body = document.getElementById("tbody");
+    if (!logs.length) {
+      body.innerHTML = `<tr><td colspan="9" style="text-align:center; opacity:0.8;">No activity yet</td></tr>`;
+      return;
+    }
+    body.innerHTML = logs.map(l => `
+      <tr>
+        <td>${new Date(l.timestamp || Date.now()).toLocaleString()}</td>
+        <td>${l.username || "-"}</td>
+        <td><span class="badge">${l.type || "-"}</span></td>
+        <td>${l.module || "-"}</td>
+        <td>${l.task || (l.type === "login" ? "Logged in" : "-")}</td>
+        <td>${l.region || "-"}</td>
+        <td>${l.country || "-"}</td>
+        <td>${l.site || "-"}</td>
+        <td>${(l.page || "").split("/").pop() || "-"}</td>
+      </tr>
+    `).join("");
+  }
+
+  let allLogs = [];
+  function loadLogs() {
+    allLogs = (window.ActivityTracker?.getAllLogs() || []).sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
+    renderStats(allLogs);
+    renderTable(allLogs);
+  }
+
+  function applyFilters() {
+    const u = document.getElementById("f-user").value.toLowerCase();
+    const t = document.getElementById("f-type").value;
+    const m = document.getElementById("f-module").value.toLowerCase();
+    const r = document.getElementById("f-region").value.toLowerCase();
+    const c = document.getElementById("f-country").value.toLowerCase();
+    const s = document.getElementById("f-site").value.toLowerCase();
+    const filtered = allLogs.filter(l =>
+      (!u || (l.username||"").toLowerCase().includes(u)) &&
+      (!t || l.type === t) &&
+      (!m || (l.module||"").toLowerCase().includes(m)) &&
+      (!r || (l.region||"").toLowerCase().includes(r)) &&
+      (!c || (l.country||"").toLowerCase().includes(c)) &&
+      (!s || (l.site||"").toLowerCase().includes(s))
+    );
+    renderTable(filtered);
+  }
+
+  function refresh() {
+    loadLogs();
+    applyFilters();
+  }
+
+  function clearLogs() {
+    if (confirm("Clear all activity logs?")) {
+      window.ActivityTracker?.clearLogs();
+      refresh();
+    }
+  }
+
+  function exportCsv() {
+    const headers = ["timestamp","username","type","module","task","region","country","site","page"];
+    const rows = allLogs.map(l => headers.map(h => `"${String(l[h]||"").replace(/"/g,'""')}"`).join(","));
+    const csv = [headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "netops-activity.csv";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  guardAdmin();
+  refresh();
+</script>
+</body>
+</html>
+
+

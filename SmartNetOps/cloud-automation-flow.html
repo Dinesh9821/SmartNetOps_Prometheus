@@ -1,0 +1,1428 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cloud Automation Flow | Smart NetOps Hub</title>
+
+    <style>
+        /* ====== GLOBAL THEME (Matches NetAutomation Flow) ====== */
+        body {
+            margin: 0;
+            font-family: "Poppins", system-ui, sans-serif;
+            background: linear-gradient(135deg, #0A0E17, #0E131E);
+            min-height: 100vh;
+            color: #EAF0F8;
+            overflow-x: hidden;
+        }
+
+        /* Background glowing circles */
+        .bg-circle {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(90px);
+            opacity: 0.55;
+            animation: float 7s infinite ease-in-out;
+            z-index: 0;
+        }
+
+        .c1 {
+            width: 380px;
+            height: 380px;
+            background: #A78BFA;
+            top: 8%;
+            left: 12%;
+        }
+
+        .c2 {
+            width: 450px;
+            height: 450px;
+            background: #E879F9;
+            bottom: 10%;
+            right: 10%;
+            animation-delay: 2s;
+        }
+
+        @keyframes float {
+            0% { transform: translateY(0); }
+            50% { transform: translateY(-35px); }
+            100% { transform: translateY(0); }
+        }
+
+        /* ====== LAYOUT ====== */
+        .layout {
+            display: flex;
+            gap: 25px;
+            max-width: 1400px;
+            margin: 50px auto;
+            padding: 0 30px;
+            position: relative;
+            z-index: 2;
+        }
+
+        /* ====== SIDEBAR ====== */
+        .sidebar {
+            width: 280px;
+            background: rgba(255,255,255,0.04);
+            padding: 20px;
+            border-radius: 14px;
+            backdrop-filter: blur(14px);
+            box-shadow: 0 10px 35px rgba(0,0,0,0.59);
+            max-height: 85vh;
+            overflow-y: auto;
+        }
+
+        .sidebar::-webkit-scrollbar { width: 6px; }
+        .sidebar::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.07);
+            border-radius: 5px;
+        }
+
+        .dropdown-content {
+            display: none;
+            background: rgba(255,255,255,0.03);
+            padding: 10px;
+            border-radius: 10px;
+        }
+
+        .dropdown-content div {
+            padding: 10px;
+            cursor: pointer;
+            border-radius: 8px;
+            margin: 5px 0;
+            transition: 0.2s;
+        }
+
+        .dropdown-content div:hover { background: rgba(255,255,255,0.055); }
+
+        .box {
+            background: rgba(255,255,255,0.03);
+            padding: 10px 14px;
+            margin: 6px 0;
+            border-radius: 8px;
+            cursor: pointer;
+            color: #EAF0F8;
+        }
+
+        .box .count {
+            float: right;
+            font-size: 12px;
+            opacity: .75;
+        }
+
+        /* provider chips */
+        .providers {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin: 6px 0 12px;
+        }
+
+        .prov {
+            padding: 11px 8px;
+            border-radius: 10px;
+            text-align: center;
+            cursor: pointer;
+            font-size: 12.5px;
+            font-weight: 600;
+            background: rgba(255,255,255,0.035);
+            border: 1px solid rgba(255,255,255,0.06);
+            transition: .2s;
+        }
+
+        .prov small {
+            display: block;
+            font-weight: 400;
+            font-size: 10px;
+            opacity: .6;
+            margin-top: 3px;
+        }
+
+        .prov:hover { background: rgba(255,255,255,0.07); }
+
+        .prov.on {
+            border-color: rgba(167,139,250,0.55);
+            background: linear-gradient(150deg, rgba(167,139,250,0.22), rgba(232,121,249,0.08));
+            box-shadow: 0 0 24px -10px rgba(167,139,250,0.9);
+        }
+
+        /* resource picker */
+        .picker-tools {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 8px;
+        }
+
+        .picker-tools input {
+            flex: 1;
+            min-width: 0;
+            padding: 8px 10px;
+            font-size: 12.5px;
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.07);
+            background: rgba(0,0,0,0.45);
+            color: #EAF0F8;
+            box-sizing: border-box;
+        }
+
+        .mini-btn {
+            padding: 7px 10px;
+            font-size: 11.5px;
+            border-radius: 8px;
+            border: 1px solid rgba(167,139,250,0.35);
+            background: rgba(167,139,250,0.12);
+            color: #DDD6FE;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .mini-btn:hover { background: rgba(167,139,250,0.22); }
+
+        .res-row {
+            display: flex !important;
+            align-items: flex-start;
+            gap: 9px;
+            padding: 8px 10px !important;
+        }
+
+        .res-row input[type="checkbox"] {
+            margin: 3px 0 0 0;
+            accent-color: #A78BFA;
+            flex: 0 0 auto;
+        }
+
+        .res-row .res-meta { min-width: 0; }
+
+        .res-row .res-name {
+            font-size: 13px;
+            display: block;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .res-row .res-sub {
+            font-size: 11px;
+            opacity: .65;
+            display: block;
+            margin-top: 2px;
+        }
+
+        /* the row rule below is !important, so an inline display:none would
+           lose to it — filtering toggles this class instead */
+        .res-row.row-hidden { display: none !important; }
+
+        .res-row.sel { background: rgba(167,139,250,0.12); }
+
+        .pill {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 999px;
+            font-size: 10.5px;
+            margin-left: 6px;
+            border: 1px solid currentColor;
+        }
+
+        .pill.up { color: #34D399; }
+        .pill.warn { color: #FBBF24; }
+        .pill.down { color: #FB7185; }
+
+        /* ====== MAIN CONTENT ====== */
+        .main-panel { flex: 1; min-width: 0; }
+
+        .header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+        }
+
+        .header-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 14px;
+            background: linear-gradient(135deg, #A78BFA, #E879F9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 32px;
+            flex: 0 0 auto;
+        }
+
+        .header h1 { margin: 0; }
+
+        /* the small stat boxes that sit next to the page name */
+        .kpi-strip {
+            display: flex;
+            gap: 10px;
+            margin-left: auto;
+            flex-wrap: wrap;
+        }
+
+        .kpi-box {
+            min-width: 104px;
+            padding: 10px 13px;
+            border-radius: 12px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.06);
+            backdrop-filter: blur(12px);
+        }
+
+        .kpi-box .kv {
+            font-size: 19px;
+            font-weight: 600;
+            letter-spacing: -.02em;
+            line-height: 1.2;
+        }
+
+        .kpi-box .kl {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: .12em;
+            opacity: .6;
+            margin-top: 3px;
+        }
+
+        .kpi-box .kbar {
+            height: 4px;
+            border-radius: 999px;
+            background: rgba(0,0,0,0.45);
+            overflow: hidden;
+            margin-top: 7px;
+        }
+
+        .kpi-box .kbar i {
+            display: block;
+            height: 100%;
+            width: 0%;
+            border-radius: 999px;
+            background: linear-gradient(90deg, #A78BFA, #E879F9);
+            transition: width .9s cubic-bezier(.16,1,.3,1);
+        }
+
+        .kpi-box.warn .kv { color: #FBBF24; }
+        .kpi-box.warn .kbar i { background: linear-gradient(90deg, #F59E0B, #FBBF24); }
+        .kpi-box.crit .kv { color: #FB7185; }
+        .kpi-box.crit .kbar i { background: linear-gradient(90deg, #F43F5E, #FB7185); }
+        .kpi-box.good .kv { color: #34D399; }
+        .kpi-box.good .kbar i { background: linear-gradient(90deg, #10B981, #34D399); }
+
+        /* Glass Cards */
+        .card {
+            background: rgba(255,255,255,0.04);
+            backdrop-filter: blur(12px);
+            padding: 20px;
+            border-radius: 14px;
+            margin-bottom: 25px;
+            box-shadow: 0 10px 35px rgba(0,0,0,0.51);
+        }
+
+        .card h2 { margin: 0; }
+
+        .scope-line {
+            margin-top: 10px;
+            font-size: 12.5px;
+            opacity: .8;
+        }
+
+        .scope-line b { color: #C4B5FD; }
+
+        /* Workflow item */
+        .workflow-item {
+            padding: 15px;
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 12px;
+            margin-bottom: 12px;
+            transition: 0.25s;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 12px;
+            position: relative;
+        }
+
+        .workflow-item:hover { background: rgba(255,255,255,0.06); }
+
+        .wf-title {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            flex-wrap: wrap;
+        }
+
+        .wf-tag {
+            font-size: 10px;
+            letter-spacing: .1em;
+            text-transform: uppercase;
+            padding: 2px 8px;
+            border-radius: 999px;
+            border: 1px solid currentColor;
+            opacity: .9;
+        }
+
+        .wf-tag.read { color: #34D399; }
+        .wf-tag.change { color: #FBBF24; }
+        .wf-tag.cost { color: #A78BFA; }
+
+        /* Query area */
+        .query-area {
+            display: block;
+            margin-top: 10px;
+            position: relative;
+        }
+
+        .query-area-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .query-controls-row {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .query-dropdown {
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            background-color: rgba(255,255,255,0.06);
+            border: 1px solid rgba(167,139,250,0.4);
+            border-radius: 8px;
+            padding: 10px 40px 10px 14px;
+            color: #EAF0F8;
+            font-size: 13px;
+            font-weight: 500;
+            min-width: 190px;
+            cursor: pointer;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23A78BFA' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            background-size: 18px;
+            transition: border-color .2s ease, background-color .2s ease, box-shadow .2s ease;
+        }
+
+        .query-dropdown:hover {
+            background-color: rgba(167,139,250,0.12);
+            border-color: rgba(167,139,250,0.6);
+        }
+
+        .query-dropdown:focus {
+            outline: none;
+            border-color: #A78BFA;
+            box-shadow: 0 0 0 3px rgba(167,139,250,0.18);
+        }
+
+        .query-dropdown option {
+            background: #0E131E;
+            color: #EAF0F8;
+            padding: 8px;
+        }
+
+        .query-field-label {
+            display: block;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: .04em;
+            text-transform: uppercase;
+            color: #98A5B8;
+            margin-bottom: 6px;
+        }
+
+        .query-area textarea {
+            width: 100%;
+            min-height: 5.2em;
+            padding: 10px;
+            border-radius: 10px;
+            border: 1px solid rgba(255,255,255,0.06);
+            background: rgba(0,0,0,0.51);
+            color: #EAF0F8;
+            resize: vertical;
+            box-sizing: border-box;
+        }
+
+        /* Response box */
+        .response-box {
+            display: block !important;
+            margin-top: 10px;
+            padding: 11px 13px;
+            border-radius: 10px !important;
+            border: 1px solid rgba(167,139,250,0.18) !important;
+            background: rgba(4,6,10,0.55) !important;
+            color: #98A5B8;
+            font-size: 12.5px;
+            line-height: 1.55;
+            min-height: 20px;
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
+            box-shadow: none !important;
+            overflow-x: auto;
+        }
+
+        .response-box.idle {
+            border-color: rgba(148,163,184,0.14) !important;
+            background: rgba(4,6,10,0.42) !important;
+            color: #7D8AA0;
+        }
+
+        .response-box .rb-hint-title {
+            color: #C7D2E0;
+            font-weight: 600;
+        }
+
+        .response-box .rb-roi {
+            display: block;
+            margin-top: 6px;
+            font-size: 11.5px;
+            color: #6E7C92;
+        }
+
+        .response-box.error {
+            border-color: #FB7185 !important;
+            color: #FDA4AF;
+            background: rgba(251,113,133,0.08) !important;
+        }
+
+        /* Hosts table */
+        .hosts-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            color: #EAF0F8;
+        }
+
+        .hosts-table th,
+        .hosts-table td {
+            padding: 8px 10px;
+            border: 1px solid rgba(255,255,255,0.028);
+            text-align: left;
+        }
+
+        .hosts-table th {
+            background: rgba(255,255,255,0.022);
+            font-weight: 600;
+        }
+
+        .hosts-empty {
+            opacity: 0.9;
+            margin-top: 8px;
+            font-size: 13px;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 8px 14px;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            background: rgba(255,255,255,0.05);
+            color: #EAF0F8;
+            transition: 0.25s;
+        }
+
+        .btn:hover { background: rgba(255,255,255,0.08); }
+        .btn:disabled { opacity: .55; cursor: not-allowed; }
+
+        /* Progress Bar */
+        .progress-container {
+            display: none;
+            flex-direction: column;
+            align-items: flex-end;
+            min-width: 150px;
+            gap: 4px;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity .3s, visibility .3s;
+        }
+
+        .progress-container.active {
+            display: flex;
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .progress-percentage {
+            font-size: 12px;
+            color: rgba(234,240,248,0.9);
+            font-weight: 500;
+        }
+
+        .progress-bar-wrapper {
+            width: 100%;
+            height: 8px;
+            background: rgba(0,0,0,0.51);
+            border-radius: 4px;
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #A78BFA, #E879F9);
+            border-radius: 4px;
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+
+        /* Back button */
+        .back-btn {
+            margin-bottom: 20px;
+            padding: 10px 16px;
+            background: rgba(255,255,255,0.045);
+            border-radius: 10px;
+            text-decoration: none;
+            font-size: 15px;
+            color: white;
+            display: inline-block;
+        }
+
+        .back-btn:hover { background: rgba(255,255,255,0.07); }
+
+        .src-note {
+            font-size: 11px;
+            opacity: .55;
+            margin-top: 12px;
+        }
+
+        @media (max-width: 980px) {
+            .layout { flex-direction: column; margin: 30px auto; }
+            .sidebar { width: auto; max-height: none; }
+            .kpi-strip { margin-left: 0; }
+        }
+    </style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="theme.css">
+<script defer src="theme.js"></script>
+</head>
+
+<body>
+
+    <!-- Background Glow -->
+    <div class="bg-circle c1"></div>
+    <div class="bg-circle c2"></div>
+
+    <!-- Layout -->
+    <div class="layout">
+
+        <!-- ========== SIDEBAR ========== -->
+        <div class="sidebar">
+            <a href="landing page.html" class="back-btn">⬅ Back to Home</a>
+
+            <div style="font-size:11px; letter-spacing:.12em; text-transform:uppercase; opacity:.6; margin-bottom:2px;">Cloud provider</div>
+            <div class="providers" id="providers"></div>
+
+            <!-- ACCOUNT / SUBSCRIPTION -->
+            <div class="box" onclick="toggleDropdown('accountBox')">
+                <strong id="accountLabel">Account</strong>
+                <span class="count" id="accountCount">—</span>
+            </div>
+            <div class="dropdown-content" id="accountBox"></div>
+
+            <!-- REGION -->
+            <div class="box" onclick="toggleDropdown('regionBox')">
+                <strong>Region</strong>
+                <span class="count" id="regionCount">All</span>
+            </div>
+            <div class="dropdown-content" id="regionBox"></div>
+
+            <!-- RESOURCES -->
+            <div class="box" onclick="toggleDropdown('resourceBox')">
+                <strong>☁ Select Resources</strong>
+                <span class="count" id="resourceCount">0 selected</span>
+            </div>
+            <div class="dropdown-content" id="resourceBox"></div>
+
+            <div class="src-note" id="srcNote">Pick a provider to load its inventory.</div>
+        </div>
+
+        <!-- ========== MAIN PANEL ========== -->
+        <div class="main-panel">
+
+            <!-- Header + inline dashboard -->
+            <div class="header">
+                <div class="header-icon">☁</div>
+                <div>
+                    <h1>Cloud Automation Flow</h1>
+                    <p style="opacity:0.8; margin:4px 0 0;">Cost, posture and inventory automation across AWS, Azure, GCP and Alibaba Cloud</p>
+                </div>
+
+                <div class="kpi-strip" id="kpiStrip"></div>
+            </div>
+
+            <!-- Summary Card -->
+            <div class="card">
+                <h2>Automation Workflows</h2>
+                <p style="opacity:0.8; margin:6px 0 0;">Choose a provider and account on the left, then run a workflow against the whole account or just the resources you tick</p>
+                <div class="scope-line" id="scopeLine">No provider selected yet.</div>
+            </div>
+
+            <!-- Workflow List -->
+            <div id="workflowList"></div>
+
+        </div>
+    </div>
+
+    <script>
+        /* ═══════════════════════════════════════════════════════════
+           CLOUD AUTOMATION FLOW
+
+           ⚙️  Endpoints live in the block below and follow the same
+           contract as NetAutomation Flow (proxy2 workflow/query
+           payload, proxy3 usage tracking). Every request carries the
+           provider, so one backend route can serve all four clouds.
+           Until the endpoint answers, inventory and the dashboard fall
+           back to sample data and the sidebar says so.
+           ═══════════════════════════════════════════════════════════ */
+
+        const CLOUD_API_URL = "http://161.145.120.131:8080/proxy2";
+        const USAGE_API_URL = "http://161.145.120.131:8080/proxy3";
+
+        function getUsername() {
+            return localStorage.getItem("username") || localStorage.getItem("currentUser") || localStorage.getItem("current_user") || "unknown";
+        }
+
+        const PROVIDERS = [
+            { id: "AWS",     name: "AWS",     sub: "Amazon Web Services", accountWord: "Account",      icon: "◆" },
+            { id: "AZURE",   name: "Azure",   sub: "Microsoft Azure",     accountWord: "Subscription", icon: "◈" },
+            { id: "GCP",     name: "GCP",     sub: "Google Cloud",        accountWord: "Project",      icon: "◉" },
+            { id: "ALIBABA", name: "Alibaba", sub: "Alibaba Cloud",       accountWord: "Account",      icon: "◐" }
+        ];
+
+        let provider = localStorage.getItem("cloudProvider") || "";
+        let accounts = [];
+        let account = "";
+        let regions = [];
+        let region = "ALL";
+        let resourceStore = [];
+        let selectedResources = [];
+        let statsLive = false;
+
+        function toggleDropdown(id) {
+            const box = document.getElementById(id);
+            box.style.display = box.style.display === "block" ? "none" : "block";
+        }
+
+        function providerMeta() {
+            return PROVIDERS.filter(p => p.id === provider)[0] || null;
+        }
+
+        /* ═══ WORKFLOWS ═══════════════════════════════════════════
+           Ordered by return on investment. The first three pay for
+           the module in direct cloud spend; the rest close risk that
+           is expensive when it lands.
+           ═══════════════════════════════════════════════════════ */
+        const workflows = [
+            { name: "Idle & Orphaned Resource Sweep",   tag: "cost",   needsAccount: true },
+            { name: "Rightsizing Recommendations",      tag: "cost",   needsAccount: true },
+            { name: "Commitment Coverage Analysis",     tag: "cost",   needsAccount: true },
+            { name: "Cost Anomaly Detection",           tag: "cost",   needsAccount: true },
+            { name: "Untagged Resource Audit",          tag: "cost",   needsAccount: true },
+            { name: "Public Exposure Scan",             tag: "read",   needsAccount: true },
+            { name: "IAM Key Age & Over-Privilege",     tag: "read",   needsAccount: true },
+            { name: "Snapshot & Backup Lifecycle",      tag: "change", needsAccount: true },
+            { name: "Cloud to CMDB Inventory Sync",     tag: "change", needsAccount: true },
+            { name: "Health, Quota & Limit Check",      tag: "read",   needsAccount: true }
+        ];
+
+        const workflowHints = [
+            "Finds resources that are running and billing but doing no work — stopped instances still holding disks, unattached volumes, idle load balancers, unused public IPs. Choose how aggressive to be, then press Run.",
+            "Compares provisioned size against actual utilisation and recommends a smaller instance or disk tier where the headroom is never used. Pick a look-back window, then press Run.",
+            "Shows how much of your steady-state compute is covered by commitments, and where an uncovered baseline is being paid at on-demand rates. Press Run.",
+            "Compares spend against the trend for the same service and flags a sudden jump before it becomes a month-end surprise. Choose sensitivity, then press Run.",
+            "Lists resources missing the tags your cost model depends on, so spend can actually be attributed to an owner. Press Run.",
+            "Scans for anything reachable from the internet that should not be — open storage buckets, security groups open to 0.0.0.0/0, public database endpoints. Press Run.",
+            "Reports access keys older than your rotation policy and roles holding permissions they have never used. Pick a key age, then press Run.",
+            "Finds snapshots and backups outside their retention policy, and volumes with no backup at all. Choose report or enforce, then press Run.",
+            "Reconciles live cloud inventory into the CMDB so the asset record matches what is actually deployed. Choose sync mode, then press Run.",
+            "Checks service health, quota headroom and limits that would block the next deployment. Press Run."
+        ];
+
+        const workflowROI = [
+            "Usually the single largest immediate saving in any cloud account, and the resources it finds are safe to remove by definition — nothing is using them.",
+            "Rightsizing compounds every month it stays applied, and over-provisioning is invisible until something measures it.",
+            "Uncovered steady-state compute is paid at the highest rate available. Coverage gaps are pure margin left on the table.",
+            "Catching a runaway service in days rather than at invoice time is the difference between a small correction and a large one.",
+            "Untagged spend cannot be charged back, so it is absorbed centrally. Tag coverage is what makes every other cost control enforceable.",
+            "A public bucket or open database port is the cheapest breach to prevent and the most expensive to explain.",
+            "Long-lived keys are the most commonly exploited cloud credential and the easiest finding for an auditor to raise.",
+            "Orphaned snapshots bill silently and forever, while unprotected volumes are only discovered when a restore is needed.",
+            "An accurate cloud CMDB is what makes change impact analysis possible; without it, change approval is guesswork.",
+            "A quota ceiling hit during a release turns a routine deployment into an outage with a support-ticket wait attached."
+        ];
+
+        function inputAreaFor(idx) {
+            const dd = (label, opts) =>
+                `<div class="query-area" id="query-${idx}"><div class="query-area-wrapper"><div class="query-controls-row">
+                   <div style="width:100%;max-width:360px;">
+                     <label class="query-field-label" for="dropdown-${idx}">${label}</label>
+                     <select class="query-dropdown" id="dropdown-${idx}">${opts}</select>
+                   </div></div></div></div>`;
+
+            switch (idx) {
+                case 0: return dd("Sweep mode",
+                    `<option value="REPORT" selected>Report only — list what is idle or orphaned</option>
+                     <option value="STOP">Report and stop idle compute</option>
+                     <option value="DELETE_ORPHAN">Report and delete orphaned disks and IPs</option>`);
+                case 1: return dd("Utilisation look-back",
+                    `<option value="7d">Last 7 days</option>
+                     <option value="14d" selected>Last 14 days</option>
+                     <option value="30d">Last 30 days</option>
+                     <option value="90d">Last 90 days</option>`);
+                case 2: return dd("Commitment type",
+                    `<option value="ALL" selected>All commitment types</option>
+                     <option value="RI">Reserved instances</option>
+                     <option value="SP">Savings plans / CUDs</option>
+                     <option value="SPOT">Spot and preemptible opportunity</option>`);
+                case 3: return dd("Anomaly sensitivity",
+                    `<option value="HIGH">High — flag anything above 15% deviation</option>
+                     <option value="MEDIUM" selected>Medium — above 30% deviation</option>
+                     <option value="LOW">Low — above 50% deviation</option>`);
+                case 4: return dd("Required tag set",
+                    `<option value="COST" selected>Cost tags — owner, cost centre, environment</option>
+                     <option value="OPS">Operations tags — application, support group</option>
+                     <option value="ALL">Every mandatory tag</option>`);
+                case 5: return dd("Exposure scope",
+                    `<option value="ALL" selected>Everything internet-facing</option>
+                     <option value="STORAGE">Object storage only</option>
+                     <option value="NETWORK">Security groups and firewall rules</option>
+                     <option value="DATA">Databases and data services</option>`);
+                case 6: return dd("Flag keys older than",
+                    `<option value="30">30 days</option>
+                     <option value="90" selected>90 days</option>
+                     <option value="180">180 days</option>
+                     <option value="365">365 days</option>`);
+                case 7: return dd("Action",
+                    `<option value="REPORT" selected>Report policy breaches only</option>
+                     <option value="ENFORCE">Report and delete snapshots past retention</option>`);
+                case 8: return dd("Sync mode",
+                    `<option value="DRY_RUN" selected>Dry run — show what would change</option>
+                     <option value="SYNC_NEW">Create missing CMDB records</option>
+                     <option value="SYNC_FULL">Full sync — create and update</option>`);
+                case 9: return dd("Check depth",
+                    `<option value="QUOTA" selected>Quota and limit headroom</option>
+                     <option value="HEALTH">Provider service health events</option>
+                     <option value="BOTH">Both</option>`);
+                default: return "";
+            }
+        }
+
+        /* ===== Last-run tracking ===== */
+        function getLastRunText(idx) {
+            const key = `cldLastRun_${idx}`;
+            const lastRunTime = localStorage.getItem(key);
+            if (!lastRunTime) return "Never used";
+
+            const diffMs = Date.now() - parseInt(lastRunTime, 10);
+            const diffSeconds = Math.floor(diffMs / 1000);
+            const diffMins = Math.floor(diffSeconds / 60);
+            const diffHours = Math.floor(diffMins / 60);
+            const diffDays = Math.floor(diffHours / 24);
+
+            if (diffSeconds < 30) return "Just now";
+            if (diffMins < 1) return `${diffSeconds} seconds ago`;
+            if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? "s" : ""} ago`;
+            if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? "s" : ""} ago`;
+            return `${diffDays} day${diffDays > 1 ? "s" : ""} ago`;
+        }
+
+        function updateLastRun(idx) {
+            localStorage.setItem(`cldLastRun_${idx}`, Date.now());
+            const span = document.querySelector(`.workflow-item[data-idx="${idx}"] span.last-run`);
+            if (span) span.textContent = getLastRunText(idx);
+        }
+
+        function loadWorkflows() {
+            const list = document.getElementById("workflowList");
+            list.innerHTML = '';
+            workflows.forEach((w, idx) => {
+                list.innerHTML += `
+                    <div class="workflow-item" data-idx="${idx}">
+                        <div style="flex:1; min-width:0;">
+                          <div class="wf-title">
+                            <strong>${w.name}</strong>
+                            <span class="wf-tag ${w.tag}">${w.tag === 'read' ? 'read only' : w.tag === 'change' ? 'can change' : 'cost'}</span>
+                          </div>
+                          <span class="last-run" style="opacity:0.7; display:block; margin-top:4px;">${getLastRunText(idx)}</span>
+                          ${inputAreaFor(idx)}
+                          <div class="response-box idle" id="response-${idx}">
+                            <span class="rb-hint-title">${w.name}.</span> ${workflowHints[idx]}
+                            <span class="rb-roi">Why it pays: ${workflowROI[idx]}</span>
+                          </div>
+                        </div>
+                        <div style="display:flex; gap:8px; align-items:center;">
+                          <div class="progress-container" id="progress-${idx}">
+                            <div class="progress-percentage" id="progress-percent-${idx}">0%</div>
+                            <div class="progress-bar-wrapper"><div class="progress-bar-fill" id="progress-bar-${idx}"></div></div>
+                          </div>
+                          <button class="btn" id="run-${idx}" onclick="runWorkflow(${idx})">Run</button>
+                        </div>
+                    </div>`;
+            });
+        }
+
+        /* ====== HELPERS ====== */
+        function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+        /* A discovery call that never comes back would leave the sidebar
+           stuck on "Loading…" forever, so every request is bounded. */
+        async function apiFetch(url, payload, timeoutMs) {
+            const ctl = new AbortController();
+            const timer = setTimeout(() => ctl.abort(), timeoutMs || 12000);
+            try {
+                return await fetch(url, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload),
+                    signal: ctl.signal
+                });
+            } finally {
+                clearTimeout(timer);
+            }
+        }
+
+
+        function escapeHtml(s) {
+            return String(s === null || s === undefined ? '' : s)
+                .replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m]);
+        }
+
+        function safeField(obj, keys) {
+            if (!obj || typeof obj !== 'object') return '';
+            for (const k of keys) {
+                if (k in obj && obj[k] !== null && obj[k] !== undefined && String(obj[k]).trim() !== '') return obj[k];
+            }
+            return '';
+        }
+
+        function updateProgress(i, p) {
+            const bar = document.getElementById(`progress-bar-${i}`);
+            const pct = document.getElementById(`progress-percent-${i}`);
+            if (bar && pct) {
+                bar.style.width = p + "%";
+                pct.textContent = Math.round(p) + "%";
+            }
+        }
+
+        let seed = 73;
+        function rnd() { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; }
+
+        /* ═══ PROVIDER PICKER ═════════════════════════════════════ */
+        function renderProviders() {
+            document.getElementById("providers").innerHTML = PROVIDERS.map(p =>
+                `<div class="prov ${p.id === provider ? 'on' : ''}" data-p="${p.id}">
+                   ${p.icon} ${escapeHtml(p.name)}<small>${escapeHtml(p.sub)}</small>
+                 </div>`).join('');
+
+            document.querySelectorAll("#providers .prov").forEach(el => {
+                el.onclick = () => selectProvider(el.dataset.p);
+            });
+        }
+
+        async function selectProvider(id) {
+            provider = id;
+            localStorage.setItem("cloudProvider", id);
+            account = ""; region = "ALL";
+            selectedResources = []; resourceStore = [];
+            renderProviders();
+
+            const meta = providerMeta();
+            document.getElementById("accountLabel").textContent = meta.accountWord;
+            document.getElementById("srcNote").textContent = `Loading ${meta.name} inventory…`;
+
+            await loadAccounts();
+            await loadResources();
+        }
+
+        /* ═══ INVENTORY ═══════════════════════════════════════════ */
+        async function cloudFetch(query, extra) {
+            const payload = Object.assign({
+                workflow: "CLOUD_DISCOVERY",
+                query: query,
+                provider: provider,
+                account: account,
+                region: region
+            }, extra || {});
+
+            const res = await apiFetch(CLOUD_API_URL, payload, 8000);
+            if (!res.ok) throw new Error(`Request failed (${res.status})`);
+            return JSON.parse(await res.text());
+        }
+
+        async function loadAccounts() {
+            try {
+                const parsed = await cloudFetch("FETCH_ACCOUNTS");
+                const list = (parsed && parsed.response && parsed.response.accounts)
+                    || parsed.accounts || (Array.isArray(parsed) ? parsed : null);
+                if (!list) throw new Error("No accounts in response");
+
+                accounts = (Array.isArray(list) ? list : [list]).map(a => typeof a === 'string'
+                    ? { id: a, name: a }
+                    : { id: safeField(a, ['id', 'accountId', 'subscriptionId', 'projectId']) || 'unknown',
+                        name: safeField(a, ['name', 'displayName', 'alias']) || safeField(a, ['id', 'accountId']) || 'unknown' });
+                statsLive = true;
+            } catch (e) {
+                console.warn("[Cloud] account list unavailable, using sample:", e.message);
+                accounts = sampleAccounts();
+                statsLive = false;
+            }
+
+            account = accounts.length ? accounts[0].id : "";
+            renderAccounts();
+            renderRegions();
+        }
+
+        function sampleAccounts() {
+            const m = { AWS: ["prod-platform", "shared-services", "sandbox"],
+                        AZURE: ["sub-prod-eastus", "sub-nonprod", "sub-shared"],
+                        GCP: ["prj-prod-core", "prj-data", "prj-sandbox"],
+                        ALIBABA: ["acct-prod-cn", "acct-intl"] };
+            return (m[provider] || ["default"]).map(x => ({ id: x, name: x }));
+        }
+
+        function sampleRegions() {
+            const m = { AWS: ["us-east-1", "eu-west-1", "ap-south-1", "ap-southeast-1"],
+                        AZURE: ["eastus", "westeurope", "centralindia", "southeastasia"],
+                        GCP: ["us-central1", "europe-west1", "asia-south1"],
+                        ALIBABA: ["cn-hangzhou", "ap-southeast-1", "eu-central-1"] };
+            return m[provider] || [];
+        }
+
+        function renderAccounts() {
+            const box = document.getElementById("accountBox");
+            box.innerHTML = "";
+            if (!accounts.length) {
+                box.innerHTML = `<div style="opacity:.7; text-align:center; padding:10px;">No accounts returned</div>`;
+                return;
+            }
+            accounts.forEach(a => {
+                const d = document.createElement("div");
+                d.textContent = a.name;
+                d.onclick = async () => {
+                    account = a.id;
+                    document.getElementById("accountCount").textContent = a.name;
+                    box.style.display = "none";
+                    selectedResources = [];
+                    await loadResources();
+                };
+                box.appendChild(d);
+            });
+            const cur = accounts.filter(a => a.id === account)[0];
+            document.getElementById("accountCount").textContent = cur ? cur.name : "—";
+        }
+
+        function renderRegions() {
+            regions = sampleRegions();
+            const box = document.getElementById("regionBox");
+            box.innerHTML = "";
+            const all = document.createElement("div");
+            all.textContent = "All regions";
+            all.onclick = async () => {
+                region = "ALL";
+                document.getElementById("regionCount").textContent = "All";
+                box.style.display = "none";
+                await loadResources();
+            };
+            box.appendChild(all);
+
+            regions.forEach(r => {
+                const d = document.createElement("div");
+                d.textContent = r;
+                d.onclick = async () => {
+                    region = r;
+                    document.getElementById("regionCount").textContent = r;
+                    box.style.display = "none";
+                    await loadResources();
+                };
+                box.appendChild(d);
+            });
+        }
+
+        async function loadResources() {
+            if (!provider) return;
+            try {
+                const parsed = await cloudFetch("FETCH_RESOURCES");
+                const list = (parsed && parsed.response && parsed.response.resources)
+                    || parsed.resources || (Array.isArray(parsed) ? parsed : null);
+                if (!list) throw new Error("No resources in response");
+
+                resourceStore = (Array.isArray(list) ? list : [list]).map(r => ({
+                    id: safeField(r, ['id', 'resourceId', 'instanceId', 'name']) || 'unknown',
+                    name: safeField(r, ['name', 'displayName', 'resourceName']) || safeField(r, ['id', 'resourceId']) || 'unknown',
+                    type: safeField(r, ['type', 'resourceType', 'service']) || '-',
+                    region: safeField(r, ['region', 'location', 'zone']) || '-',
+                    state: (safeField(r, ['state', 'status']) || 'running').toString().toLowerCase(),
+                    cost: parseFloat(safeField(r, ['cost', 'monthlyCost', 'spend'])) || 0
+                }));
+                statsLive = true;
+                document.getElementById("srcNote").textContent =
+                    `${resourceStore.length} resources from ${providerMeta().name} · ${new Date().toTimeString().slice(0, 8)}`;
+            } catch (e) {
+                console.warn("[Cloud] resource list unavailable, using sample:", e.message);
+                resourceStore = sampleResources();
+                statsLive = false;
+                document.getElementById("srcNote").textContent =
+                    `Sample inventory — ${providerMeta().name} endpoint not reachable`;
+            }
+            renderResourceList();
+            refreshDashboard();
+        }
+
+        function sampleResources() {
+            const regs = sampleRegions();
+            const types = {
+                AWS: ["EC2", "EBS", "RDS", "S3", "ELB", "Lambda", "EIP"],
+                AZURE: ["VM", "Managed Disk", "SQL DB", "Blob Storage", "Load Balancer", "Function", "Public IP"],
+                GCP: ["Compute Engine", "Persistent Disk", "Cloud SQL", "Cloud Storage", "Load Balancer", "Cloud Run", "Static IP"],
+                ALIBABA: ["ECS", "Cloud Disk", "RDS", "OSS", "SLB", "Function Compute", "EIP"]
+            }[provider] || ["Compute"];
+
+            seed = 73 + provider.length;
+            const out = [];
+            for (let i = 0; i < 14; i++) {
+                const t = types[i % types.length];
+                const st = rnd() > 0.78 ? (rnd() > 0.5 ? "stopped" : "idle") : "running";
+                out.push({
+                    id: `${provider.toLowerCase()}-${t.toLowerCase().replace(/\s+/g, '')}-${100 + i}`,
+                    name: `${t.toLowerCase().replace(/\s+/g, '-')}-${100 + i}`,
+                    type: t,
+                    region: regs[i % Math.max(1, regs.length)] || '-',
+                    state: st,
+                    cost: Math.round((12 + rnd() * 420) * 100) / 100
+                });
+            }
+            return out;
+        }
+
+        function resourceRow(r) {
+            const on = selectedResources.indexOf(r.id) > -1;
+            const pill = r.state === 'stopped' ? 'down' : r.state === 'idle' ? 'warn' : 'up';
+            const d = document.createElement("div");
+            d.className = "res-row" + (on ? " sel" : "");
+            d.dataset.rid = r.id;
+            d.innerHTML =
+                `<input type="checkbox" ${on ? 'checked' : ''} aria-label="Select ${escapeHtml(r.name)}">
+                 <span class="res-meta">
+                   <span class="res-name">${escapeHtml(r.name)}<span class="pill ${pill}">${escapeHtml(r.state)}</span></span>
+                   <span class="res-sub">${escapeHtml(r.type)} · ${escapeHtml(r.region)} · ${r.cost ? '$' + r.cost.toFixed(2) + '/mo' : 'no cost data'}</span>
+                 </span>`;
+            d.onclick = (ev) => {
+                if (ev.target.tagName !== 'INPUT') {
+                    const cb = d.querySelector('input');
+                    cb.checked = !cb.checked;
+                }
+                toggleResource(r.id, d.querySelector('input').checked);
+            };
+            return d;
+        }
+
+        /* Update the ticked rows in place rather than rebuilding the list —
+           a rebuild would throw away whatever the operator had typed into
+           the filter box and collapse their place in a long inventory. */
+        function toggleResource(id, on) {
+            const i = selectedResources.indexOf(id);
+            if (on && i === -1) selectedResources.push(id);
+            if (!on && i > -1) selectedResources.splice(i, 1);
+
+            document.querySelectorAll(`.res-row[data-rid="${cssEscape(id)}"]`).forEach(row => {
+                row.classList.toggle("sel", on);
+                const cb = row.querySelector('input[type="checkbox"]');
+                if (cb) cb.checked = on;
+            });
+
+            paintSelectionSummary();
+            refreshDashboard();
+        }
+
+        /* resource ids are tame, but never build a selector from raw input */
+        function cssEscape(v) {
+            return String(v).replace(/["\\]/g, "\\$&");
+        }
+
+        function paintSelectionSummary() {
+            document.getElementById("resourceCount").textContent = `${selectedResources.length} selected`;
+            const meta = providerMeta();
+            const scope = document.getElementById("scopeLine");
+            scope.innerHTML = selectedResources.length
+                ? `Running against <b>${selectedResources.length}</b> resource${selectedResources.length > 1 ? 's' : ''} in <b>${escapeHtml(account)}</b> (${escapeHtml(meta ? meta.name : '—')}, ${escapeHtml(region === 'ALL' ? 'all regions' : region)})`
+                : `Running account-wide against <b>${escapeHtml(account || '—')}</b> (${escapeHtml(meta ? meta.name : '—')}, ${escapeHtml(region === 'ALL' ? 'all regions' : region)})`;
+        }
+
+        function renderResourceList() {
+            const box = document.getElementById("resourceBox");
+            box.innerHTML = "";
+
+            const tools = document.createElement("div");
+            tools.className = "picker-tools";
+            tools.innerHTML =
+                `<input type="text" id="resFilter" placeholder="Filter resources…">
+                 <button type="button" class="mini-btn" id="resAll">All</button>
+                 <button type="button" class="mini-btn" id="resNone">None</button>`;
+            tools.onclick = e => e.stopPropagation();
+            box.appendChild(tools);
+
+            if (!resourceStore.length) {
+                const empty = document.createElement("div");
+                empty.style.cssText = "opacity:.7; text-align:center; padding:10px;";
+                empty.textContent = "No resources found";
+                box.appendChild(empty);
+                return;
+            }
+
+            const listWrap = document.createElement("div");
+            resourceStore.forEach(r => listWrap.appendChild(resourceRow(r)));
+            box.appendChild(listWrap);
+
+            document.getElementById("resAll").onclick = () => {
+                selectedResources = resourceStore.map(r => r.id);
+                renderResourceList(); refreshDashboard();
+            };
+            document.getElementById("resNone").onclick = () => {
+                selectedResources = [];
+                renderResourceList(); refreshDashboard();
+            };
+            document.getElementById("resFilter").oninput = (e) => {
+                const term = e.target.value.toLowerCase();
+                listWrap.querySelectorAll(".res-row").forEach(row => {
+                    row.classList.toggle("row-hidden", !row.textContent.toLowerCase().includes(term));
+                });
+            };
+
+            paintSelectionSummary();
+        }
+
+        /* ═══ TOP DASHBOARD ═══════════════════════════════════════ */
+        function refreshDashboard() {
+            const inScope = selectedResources.length
+                ? resourceStore.filter(r => selectedResources.indexOf(r.id) > -1)
+                : resourceStore;
+
+            if (!inScope.length) { document.getElementById("kpiStrip").innerHTML = ""; return; }
+
+            seed = 73 + inScope.length;
+            const spend = inScope.reduce((s, r) => s + (r.cost || 0), 0);
+            const idle = inScope.filter(r => r.state !== 'running');
+            const waste = idle.reduce((s, r) => s + (r.cost || 0), 0);
+            const untagged = Math.round(inScope.length * (0.12 + rnd() * 0.3));
+            const cpu = 22 + rnd() * 46;
+            const mem = 34 + rnd() * 40;
+            const posture = Math.round(72 + rnd() * 26);
+
+            const wastePct = spend ? (waste / spend) * 100 : 0;
+            const untaggedPct = (untagged / inScope.length) * 100;
+
+            const boxes = [
+                { v: inScope.length, l: "Resources", pct: 100, cls: "" },
+                { v: "$" + Math.round(spend).toLocaleString(), l: "Spend / month", pct: 100, cls: "" },
+                { v: "$" + Math.round(waste).toLocaleString(), l: "Idle spend", pct: wastePct, cls: waste > 0 ? "warn" : "good" },
+                { v: cpu.toFixed(0) + "%", l: "Avg CPU", pct: cpu, cls: cpu > 85 ? "crit" : cpu < 15 ? "warn" : "" },
+                { v: mem.toFixed(0) + "%", l: "Avg memory", pct: mem, cls: mem > 88 ? "crit" : "" },
+                { v: untaggedPct.toFixed(0) + "%", l: "Untagged", pct: untaggedPct, cls: untaggedPct > 25 ? "warn" : "good" },
+                { v: posture + "%", l: "Posture score", pct: posture, cls: posture < 80 ? "warn" : "good" }
+            ];
+
+            document.getElementById("kpiStrip").innerHTML = boxes.map(b =>
+                `<div class="kpi-box ${b.cls}">
+                   <div class="kv">${escapeHtml(b.v)}</div>
+                   <div class="kl">${escapeHtml(b.l)}</div>
+                   <div class="kbar"><i data-w="${Math.max(0, Math.min(100, b.pct)).toFixed(0)}"></i></div>
+                 </div>`).join('');
+
+            setTimeout(() => {
+                document.querySelectorAll('#kpiStrip .kbar > i[data-w]').forEach(i => {
+                    i.style.width = i.dataset.w + '%';
+                });
+            }, 60);
+        }
+
+        /* ═══ RUN ═════════════════════════════════════════════════ */
+        async function runWorkflow(idx) {
+            const responseBox = document.getElementById(`response-${idx}`);
+            const runBtn = document.getElementById(`run-${idx}`);
+            if (!responseBox || !runBtn) return;
+
+            const w = workflows[idx];
+
+            if (!provider) {
+                responseBox.classList.remove("idle");
+                responseBox.classList.add("error");
+                responseBox.textContent = "Select a cloud provider before running a workflow.";
+                return;
+            }
+
+            if (w.needsAccount && !account) {
+                responseBox.classList.remove("idle");
+                responseBox.classList.add("error");
+                responseBox.textContent = `Select a ${providerMeta().accountWord.toLowerCase()} before running ${w.name}.`;
+                return;
+            }
+
+            responseBox.classList.remove("error", "idle");
+            responseBox.innerHTML = '';
+
+            const ddEl = document.getElementById(`dropdown-${idx}`);
+            const option = ddEl ? ddEl.value : '';
+
+            const progressContainer = document.getElementById(`progress-${idx}`);
+            runBtn.disabled = true;
+            const origText = runBtn.textContent;
+            runBtn.textContent = "Running...";
+            if (progressContainer) { progressContainer.classList.add("active"); updateProgress(idx, 0); }
+            responseBox.textContent = "Sending query...";
+
+            let progress = 0;
+            const progressInterval = setInterval(() => {
+                progress += Math.random() * 15;
+                if (progress > 90) progress = 90;
+                updateProgress(idx, progress);
+            }, 200);
+
+            try {
+                updateProgress(idx, 20);
+                await delay(200);
+                updateProgress(idx, 40);
+
+                const payload = {
+                    workflow: w.name,
+                    provider: provider,
+                    account: account,
+                    region: region,
+                    query: w.name,
+                    option: option,
+                    resources: selectedResources.map(id => {
+                        const r = resourceStore.filter(x => x.id === id)[0] || {};
+                        return { id: r.id, name: r.name, type: r.type, region: r.region };
+                    })
+                };
+
+                console.debug('sending', payload);
+
+                const res = await apiFetch(CLOUD_API_URL, payload, 180000);
+
+                updateProgress(idx, 70);
+                responseBox.textContent = "Receiving response...";
+
+                if (!res.ok) throw new Error(`Request failed (${res.status})`);
+
+                try {
+                    fetch(USAGE_API_URL, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: buildUsagePayload({
+                            username: getUsername(),
+                            module: "Cloud Automation Flow",
+                            workflow: `${provider} — ${w.name}`
+                        })
+                    });
+                } catch (e) { console.warn("Usage tracking failed:", e); }
+
+                const rawText = await res.text();
+                let parsed;
+                try { parsed = JSON.parse(rawText); } catch (e) { parsed = rawText; }
+
+                clearInterval(progressInterval);
+                updateProgress(idx, 100);
+                renderResponse(responseBox, parsed, `${providerMeta().name} — ${w.name}`);
+                updateLastRun(idx);
+
+            } catch (err) {
+                clearInterval(progressInterval);
+                updateProgress(idx, 100);
+                console.error(`[Cloud] ${w.name} failed:`, err);
+                responseBox.classList.add("error");
+                responseBox.textContent = `${w.name} could not run — ${err.message}. Check that the cloud automation endpoint is reachable.`;
+            } finally {
+                clearInterval(progressInterval);
+                runBtn.disabled = false;
+                runBtn.textContent = origText;
+                setTimeout(() => {
+                    const pc = document.getElementById(`progress-${idx}`);
+                    if (pc) pc.classList.remove("active");
+                    updateProgress(idx, 0);
+                }, 900);
+            }
+        }
+
+        function renderResponse(box, parsed, title) {
+            const rows = normaliseRows(parsed);
+
+            if (rows && rows.length) {
+                const cols = Object.keys(rows[0]);
+                const head = cols.map(c => `<th>${escapeHtml(c)}</th>`).join('');
+                const body = rows.map(r =>
+                    `<tr>${cols.map(c => `<td>${escapeHtml(r[c])}</td>`).join('')}</tr>`).join('');
+                box.innerHTML =
+                    `<div style="margin-bottom:8px;"><span class="rb-hint-title">${escapeHtml(title)}</span> — ${rows.length} result${rows.length > 1 ? 's' : ''}</div>
+                     <table class="hosts-table"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
+                return;
+            }
+
+            const text = typeof parsed === 'string'
+                ? parsed
+                : (parsed && (parsed.message || parsed.result || parsed.response))
+                    ? JSON.stringify(parsed.message || parsed.result || parsed.response, null, 2)
+                    : JSON.stringify(parsed, null, 2);
+
+            box.innerHTML = `<div style="margin-bottom:6px;"><span class="rb-hint-title">${escapeHtml(title)}</span></div>
+                             <pre style="margin:0; white-space:pre-wrap; font-size:12px;">${escapeHtml(text)}</pre>`;
+        }
+
+        function normaliseRows(parsed) {
+            let candidate = parsed;
+            if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+                candidate = parsed.response || parsed.result || parsed.data || parsed.rows || parsed;
+                if (candidate && typeof candidate === 'object' && !Array.isArray(candidate)) {
+                    const firstArray = Object.values(candidate).filter(v => Array.isArray(v))[0];
+                    if (firstArray) candidate = firstArray;
+                }
+            }
+            if (!Array.isArray(candidate)) return null;
+            const objs = candidate.filter(r => r && typeof r === 'object' && !Array.isArray(r));
+            return objs.length ? objs : null;
+        }
+
+        function buildUsagePayload({ username, module, workflow }) {
+            const toolName = "Smart NetOps";
+            const key = `usage_${username}_${module}_${workflow}`;
+            let count = parseInt(localStorage.getItem(key) || "0", 10);
+            count += 1;
+            localStorage.setItem(key, count);
+
+            return JSON.stringify({
+                username: username,
+                options_used: module,
+                date: new Date().toISOString(),
+                workflow: workflow,
+                tool: toolName,
+                result: count
+            });
+        }
+
+        /* ===== init ===== */
+        loadWorkflows();
+        renderProviders();
+
+        window.onload = function () {
+            if (provider && PROVIDERS.filter(p => p.id === provider).length) {
+                selectProvider(provider);
+            } else {
+                document.getElementById("srcNote").textContent = "Pick a provider to load its inventory.";
+            }
+        };
+
+        setInterval(() => {
+            document.querySelectorAll(".workflow-item").forEach(item => {
+                const idx = item.getAttribute("data-idx");
+                const span = item.querySelector(".last-run");
+                if (span) span.textContent = getLastRunText(idx);
+            });
+        }, 30000);
+    </script>
+
+</body>
+
+</html>

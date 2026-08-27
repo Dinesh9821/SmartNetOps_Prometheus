@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sign in | Smart NetOps Hub</title>
+<script src="activity-tracker.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="theme.css">
+
+<style>
+  body{ display:grid; place-items:center; min-height:100vh; padding:24px; }
+
+  .auth{
+    display:grid; grid-template-columns:1.05fr .95fr;
+    width:min(940px,100%); border-radius:var(--r-xl);
+    overflow:hidden; isolation:isolate;
+  }
+
+  /* ── LEFT: the live pitch ── */
+  .auth-brand{
+    padding:44px 40px;
+    display:flex; flex-direction:column; gap:26px;
+    background:linear-gradient(158deg, rgba(99,102,241,.16), rgba(34,211,238,.05) 55%, transparent);
+    border-right:1px solid var(--edge);
+  }
+  .mark{
+    width:44px; height:44px; border-radius:13px;
+    background:conic-gradient(from 180deg,var(--cyan),var(--indigo),var(--magenta),var(--cyan));
+    box-shadow:0 0 40px -6px rgba(99,102,241,.95);
+    animation:markspin 9s linear infinite;
+  }
+  .auth-brand h1{ font-size:32px; line-height:1.15; margin:0; }
+  .auth-brand p{ color:var(--ink-2); margin:0; max-width:34ch; font-size:14px; }
+
+  .pulse-row{ display:flex; flex-direction:column; gap:11px; margin-top:auto; }
+  .pulse{
+    display:flex; align-items:center; gap:11px;
+    padding:11px 13px; border-radius:var(--r);
+    background:rgba(255,255,255,.035);
+    border:1px solid var(--edge);
+    font-size:12.5px; color:var(--ink-2);
+  }
+  .pulse .mono{ margin-left:auto; color:var(--ink); font-size:12px; }
+
+  /* ── RIGHT: the form ── */
+  .auth-form{ padding:44px 40px; display:flex; flex-direction:column; justify-content:center; }
+  .auth-form h2{ margin:0 0 4px; font-size:22px; }
+  .auth-form .sub{ color:var(--ink-2); font-size:13px; margin-bottom:28px; }
+
+  .field{ position:relative; margin-bottom:16px; }
+  .field input{
+    width:100%; padding:20px 42px 8px 14px !important;
+    font-size:14px !important; height:56px;
+  }
+  .field label{
+    position:absolute; left:14px; top:18px;
+    font-size:14px; color:var(--ink-3);
+    pointer-events:none;
+    transition:all .2s var(--ease);
+  }
+  .field input:focus + label,
+  .field input:not(:placeholder-shown) + label{
+    top:8px; font-size:10.5px; font-weight:600;
+    letter-spacing:.11em; text-transform:uppercase;
+    color:var(--cyan);
+  }
+  .peek{
+    position:absolute; right:12px; top:16px;
+    cursor:pointer; opacity:.5; font-size:16px; user-select:none;
+    transition:opacity .2s var(--ease);
+  }
+  .peek:hover{ opacity:1; }
+
+  .login-btn{
+    width:100%; height:48px; margin-top:10px;
+    font-size:14px !important; border-radius:var(--r) !important;
+    transition:transform .2s var(--spring) !important;
+  }
+
+  .error{
+    display:none; margin-top:14px; padding:10px 13px;
+    border-radius:var(--r-sm); font-size:12.5px;
+    color:#FDA4AF; background:rgba(251,113,133,.1);
+    border:1px solid rgba(251,113,133,.32);
+  }
+  .hint{
+    margin-top:22px; padding-top:18px;
+    border-top:1px solid var(--edge);
+    font-size:11.5px; color:var(--ink-3); line-height:1.7;
+  }
+  .hint code{
+    background:rgba(255,255,255,.05) !important; border:0 !important;
+    padding:1px 5px; border-radius:4px; font-size:11px;
+  }
+
+  @media (max-width:780px){
+    .auth{ grid-template-columns:1fr; }
+    .auth-brand{ border-right:0; border-bottom:1px solid var(--edge); padding:32px 28px; }
+    .pulse-row{ display:none; }
+    .auth-form{ padding:32px 28px; }
+  }
+</style>
+</head>
+<body data-no-shell>
+
+<div class="auth login-container">
+
+  <div class="auth-brand">
+    <div class="mark"></div>
+    <div>
+      <h1 class="gradient-text">Smart<br>NetOps Hub</h1>
+      <p>Your network's control plane — telemetry, automation, and AI assistance in one operations center.</p>
+    </div>
+
+    <div class="pulse-row">
+      <div class="pulse"><span class="led"></span> Control plane <span class="mono" data-count="99.98" data-suffix="%">0%</span></div>
+      <div class="pulse"><span class="led"></span> Sites reporting <span class="mono" data-count="42" data-suffix="/45">0</span></div>
+      <div class="pulse"><span class="led warn"></span> Open incidents <span class="mono" data-count="3">0</span></div>
+    </div>
+  </div>
+
+  <div class="auth-form">
+    <h2>Sign in</h2>
+    <div class="sub">Use your operator credentials to continue.</div>
+
+    <div class="field input-group">
+      <input type="text" id="username" placeholder=" " required autocomplete="username">
+      <label>Username</label>
+    </div>
+
+    <div class="field input-group">
+      <input type="password" id="password" placeholder=" " required autocomplete="current-password">
+      <label>Password</label>
+      <span class="peek show-pass" onclick="togglePassword()">👁</span>
+    </div>
+
+    <button class="login-btn" onclick="login1()">Sign in</button>
+
+    <div class="error" id="error-msg">Invalid username or password</div>
+
+    <div class="hint">
+      Admin access uses the <code>Admin</code> account. Any other username creates
+      an operator session on this device.
+    </div>
+  </div>
+
+</div>
+
+<script defer src="theme.js"></script>
+<script>
+  // ── original auth logic, unchanged ────────────────────────────
+  const userRecords = JSON.parse(localStorage.getItem("userRecords") || "{}");
+  const ADMIN_PASSWORD = "Admin@123";
+
+  function togglePassword() {
+    const pass = document.getElementById("password");
+    pass.type = pass.type === "password" ? "text" : "password";
+  }
+
+  function validateUsername(username) {
+    const lengthValid = username.length >= 3 && username.length <= 20;
+    return { valid: lengthValid, lengthValid };
+  }
+
+  function validatePassword(password) {
+    const lengthValid = password.length >= 6 && password.length <= 20;
+    return { valid: lengthValid, lengthValid };
+  }
+
+  function login1(){
+    const user = document.getElementById("username").value.trim();
+    const pass = document.getElementById("password").value.trim();
+    const error = document.getElementById("error-msg");
+
+    if (user === "Admin" && pass === 'Admin@123') {
+      localStorage.setItem("currentUser", user);
+      localStorage.setItem("isAdmin", "true");
+      if (window.ActivityTracker) window.ActivityTracker.trackLogin(user, true);
+      document.querySelector(".login-btn").style.transform = "scale(0.95)";
+      error.style.display = "none";
+      setTimeout(() => window.location.href = "admin.html", 300);
+    } else {
+      localStorage.setItem("currentUser", user);
+      localStorage.setItem("isAdmin", "false");
+      if (window.ActivityTracker) window.ActivityTracker.trackLogin(user, false);
+      document.querySelector(".login-btn").style.transform = "scale(0.95)";
+      error.style.display = "none";
+      setTimeout(() => { window.location.href = "landing page.html"; }, 400);
+    }
+  }
+
+  function login() {
+    const user = document.getElementById("username").value.trim();
+    const pass = document.getElementById("password").value.trim();
+    const error = document.getElementById("error-msg");
+
+    if (user === "Admin" && pass === 'Admin@123') {
+      localStorage.setItem("currentUser", user);
+      localStorage.setItem("isAdmin", "true");
+      if (window.ActivityTracker) window.ActivityTracker.trackLogin(user, true);
+      document.querySelector(".login-btn").style.transform = "scale(0.95)";
+      error.style.display = "none";
+      setTimeout(() => window.location.href = "admin.html", 300);
+      return;
+    } else {
+      const userCheck = validateUsername(user);
+      if (!userCheck.valid) {
+        error.style.display = "block";
+        error.textContent = "Username must be 3–20 characters";
+        return;
+      }
+
+      const passCheck = validatePassword(pass);
+      if (!passCheck.valid) {
+        error.style.display = "block";
+        error.textContent = "Password must be 6–20 characters";
+        return;
+      }
+
+      if (userRecords[user]) {
+        if (userRecords[user] !== pass) {
+          error.style.display = "block";
+          error.textContent = "Incorrect password";
+          return;
+        }
+      } else {
+        userRecords[user] = pass;
+        localStorage.setItem("userRecords", JSON.stringify(userRecords));
+      }
+
+      localStorage.setItem("currentUser", user);
+      localStorage.setItem("username", user);
+      localStorage.setItem("isAdmin", "false");
+      if (window.ActivityTracker) window.ActivityTracker.trackLogin(user, false);
+
+      document.querySelector(".login-btn").style.transform = "scale(0.95)";
+      error.style.display = "none";
+      setTimeout(() => { window.location.href = "landing page.html"; }, 400);
+    }
+  }
+
+  document.addEventListener("keydown", function(event) {
+    if (event.key === "Enter") login();
+  });
+</script>
+
+</body>
+</html>

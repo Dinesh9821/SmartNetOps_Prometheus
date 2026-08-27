@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Network Diagram | Smart NetOps Hub</title>
+
+<style>
+/* ===== GLOBAL THEME ===== */
+body {
+  margin: 0;
+  font-family: "Poppins", system-ui, sans-serif;
+  background: linear-gradient(135deg, #0A0E17, #0E131E);
+  min-height: 100vh;
+  color: #EAF0F8;
+  overflow-x: hidden;
+}
+
+/* Background glow */
+.bg-circle {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(90px);
+  opacity: 0.55;
+  animation: float 7s infinite ease-in-out;
+  z-index: 0;
+}
+.c1 { width: 380px; height: 380px; background: #6366F1; top: 8%; left: 12%; }
+.c2 { width: 450px; height: 450px; background: #3B82F6; bottom: 10%; right: 10%; animation-delay: 2s; }
+
+@keyframes float {
+  0% { transform: translateY(0); }
+  50% { transform: translateY(-35px); }
+  100% { transform: translateY(0); }
+}
+
+/* Layout */
+.layout {
+  display: flex;
+  gap: 25px;
+  max-width: 1400px;
+  margin: 50px auto;
+  padding: 0 30px;
+  position: relative;
+  z-index: 2;
+}
+
+/* Sidebar */
+.sidebar {
+  width: 260px;
+  background: rgba(255,255,255,0.04);
+  padding: 20px;
+  border-radius: 14px;
+  backdrop-filter: blur(14px);
+  box-shadow: 0 10px 35px rgba(0,0,0,0.59);
+}
+
+.back-btn {
+  margin-bottom: 20px;
+  padding: 10px 16px;
+  background: rgba(255,255,255,0.045);
+  border-radius: 10px;
+  text-decoration: none;
+  color: white;
+  display: inline-block;
+}
+
+.box {
+  background: rgba(255,255,255,0.03);
+  padding: 10px 14px;
+  margin-top: 10px;
+  border-radius: 8px;
+}
+
+/* Main */
+.main-panel { flex: 1; }
+
+.header {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 25px;
+}
+
+.header-icon {
+  width: 60px;
+  height: 60px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #3B82F6, #0891B2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+}
+
+.card {
+  background: rgba(255,255,255,0.04);
+  backdrop-filter: blur(12px);
+  padding: 20px;
+  border-radius: 14px;
+}
+
+/* Diagram */
+.diagram-canvas {
+  margin-top: 15px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.035);
+  overflow: hidden;
+  position: relative;
+  cursor: grab;
+}
+
+#zoomWrapper {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform-origin: center center;
+}
+
+#graph {
+  max-width: none;
+  max-height: none;
+  user-select: none;
+  pointer-events: none;
+}
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="theme.css">
+<script defer src="theme.js"></script>
+</head>
+
+<body>
+
+<div class="bg-circle c1"></div>
+<div class="bg-circle c2"></div>
+
+<div class="layout">
+
+  <div class="sidebar">
+    <a href="landing page.html" class="back-btn">⬅ Back to Home</a>
+
+    <div class="box">
+      <p><strong>🌐 Region:</strong> <span id="regionDisplay">-</span></p>
+      <p><strong>📡 Country:</strong> <span id="countryDisplay">-</span></p>
+      <p><strong>🛠 Site ID:</strong> <span id="siteDisplay">-</span></p>
+    </div>
+  </div>
+
+  <div class="main-panel">
+
+    <div class="header">
+      <div class="header-icon">🕸️</div>
+      <div>
+        <h1>Network Connectivity Diagram</h1>
+        <p style="opacity:0.8;">Network Diagram for selected Siten Id</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Site Network Diagram</h2>
+      <div id="diagramCanvas" class="diagram-canvas">
+        <div id="zoomWrapper">
+<!--          <img id="graph" alt="Network Diagram" />-->
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  const DIAGRAM_API = "http://cussya5w.carcgl.com:8080/proxy4";
+
+  let scale = 1;
+  let originX = 0;
+  let originY = 0;
+  let isDragging = false;
+  let startX, startY;
+
+  async function loadNetworkDiagram() {
+    try {
+      // Get siteId from localStorage
+      const selectedSite = localStorage.getItem("selectedSite");
+      if (!selectedSite) {
+        console.error("No site selected");
+        return;
+      }
+
+      const sa = selectedSite.split("|")[0].trimEnd();
+      console.log("Loading diagram for site:", sa);
+
+      // Fetch the image
+      const response = await fetch(DIAGRAM_API, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "image/png"
+        },
+        body: JSON.stringify({ siteId: sa })
+      });
+
+      console.log("Response status:", response.status);
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      // Convert response to blob
+      const blob = await response.blob();
+      console.log("Blob received:", blob.size, "bytes, type:", blob.type);
+
+      // Verify it's an image
+      if (!blob.type.startsWith("image/")) {
+        throw new Error(`Expected image, got ${blob.type}`);
+      }
+
+      // Convert blob to base64 and display
+      const reader = new FileReader();
+
+      reader.onload = () => {
+        console.log("Image loaded successfully");
+
+        // Get or create the wrapper
+        const wrapper = document.getElementById("zoomWrapper");
+        if (!wrapper) {
+          console.error("zoomWrapper element not found");
+          return;
+        }
+
+        // Clear previous content
+        wrapper.innerHTML = "";
+
+        // Create new image element
+        const img = document.createElement("img");
+        img.id = "graph";
+        img.src = reader.result;
+        img.alt = "Network Diagram";
+
+        // Apply styling
+        img.style.maxWidth = "100%";
+        img.style.maxHeight = "100%";
+        img.style.objectFit = "contain";
+        img.style.display = "block";
+
+        // Add to wrapper
+        wrapper.appendChild(img);
+
+        // Reset zoom/pan
+        scale = 1;
+        originX = 0;
+        originY = 0;
+        applyTransform();
+      };
+
+      reader.onerror = () => {
+        console.error("FileReader error");
+      };
+
+      reader.readAsDataURL(blob);
+
+    } catch (error) {
+      console.error("Failed to load network diagram:", error);
+
+      // Show error to user
+      const wrapper = document.getElementById("zoomWrapper");
+      if (wrapper) {
+        wrapper.innerHTML = `<div style="color:#FB7185; padding: 20px;">
+          Error loading diagram: ${error.message}
+        </div>`;
+      }
+    }
+  }
+
+  function applyTransform() {
+    const wrapper = document.getElementById("zoomWrapper");
+    if (wrapper) {
+      wrapper.style.transform = `translate(${originX}px, ${originY}px) scale(${scale})`;
+    }
+  }
+
+  // Zoom functionality
+  document.getElementById("diagramCanvas")?.addEventListener("wheel", (e) => {
+    e.preventDefault();
+    scale += e.deltaY * -0.001;
+    scale = Math.min(Math.max(0.5, scale), 4);
+    applyTransform();
+  });
+
+  // Pan functionality - mousedown
+  document.getElementById("diagramCanvas")?.addEventListener("mousedown", (e) => {
+    isDragging = true;
+    startX = e.clientX - originX;
+    startY = e.clientY - originY;
+    e.currentTarget.style.cursor = "grabbing";
+  });
+
+  // Pan functionality - mousemove
+  document.addEventListener("mousemove", (e) => {
+    if (!isDragging) return;
+    originX = e.clientX - startX;
+    originY = e.clientY - startY;
+    applyTransform();
+  });
+
+  // Pan functionality - mouseup
+  document.addEventListener("mouseup", () => {
+    isDragging = false;
+    const canvas = document.getElementById("diagramCanvas");
+    if (canvas) {
+      canvas.style.cursor = "grab";
+    }
+  });
+
+  // Initialize on page load
+  document.addEventListener("DOMContentLoaded", () => {
+    // Display selected values
+    const regionDisplay = document.getElementById("regionDisplay");
+    const countryDisplay = document.getElementById("countryDisplay");
+    const siteDisplay = document.getElementById("siteDisplay");
+
+    if (regionDisplay) {
+      regionDisplay.textContent = localStorage.getItem("selectedRegion") || "-";
+    }
+    if (countryDisplay) {
+      countryDisplay.textContent = localStorage.getItem("selectedCountry") || "-";
+    }
+    if (siteDisplay) {
+      siteDisplay.textContent = localStorage.getItem("selectedSite") || "-";
+    }
+
+    // Load the diagram
+    loadNetworkDiagram();
+  });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NetChatOps - AI Network Assistant</title>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: "Poppins", system-ui, sans-serif;
+      background: linear-gradient(135deg, #0A0E17, #0E131E);
+      min-height: 100vh;
+      color: #EAF0F8;
+      overflow-x: hidden;
+    }
+
+    .bg-circle {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(80px);
+      opacity: 0.55;
+      animation: float 7s infinite ease-in-out;
+      z-index: 0;
+    }
+    .c1 { width: 380px; height: 380px; background: #3B82F6; top: 8%; left: 12%; }
+    .c2 { width: 450px; height: 450px; background: #A78BFA; bottom: 10%; right: 10%; animation-delay: 2s; }
+    @keyframes float {
+      0% { transform: translateY(0); }
+      50% { transform: translateY(-35px); }
+      100% { transform: translateY(0); }
+    }
+
+    /* Layout — sidebar · chat · command pane */
+    .layout {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      width: 100%;
+      padding: 25px;
+      gap: 22px;
+      box-sizing: border-box;
+    }
+
+    /* Sidebar glass card (same as ChatOps) */
+    .sidebar {
+      width: 250px;
+      flex: 0 0 auto;
+      max-height: calc(100vh - var(--rail-h) - 50px);
+      overflow-y: auto;
+      background: rgba(255, 255, 255, 0.04);
+      backdrop-filter: blur(14px);
+      padding: 20px;
+      border-radius: 14px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.42);
+    }
+
+    .box {
+      background: rgba(255, 255, 255, 0.03);
+      padding: 12px 14px;
+      margin: 6px 0;
+      border-radius: 8px;
+      color: #EAF0F8;
+      line-height: 1.9;
+    }
+    .box p { margin: 0; }
+
+    .back-btn {
+      margin-bottom: 20px;
+      padding: 10px 16px;
+      background: rgba(255, 255, 255, 0.045);
+      border-radius: 10px;
+      text-decoration: none;
+      font-size: 15px;
+      color: white;
+      display: inline-block;
+    }
+    .back-btn:hover { background: rgba(255, 255, 255, 0.07); }
+
+    .side-title {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .12em;
+      color: #5D6B80;
+      margin: 18px 0 8px;
+    }
+
+    .device-row {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 0; font-size: 13px;
+      border-bottom: 1px solid rgba(148,163,184,.07);
+    }
+    .device-row:last-child { border-bottom: 0; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }
+    .dot.online { background: #34D399; box-shadow: 0 0 8px #34D399; }
+    .dot.warning { background: #FBBF24; box-shadow: 0 0 8px #FBBF24; }
+    .dot.offline { background: #FB7185; box-shadow: 0 0 8px #FB7185; }
+    .device-row .ip { margin-left: auto; font-family: 'JetBrains Mono', monospace;
+                      font-size: 11px; color: #5D6B80; }
+
+    /* Chat Window (same as ChatOps) */
+    .chat-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: rgba(255, 255, 255, 0.045);
+      backdrop-filter: blur(16px);
+      border-radius: 14px;
+      padding: 20px;
+      height: calc(100vh - var(--rail-h) - 50px);
+      box-sizing: border-box;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.42);
+    }
+
+    .chat-header {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 15px;
+    }
+    .chat-header small {
+      display: block; font-size: 12.5px; font-weight: 400;
+      color: #98A5B8; margin-top: 3px;
+    }
+
+    .chat-box {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px;
+    }
+
+    .msg {
+      padding: 12px 16px;
+      background: rgba(255, 255, 255, 0.055);
+      border-radius: 12px;
+      margin-bottom: 12px;
+      width: fit-content;
+      max-width: 70%;
+    }
+    .user-msg {
+      margin-left: auto;
+      background: rgba(34, 211, 238, 0.42);
+    }
+    .bot-msg {
+      background: rgba(255, 255, 255, 0.055);
+      white-space: pre-wrap;
+    }
+    .error-msg {
+      background: rgba(251, 113, 133, 0.3);
+      border-left: 3px solid #FB7185;
+    }
+
+    .chat-input-area {
+      display: flex;
+      gap: 12px;
+    }
+    .chat-input {
+      flex: 1;
+      padding: 12px;
+      border-radius: 10px;
+      border: none;
+      background: rgba(255, 255, 255, 0.05);
+      color: white;
+    }
+    .send-btn {
+      padding: 12px 20px;
+      border: none;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.06);
+      cursor: pointer;
+      font-size: 16px;
+      color: white;
+    }
+    .send-btn:hover { background: rgba(255, 255, 255, 0.09); }
+    .send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .loading {
+      display: inline-block;
+      width: 12px; height: 12px;
+      border: 2px solid rgba(255, 255, 255, 0.07);
+      border-top-color: #EAF0F8;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Right command pane */
+    .cmd-pane {
+      width: 280px;
+      flex: 0 0 auto;
+      max-height: calc(100vh - var(--rail-h) - 50px);
+      overflow-y: auto;
+      background: rgba(255, 255, 255, 0.04);
+      backdrop-filter: blur(14px);
+      padding: 20px;
+      border-radius: 14px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.42);
+    }
+    .cmd-pane h3 {
+      font-size: 16px; font-weight: 700; margin: 0 0 4px;
+    }
+    .cmd-pane .pane-sub {
+      font-size: 12px; color: #98A5B8; margin-bottom: 16px;
+    }
+    .cmd-btn {
+      display: flex; align-items: center; gap: 11px; width: 100%;
+      padding: 12px 13px; margin-bottom: 9px;
+      border: 1px solid rgba(34,211,238,0.22);
+      border-radius: 10px;
+      background: rgba(255,255,255,0.03);
+      color: #EAF0F8; cursor: pointer;
+      text-align: left; font-size: 13px;
+      transition: all .18s ease;
+    }
+    .cmd-btn:hover {
+      background: rgba(34,211,238,0.10);
+      border-color: rgba(34,211,238,0.5);
+      transform: translateX(3px);
+      box-shadow: 0 0 22px -8px rgba(34,211,238,.8);
+    }
+    .cmd-btn .ic {
+      width: 28px; height: 28px; flex: 0 0 auto; border-radius: 8px;
+      display: grid; place-items: center; font-size: 14px;
+      background: rgba(34,211,238,0.12);
+      border: 1px solid rgba(34,211,238,0.28);
+    }
+    .cmd-btn .lbl { font-weight: 500; }
+    .cmd-btn .desc { font-size: 10.5px; color: #5D6B80; margin-top: 1px; }
+    .cmd-btn .go { margin-left: auto; color: #5D6B80; font-size: 14px; }
+    .cmd-btn:hover .go { color: #22D3EE; }
+
+    .pane-divider {
+      height: 1px; background: rgba(148,163,184,.12);
+      margin: 16px 0;
+    }
+
+    /* Responsive: stack the command pane under chat on narrow screens */
+    @media (max-width: 1150px) {
+      .layout { flex-wrap: wrap; }
+      .sidebar { width: 220px; }
+      .cmd-pane { width: 100%; order: 3; max-height: none; }
+    }
+    @media (max-width: 720px) {
+      .layout { flex-direction: column; }
+      .sidebar, .cmd-pane { width: 100%; box-sizing: border-box; }
+      .chat-container { height: 70vh; }
+    }
+  </style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="theme.css">
+<script defer src="theme.js"></script>
+</head>
+
+<body>
+
+  <div class="bg-circle c1"></div>
+  <div class="bg-circle c2"></div>
+
+  <div class="layout">
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+      <a href="landing page.html" class="back-btn">⬅ Back to Home</a>
+
+      <div class="box">
+        <p><strong>🌐 Region:</strong> <span id="regionDisplay"></span></p>
+        <p><strong>📡 Country:</strong> <span id="countryDisplay"></span></p>
+        <p><strong>🛠 Site ID:</strong> <span id="siteDisplay"></span></p>
+      </div>
+
+      <div class="side-title">Devices</div>
+      <div id="deviceList"></div>
+    </div>
+
+    <!-- CHAT WINDOW -->
+    <div class="chat-container">
+      <div class="chat-header">
+        🛰️ Network's Vedas.
+        <small>AI network assistant — ask a question or run a command from the right</small>
+      </div>
+
+      <div class="chat-box" id="chatBox">
+        <div class="msg bot-msg">
+          👋 Hello! I'm your Network's Vedas Technical AI assistant. Ask me anything about your network, or pick a command on the right and I'll run it for you.
+        </div>
+      </div>
+
+      <div class="chat-input-area">
+        <input type="text" id="chatInput" class="chat-input" placeholder="Type a message..."
+          onkeypress="handleKeyPress(event)" />
+        <button class="send-btn" id="sendBtn" onclick="sendMessage()">Send</button>
+      </div>
+    </div>
+
+    <!-- RIGHT COMMAND PANE -->
+    <div class="cmd-pane">
+      <h3>Network Commands</h3>
+      <div class="pane-sub">Run against the current scope — results appear in chat</div>
+
+      <button class="cmd-btn" onclick="runCommand('Ping all devices')">
+        <span class="ic">📡</span>
+        <span><span class="lbl">Ping All Devices</span><span class="desc">Reachability sweep</span></span>
+        <span class="go">›</span>
+      </button>
+
+      <button class="cmd-btn" onclick="runCommand('Show WAN link status')">
+        <span class="ic">🌐</span>
+        <span><span class="lbl">WAN Status</span><span class="desc">Uplink health & state</span></span>
+        <span class="go">›</span>
+      </button>
+
+      <button class="cmd-btn" onclick="runCommand('Check interface status on all devices')">
+        <span class="ic">🔌</span>
+        <span><span class="lbl">Interface Status</span><span class="desc">Up/down per port</span></span>
+        <span class="go">›</span>
+      </button>
+
+      <button class="cmd-btn" onclick="runCommand('Update configurations on all devices')">
+        <span class="ic">⚙️</span>
+        <span><span class="lbl">Update Configurations</span><span class="desc">Push pending config</span></span>
+        <span class="go">›</span>
+      </button>
+
+      <button class="cmd-btn" onclick="runCommand('Generate a network report')">
+        <span class="ic">📊</span>
+        <span><span class="lbl">Network Report</span><span class="desc">Summary & health</span></span>
+        <span class="go">›</span>
+      </button>
+
+      <button class="cmd-btn" onclick="runCommand('Backup configurations for all devices')">
+        <span class="ic">💾</span>
+        <span><span class="lbl">Backup Configurations</span><span class="desc">Snapshot running-config</span></span>
+        <span class="go">›</span>
+      </button>
+
+      <div class="pane-divider"></div>
+
+      <button class="cmd-btn" onclick="fillPrompt('Which devices are currently down or degraded?')">
+        <span class="ic">❓</span>
+        <span><span class="lbl">What's down?</span></span>
+        <span class="go">›</span>
+      </button>
+
+      <button class="cmd-btn" onclick="fillPrompt('Explain the last alert and how to resolve it.')">
+        <span class="ic">🚨</span>
+        <span><span class="lbl">Explain last alert</span></span>
+        <span class="go">›</span>
+      </button>
+    </div>
+
+  </div>
+
+  <script>
+    /* ===================== SCOPE PERSISTENCE ===================== */
+    /* Same helper as ChatOps — reads what the landing page saved. */
+    function getSavedSelections() {
+      return {
+        region: localStorage.getItem("selectedRegion") || localStorage.getItem("region") || "Not selected",
+        country: localStorage.getItem("selectedCountry") || localStorage.getItem("country") || "Not selected",
+        site: localStorage.getItem("selectedSite") || localStorage.getItem("site") || "Not selected",
+        siteInfo: localStorage.getItem("selectedSiteInfo") || null
+      };
+    }
+
+    function updateSidebarDisplay() {
+      const { region, country, site } = getSavedSelections();
+      document.getElementById("regionDisplay").textContent = region;
+      document.getElementById("countryDisplay").textContent = country;
+      document.getElementById("siteDisplay").textContent = site;
+    }
+
+    /* ===================== DEVICE LIST (context) ===================== */
+    const networkDevices = [
+      { name: "Core Router 01", status: "online", ip: "192.168.1.1" },
+      { name: "Core Router 02", status: "online", ip: "192.168.1.2" },
+      { name: "Switch A-Floor3", status: "warning", ip: "192.168.3.10" },
+      { name: "Firewall Main", status: "online", ip: "10.0.0.1" }
+    ];
+    function loadDevices() {
+      const list = document.getElementById("deviceList");
+      list.innerHTML = "";
+      networkDevices.forEach(dev => {
+        const row = document.createElement("div");
+        row.className = "device-row";
+        row.innerHTML =
+          '<span class="dot ' + dev.status + '"></span>' +
+          '<span>' + dev.name + '</span>' +
+          '<span class="ip">' + dev.ip + '</span>';
+        list.appendChild(row);
+      });
+    }
+
+    window.onload = () => {
+      updateSidebarDisplay();
+      loadDevices();
+    };
+
+    /* ===================== COMMAND PANE ===================== */
+    function fillPrompt(text) {
+      const input = document.getElementById("chatInput");
+      input.value = text;
+      input.focus();
+    }
+    function runCommand(text) {
+      const input = document.getElementById("chatInput");
+      input.value = text;
+      sendMessage();
+    }
+
+    /* ===================== CHAT SYSTEM (same as ChatOps) ===================== */
+    let conversationHistory = [];
+
+    async function sendMessage() {
+      const input = document.getElementById("chatInput");
+      const chatBox = document.getElementById("chatBox");
+      const sendBtn = document.getElementById("sendBtn");
+
+      const userMessage = input.value.trim();
+      if (!userMessage) return;
+
+      input.disabled = true;
+      sendBtn.disabled = true;
+      sendBtn.innerHTML = '<span class="loading"></span>';
+
+      /* Display User Message */
+      const userMsg = document.createElement("div");
+      userMsg.className = "msg user-msg";
+      userMsg.textContent = userMessage;
+      chatBox.appendChild(userMsg);
+      chatBox.scrollTop = chatBox.scrollHeight;
+
+      input.value = "";
+      conversationHistory.push({ role: "user", content: userMessage });
+
+      /* Bot loading indicator */
+      const loadingMsg = document.createElement("div");
+      loadingMsg.className = "msg bot-msg";
+      loadingMsg.id = "loadingMsg";
+      loadingMsg.innerHTML = '<span class="loading"></span> Thinking...';
+      chatBox.appendChild(loadingMsg);
+      chatBox.scrollTop = chatBox.scrollHeight;
+
+      /* Build context */
+      const context = conversationHistory
+        .slice(-5)
+        .map(m => `${m.role}: ${m.content}`)
+        .join("\n");
+
+      const selections = getSavedSelections();
+
+      const payload = {
+        message: userMessage,
+        context: context,
+        region: selections.region,
+        country: selections.country,
+        site: selections.site,
+        siteInfo: selections.siteInfo ? JSON.parse(selections.siteInfo) : null
+      };
+
+      try {
+        const response = await fetch("http://localhost:8080/proxy", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await response.json();
+        console.log(data);
+        loadingMsg.remove();
+
+        /* Display bot reply */
+        const botMsg = document.createElement("div");
+        botMsg.className = "msg bot-msg";
+        botMsg.textContent = data || "⚠ No reply from server.";
+        chatBox.appendChild(botMsg);
+        chatBox.scrollTop = chatBox.scrollHeight;
+
+        conversationHistory.push({ role: "assistant", content: data.response });
+
+      } catch (err) {
+        loadingMsg.remove();
+
+        const errorMsg = document.createElement("div");
+        errorMsg.className = "msg error-msg";
+        errorMsg.innerHTML = `❌ API Error: ${err}`;
+        chatBox.appendChild(errorMsg);
+      }
+
+      input.disabled = false;
+      sendBtn.disabled = false;
+      sendBtn.textContent = "Send";
+      input.focus();
+    }
+
+    function handleKeyPress(event) {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        sendMessage();
+      }
+    }
+  </script>
+
+</body>
+
+</html>

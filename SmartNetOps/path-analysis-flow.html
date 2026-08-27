@@ -1,0 +1,1979 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Path Analysis Flow | Smart NetOps Hub</title>
+
+    <style>
+        /* ====== GLOBAL THEME (Matches NetAutomation Flow) ====== */
+        body {
+            margin: 0;
+            font-family: "Poppins", system-ui, sans-serif;
+            background: linear-gradient(135deg, #0A0E17, #0E131E);
+            min-height: 100vh;
+            color: #EAF0F8;
+            overflow-x: hidden;
+        }
+
+        .bg-circle {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(90px);
+            opacity: 0.55;
+            animation: float 7s infinite ease-in-out;
+            z-index: 0;
+        }
+
+        .c1 { width: 380px; height: 380px; background: #2DD4BF; top: 8%; left: 12%; }
+        .c2 { width: 450px; height: 450px; background: #3B82F6; bottom: 10%; right: 10%; animation-delay: 2s; }
+
+        @keyframes float {
+            0% { transform: translateY(0); }
+            50% { transform: translateY(-35px); }
+            100% { transform: translateY(0); }
+        }
+
+        /* ====== LAYOUT ====== */
+        .layout {
+            display: flex;
+            gap: 25px;
+            max-width: 1400px;
+            margin: 50px auto;
+            padding: 0 30px;
+            position: relative;
+            z-index: 2;
+        }
+
+        /* ====== SIDEBAR ====== */
+        .sidebar {
+            width: 290px;
+            background: rgba(255,255,255,0.04);
+            padding: 20px;
+            border-radius: 14px;
+            backdrop-filter: blur(14px);
+            box-shadow: 0 10px 35px rgba(0,0,0,0.59);
+            max-height: 88vh;
+            overflow-y: auto;
+        }
+
+        .sidebar::-webkit-scrollbar { width: 6px; }
+        .sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.07); border-radius: 5px; }
+
+        .dropdown-content {
+            display: none;
+            background: rgba(255,255,255,0.03);
+            padding: 10px;
+            border-radius: 10px;
+        }
+
+        .dropdown-content div {
+            padding: 10px;
+            cursor: pointer;
+            border-radius: 8px;
+            margin: 5px 0;
+            transition: 0.2s;
+        }
+
+        .dropdown-content div:hover { background: rgba(255,255,255,0.055); }
+
+        .box {
+            background: rgba(255,255,255,0.03);
+            padding: 10px 14px;
+            margin: 6px 0;
+            border-radius: 8px;
+            cursor: pointer;
+            color: #EAF0F8;
+        }
+
+        .box.disabled { opacity: .4; pointer-events: none; }
+        .box .count { float: right; font-size: 12px; opacity: .75; }
+
+        .side-label {
+            font-size: 11px;
+            letter-spacing: .12em;
+            text-transform: uppercase;
+            opacity: .6;
+            margin: 14px 0 4px;
+        }
+
+        /* choice chips (Network/Server, On-prem/Cloud, providers) */
+        .chips { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 4px; }
+
+        .chip {
+            padding: 11px 8px;
+            border-radius: 10px;
+            text-align: center;
+            cursor: pointer;
+            font-size: 12.5px;
+            font-weight: 600;
+            background: rgba(255,255,255,0.035);
+            border: 1px solid rgba(255,255,255,0.06);
+            transition: .2s;
+        }
+
+        .chip small { display: block; font-weight: 400; font-size: 10px; opacity: .6; margin-top: 3px; }
+        .chip:hover { background: rgba(255,255,255,0.07); }
+
+        .chip.on {
+            border-color: rgba(45,212,191,0.55);
+            background: linear-gradient(150deg, rgba(45,212,191,0.22), rgba(59,130,246,0.08));
+            box-shadow: 0 0 24px -10px rgba(45,212,191,0.9);
+        }
+
+        .chips.four { grid-template-columns: 1fr 1fr; }
+
+        .src-summary {
+            margin-top: 12px;
+            padding: 12px 14px;
+            border-radius: 10px;
+            background: linear-gradient(150deg, rgba(45,212,191,0.10), rgba(59,130,246,0.04));
+            border: 1px solid rgba(255,255,255,0.06);
+            font-size: 12px;
+        }
+
+        .src-summary .r { display: flex; gap: 8px; padding: 3px 0; }
+        .src-summary .r span { opacity: .6; }
+        .src-summary .r b { margin-left: auto; text-align: right; word-break: break-word; }
+        .src-summary .r b.set { color: #5EEAD4; }
+
+        .src-note { font-size: 11px; opacity: .55; margin-top: 12px; }
+
+        /* ====== MAIN CONTENT ====== */
+        .main-panel { flex: 1; min-width: 0; }
+
+        .header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+        }
+
+        .header-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 14px;
+            background: linear-gradient(135deg, #2DD4BF, #3B82F6);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 32px;
+            flex: 0 0 auto;
+        }
+
+        .header h1 { margin: 0; }
+
+        .kpi-strip { display: flex; gap: 10px; margin-left: auto; flex-wrap: wrap; }
+
+        .kpi-box {
+            min-width: 100px;
+            padding: 10px 13px;
+            border-radius: 12px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.06);
+            backdrop-filter: blur(12px);
+        }
+
+        .kpi-box .kv { font-size: 19px; font-weight: 600; letter-spacing: -.02em; line-height: 1.2; }
+        .kpi-box .kl { font-size: 10px; text-transform: uppercase; letter-spacing: .12em; opacity: .6; margin-top: 3px; }
+        .kpi-box .kbar { height: 4px; border-radius: 999px; background: rgba(0,0,0,0.45); overflow: hidden; margin-top: 7px; }
+        .kpi-box .kbar i {
+            display: block; height: 100%; width: 0%; border-radius: 999px;
+            background: linear-gradient(90deg, #2DD4BF, #3B82F6);
+            transition: width .9s cubic-bezier(.16,1,.3,1);
+        }
+
+        .kpi-box.warn .kv { color: #FBBF24; }
+        .kpi-box.warn .kbar i { background: linear-gradient(90deg, #F59E0B, #FBBF24); }
+        .kpi-box.crit .kv { color: #FB7185; }
+        .kpi-box.crit .kbar i { background: linear-gradient(90deg, #F43F5E, #FB7185); }
+        .kpi-box.good .kv { color: #34D399; }
+        .kpi-box.good .kbar i { background: linear-gradient(90deg, #10B981, #34D399); }
+
+        /* Glass Cards */
+        .card {
+            background: rgba(255,255,255,0.04);
+            backdrop-filter: blur(12px);
+            padding: 20px;
+            border-radius: 14px;
+            margin-bottom: 25px;
+            box-shadow: 0 10px 35px rgba(0,0,0,0.51);
+        }
+
+        .card h2 { margin: 0; }
+
+        .card-sub { opacity: .8; margin: 6px 0 0; font-size: 13px; }
+
+        .sec-title {
+            display: flex; align-items: center; gap: 10px;
+            margin: 20px 0 12px;
+        }
+
+        .sec-title span {
+            font-size: 11px; font-weight: 600; letter-spacing: .14em;
+            text-transform: uppercase; color: #98A5B8;
+        }
+
+        .sec-title i { flex: 1; height: 1px; background: rgba(255,255,255,0.07); }
+
+        /* form grid */
+        .frow { display: grid; gap: 14px; margin-bottom: 4px; }
+        .frow.two { grid-template-columns: 1fr 1fr; }
+        .frow.three { grid-template-columns: 1fr 1fr 1fr; }
+
+        .field label {
+            display: block; font-size: 11px; font-weight: 600;
+            letter-spacing: .04em; text-transform: uppercase;
+            color: #98A5B8; margin-bottom: 6px;
+        }
+
+        .field input[type="text"],
+        .field input[type="password"],
+        .field input[type="number"],
+        .field textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.07);
+            background: rgba(0,0,0,0.51);
+            color: #EAF0F8;
+            font-size: 13px;
+            box-sizing: border-box;
+        }
+
+        .field input:focus, .field textarea:focus {
+            outline: none;
+            border-color: #2DD4BF;
+            box-shadow: 0 0 0 3px rgba(45,212,191,0.14);
+        }
+
+        .field textarea { min-height: 4.6em; resize: vertical; font-family: ui-monospace, monospace; font-size: 12px; }
+        .field .hint { font-size: 11px; opacity: .55; margin-top: 5px; line-height: 1.5; }
+        .field.bad input { border-color: #FB7185; box-shadow: 0 0 0 3px rgba(251,113,133,0.12); }
+
+        .query-dropdown {
+            -webkit-appearance: none; -moz-appearance: none; appearance: none;
+            width: 100%;
+            background-color: rgba(255,255,255,0.06);
+            border: 1px solid rgba(45,212,191,0.38);
+            border-radius: 8px;
+            padding: 10px 40px 10px 14px;
+            color: #EAF0F8;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            box-sizing: border-box;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232DD4BF' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            background-size: 18px;
+            transition: border-color .2s ease, background-color .2s ease, box-shadow .2s ease;
+        }
+
+        .query-dropdown:hover { background-color: rgba(45,212,191,0.10); border-color: rgba(45,212,191,0.6); }
+        .query-dropdown:focus { outline: none; border-color: #2DD4BF; box-shadow: 0 0 0 3px rgba(45,212,191,0.16); }
+        .query-dropdown option { background: #0E131E; color: #EAF0F8; padding: 8px; }
+
+        .op-pick .query-dropdown { padding: 13px 40px 13px 14px; font-size: 15px; font-weight: 600; }
+
+        /* credentials */
+        .cred-note {
+            display: flex; gap: 10px; align-items: flex-start;
+            margin-top: 12px; padding: 11px 13px;
+            border-radius: 10px;
+            font-size: 12px; line-height: 1.55;
+            background: rgba(45,212,191,0.07);
+            border: 1px solid rgba(45,212,191,0.24);
+            color: #99F6E4;
+        }
+
+        .cred-note.warn {
+            background: rgba(251,191,36,0.08);
+            border-color: rgba(251,191,36,0.35);
+            color: #FCD34D;
+        }
+
+        .cred-actions { display: flex; gap: 8px; align-items: center; margin-top: 12px; flex-wrap: wrap; }
+
+        .mini-btn {
+            padding: 7px 12px; font-size: 11.5px; border-radius: 8px;
+            border: 1px solid rgba(45,212,191,0.32);
+            background: rgba(45,212,191,0.10);
+            color: #99F6E4; cursor: pointer; white-space: nowrap;
+        }
+
+        .mini-btn:hover { background: rgba(45,212,191,0.2); }
+        .cred-state { font-size: 11.5px; opacity: .65; }
+
+        /* run row */
+        .run-row {
+            display: flex; align-items: center; gap: 12px;
+            margin-top: 18px; flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 10px 18px; border-radius: 10px; border: none; cursor: pointer;
+            background: rgba(255,255,255,0.05); color: #EAF0F8; transition: 0.25s;
+            font-size: 13.5px;
+        }
+
+        .btn:hover { background: rgba(255,255,255,0.08); }
+        .btn:disabled { opacity: .5; cursor: not-allowed; }
+
+        .btn.primary {
+            background: linear-gradient(135deg, #2DD4BF, #3B82F6);
+            color: #04121A; font-weight: 700;
+        }
+
+        .btn.primary:hover { filter: brightness(1.1); }
+
+        .progress-container {
+            display: none; flex-direction: column; align-items: flex-end;
+            min-width: 170px; gap: 4px; opacity: 0; visibility: hidden;
+            transition: opacity .3s, visibility .3s;
+        }
+
+        .progress-container.active { display: flex; opacity: 1; visibility: visible; }
+        .progress-percentage { font-size: 12px; color: rgba(234,240,248,0.9); font-weight: 500; }
+
+        .progress-bar-wrapper {
+            width: 100%; height: 8px; background: rgba(0,0,0,0.51);
+            border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .progress-bar-fill {
+            height: 100%; background: linear-gradient(90deg, #2DD4BF, #3B82F6);
+            border-radius: 4px; transition: width 0.3s ease; width: 0%;
+        }
+
+        /* response */
+        .response-box {
+            display: block !important;
+            margin-top: 14px; padding: 11px 13px;
+            border-radius: 10px !important;
+            border: 1px solid rgba(45,212,191,0.16) !important;
+            background: rgba(4,6,10,0.55) !important;
+            color: #98A5B8; font-size: 12.5px; line-height: 1.55;
+            backdrop-filter: none !important; box-shadow: none !important;
+            overflow-x: auto;
+        }
+
+        .response-box.idle {
+            border-color: rgba(148,163,184,0.14) !important;
+            background: rgba(4,6,10,0.42) !important;
+            color: #7D8AA0;
+        }
+
+        .response-box .rb-hint-title { color: #C7D2E0; font-weight: 600; }
+
+        .response-box.error {
+            border-color: #FB7185 !important; color: #FDA4AF;
+            background: rgba(251,113,133,0.08) !important;
+        }
+
+        /* ====== TOPOLOGY ====== */
+        .graph-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+        .graph-head .spacer { flex: 1; }
+
+        .graph-wrap { display: flex; gap: 16px; align-items: stretch; }
+
+        #graph {
+            flex: 1;
+            min-width: 0;
+            height: 420px;
+            border-radius: 12px;
+            background: rgba(0,0,0,0.32);
+            border: 1px solid rgba(255,255,255,0.06);
+            position: relative;
+        }
+
+        #graph .graph-empty {
+            position: absolute; inset: 0;
+            display: flex; align-items: center; justify-content: center;
+            text-align: center; padding: 30px;
+            font-size: 13px; color: #7D8AA0;
+        }
+
+        .hop-detail {
+            width: 260px; flex: 0 0 260px;
+            padding: 15px;
+            border-radius: 12px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.06);
+            font-size: 12.5px;
+            overflow-y: auto;
+            max-height: 420px;
+        }
+
+        .hop-detail h4 { margin: 0 0 10px; font-size: 14px; }
+        .hop-detail .hd-row { display: flex; gap: 10px; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .hop-detail .hd-row:last-child { border-bottom: 0; }
+        .hop-detail .hd-row span { opacity: .6; flex: 0 0 84px; }
+        .hop-detail .hd-row b { flex: 1; text-align: right; word-break: break-word; font-weight: 500; }
+        .hop-detail .hd-empty { color: #7D8AA0; line-height: 1.6; }
+
+        .legend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 12px; font-size: 11.5px; color: #98A5B8; }
+        .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
+
+        /* hop table */
+        .hosts-table { width: 100%; border-collapse: collapse; font-size: 13px; color: #EAF0F8; }
+        .hosts-table th, .hosts-table td { padding: 8px 10px; border: 1px solid rgba(255,255,255,0.028); text-align: left; }
+        .hosts-table th { background: rgba(255,255,255,0.022); font-weight: 600; }
+        .hosts-table tr.hop-slow td { background: rgba(251,191,36,0.06); }
+        .hosts-table tr.hop-lost td { background: rgba(251,113,133,0.07); }
+        .hosts-table tr.hop-row { cursor: pointer; }
+        .hosts-table tr.hop-row:hover td { background: rgba(45,212,191,0.08); }
+
+        .pill {
+            display: inline-block; padding: 2px 8px; border-radius: 999px;
+            font-size: 10.5px; border: 1px solid currentColor;
+        }
+
+        .pill.up { color: #34D399; }
+        .pill.warn { color: #FBBF24; }
+        .pill.down { color: #FB7185; }
+
+        .back-btn {
+            margin-bottom: 20px; padding: 10px 16px;
+            background: rgba(255,255,255,0.045); border-radius: 10px;
+            text-decoration: none; font-size: 15px; color: white; display: inline-block;
+        }
+
+        .back-btn:hover { background: rgba(255,255,255,0.07); }
+
+        @media (max-width: 1080px) {
+            .graph-wrap { flex-direction: column; }
+            .hop-detail { width: auto; flex: none; max-height: none; }
+        }
+
+        @media (max-width: 980px) {
+            .layout { flex-direction: column; margin: 30px auto; }
+            .sidebar { width: auto; max-height: none; }
+            .kpi-strip { margin-left: 0; }
+            .frow.two, .frow.three { grid-template-columns: 1fr; }
+        }
+    </style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="theme.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.28.1/cytoscape.min.js"></script>
+<script defer src="theme.js"></script>
+</head>
+
+<body>
+
+    <!-- Background Glow -->
+    <div class="bg-circle c1"></div>
+    <div class="bg-circle c2"></div>
+
+    <div class="layout">
+
+        <!-- ========== SIDEBAR : SOURCE SELECTION ========== -->
+        <div class="sidebar">
+            <a href="landing page.html" class="back-btn">⬅ Back to Home</a>
+
+            <div class="side-label">Run the trace from</div>
+            <div class="chips" id="sourceKind">
+                <div class="chip" data-k="NETWORK">🌐 Network<small>Router, switch, firewall</small></div>
+                <div class="chip" data-k="SERVER">🖳 Server<small>On-prem or cloud</small></div>
+            </div>
+
+            <!-- ===== NETWORK BRANCH ===== -->
+            <div id="networkBranch" style="display:none;">
+                <div class="side-label">Network scope</div>
+
+                <div class="box" onclick="toggleDropdown('regionBox')">
+                    <strong>🌐 Region</strong><span class="count" id="regionCount">—</span>
+                </div>
+                <div class="dropdown-content" id="regionBox"></div>
+
+                <div class="box" id="countryTile" onclick="toggleDropdown('countryBox')">
+                    <strong>📡 Country</strong><span class="count" id="countryCount">—</span>
+                </div>
+                <div class="dropdown-content" id="countryBox"></div>
+
+                <div class="box" id="siteTile" onclick="toggleDropdown('siteBox')">
+                    <strong>🛠 Site ID</strong><span class="count" id="siteCount">—</span>
+                </div>
+                <div class="dropdown-content" id="siteBox"></div>
+
+                <div class="box" id="deviceTile" onclick="toggleDropdown('deviceBox')">
+                    <strong>🖧 Device</strong><span class="count" id="deviceCount">—</span>
+                </div>
+                <div class="dropdown-content" id="deviceBox"></div>
+            </div>
+
+            <!-- ===== SERVER BRANCH ===== -->
+            <div id="serverBranch" style="display:none;">
+                <div class="side-label">Server location</div>
+                <div class="chips" id="serverKind">
+                    <div class="chip" data-k="ONPREM">🏢 On-prem<small>Data centre</small></div>
+                    <div class="chip" data-k="CLOUD">☁ Cloud<small>Public cloud</small></div>
+                </div>
+
+                <div id="cloudPickers" style="display:none;">
+                    <div class="side-label">Cloud provider</div>
+                    <div class="chips four" id="cloudProvider">
+                        <div class="chip" data-k="AWS">◆ AWS<small>Amazon</small></div>
+                        <div class="chip" data-k="AZURE">◈ Azure<small>Microsoft</small></div>
+                        <div class="chip" data-k="GCP">◉ GCP<small>Google</small></div>
+                        <div class="chip" data-k="ALIBABA">◐ Alibaba<small>Alibaba Cloud</small></div>
+                    </div>
+
+                    <div class="box" onclick="toggleDropdown('accountBox')">
+                        <strong id="accountLabel">Account</strong><span class="count" id="accountCount">—</span>
+                    </div>
+                    <div class="dropdown-content" id="accountBox"></div>
+                </div>
+
+                <div class="box" id="serverTile" onclick="toggleDropdown('serverBox')">
+                    <strong>🖳 Server</strong><span class="count" id="serverCount">—</span>
+                </div>
+                <div class="dropdown-content" id="serverBox"></div>
+            </div>
+
+            <!-- ===== SOURCE SUMMARY ===== -->
+            <div class="src-summary" id="srcSummary"></div>
+            <div class="src-note" id="srcNote">Choose where the trace should run from.</div>
+        </div>
+
+        <!-- ========== MAIN PANEL ========== -->
+        <div class="main-panel">
+
+            <div class="header">
+                <div class="header-icon">🛰</div>
+                <div>
+                    <h1>Path Analysis Flow</h1>
+                    <p style="opacity:0.8; margin:4px 0 0;">Trace how traffic flows from a source device to a destination, hop by hop</p>
+                </div>
+                <div class="kpi-strip" id="kpiStrip"></div>
+            </div>
+
+            <!-- ===== RUN CARD ===== -->
+            <div class="card">
+                <h2>Path operation</h2>
+                <p class="card-sub">Every operation runs by logging in to the selected source and executing there, so the path is measured from where the traffic actually starts.</p>
+
+                <div class="sec-title"><span>Target</span><i></i></div>
+
+                <div class="frow two">
+                    <div class="field" id="fw-dest">
+                        <label for="f-dest">Destination IP or hostname</label>
+                        <input type="text" id="f-dest" placeholder="10.44.8.20 or app.internal.example.com" autocomplete="off" spellcheck="false">
+                        <div class="hint">Where the traffic is going. IPv4, IPv6 or a resolvable name.</div>
+                    </div>
+                    <div class="field op-pick">
+                        <label for="f-op">Operation</label>
+                        <select class="query-dropdown" id="f-op"></select>
+                        <div class="hint" id="opHint">Pick what to run against the destination.</div>
+                    </div>
+                </div>
+
+                <div id="opOptions"></div>
+
+                <div class="sec-title"><span>Login to the source</span><i></i></div>
+
+                <div class="frow two">
+                    <div class="field">
+                        <label for="f-auth">Authentication method</label>
+                        <select class="query-dropdown" id="f-auth">
+                            <option value="PASSWORD">Username and password</option>
+                            <option value="SSH_KEY">SSH private key</option>
+                            <option value="VAULT">Stored credential (vault reference)</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label for="f-port">SSH port</label>
+                        <input type="number" id="f-port" value="22" min="1" max="65535">
+                    </div>
+                </div>
+
+                <div id="authFields"></div>
+
+                <div class="frow two" style="margin-top:14px;">
+                    <div class="field">
+                        <label for="f-jump">Jump host / bastion <span style="text-transform:none;opacity:.6;">— optional</span></label>
+                        <input type="text" id="f-jump" placeholder="bastion.example.com" autocomplete="off" spellcheck="false">
+                        <div class="hint">Leave blank to connect to the source directly.</div>
+                    </div>
+                    <div class="field">
+                        <label for="f-jumpuser">Jump host user <span style="text-transform:none;opacity:.6;">— optional</span></label>
+                        <input type="text" id="f-jumpuser" placeholder="jumpuser" autocomplete="off" spellcheck="false">
+                    </div>
+                </div>
+
+                <div class="cred-note" id="credNote">
+                    <span>🔒</span>
+                    <span id="credNoteText">Credentials are held in this browser tab only, in memory. They are never written to local storage and are cleared when you close or reload the tab.</span>
+                </div>
+
+                <div class="cred-actions">
+                    <button type="button" class="mini-btn" id="clearCreds">Clear credentials now</button>
+                    <span class="cred-state" id="credState">No credentials entered</span>
+                </div>
+
+                <div class="run-row">
+                    <button class="btn primary" id="runBtn">Run path analysis</button>
+                    <button class="btn" id="rerunBtn" title="Run the same operation again">Re-run</button>
+                    <div class="progress-container" id="progressBox">
+                        <div class="progress-percentage" id="progressPct">0%</div>
+                        <div class="progress-bar-wrapper"><div class="progress-bar-fill" id="progressBar"></div></div>
+                    </div>
+                </div>
+
+                <div class="response-box idle" id="responseBox">
+                    <span class="rb-hint-title">Ready.</span> Select a source on the left, enter a destination and your login, then run. Nothing is executed until you press Run.
+                </div>
+            </div>
+
+            <!-- ===== TOPOLOGY ===== -->
+            <div class="card">
+                <div class="graph-head">
+                    <div>
+                        <h2>Traffic path</h2>
+                        <p class="card-sub">Click any hop to see its detail</p>
+                    </div>
+                    <span class="spacer"></span>
+                    <button class="btn" id="fitBtn">Fit</button>
+                    <button class="btn" id="exportBtn">Export JSON</button>
+                </div>
+
+                <div class="graph-wrap">
+                    <div id="graph"><div class="graph-empty" id="graphEmpty">No path yet. Run an operation and the hop-by-hop diagram appears here.</div></div>
+                    <div class="hop-detail" id="hopDetail">
+                        <h4>Hop detail</h4>
+                        <div class="hd-empty">Select a hop in the diagram or the table below to inspect its address, latency, loss and owning network.</div>
+                    </div>
+                </div>
+
+                <div class="legend">
+                    <span><i style="background:#2DD4BF"></i>Source</span>
+                    <span><i style="background:#3B82F6"></i>Transit hop</span>
+                    <span><i style="background:#FBBF24"></i>High latency</span>
+                    <span><i style="background:#FB7185"></i>Loss or no reply</span>
+                    <span><i style="background:#34D399"></i>Destination</span>
+                </div>
+            </div>
+
+            <!-- ===== HOP TABLE ===== -->
+            <div class="card" id="hopTableCard" style="display:none;">
+                <h2>Hop detail table</h2>
+                <p class="card-sub">Same data as the diagram, in the order the packets travelled</p>
+                <div style="overflow-x:auto; margin-top:14px;" id="hopTableWrap"></div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        /* ═══════════════════════════════════════════════════════════
+           PATH ANALYSIS FLOW
+
+           ⚙️  All endpoints are in the block below and reuse the same
+           contracts as the rest of the hub:
+             proxy1 — site list for a region/country
+             proxy2 — device / server / cloud discovery, and the path
+                      operation itself
+             proxy3 — usage tracking
+
+           The backend is expected to SSH into the chosen source using
+           the supplied credentials and run the operation there, then
+           return a normalised hop list. Sample data is shown when the
+           endpoint is unreachable, and the page says so on screen.
+
+           🔒 CREDENTIALS: held in the `creds` object in memory only.
+           Never written to localStorage/sessionStorage, never logged,
+           and redacted from the debug payload.
+           ═══════════════════════════════════════════════════════════ */
+
+        const SITES_API_URL = "http://161.145.120.131:8080/proxy1";
+        const RUN_API_URL   = "http://161.145.120.131:8080/proxy2";
+        const USAGE_API_URL = "http://161.145.120.131:8080/proxy3";
+
+        function getUsername() {
+            return localStorage.getItem("username") || localStorage.getItem("currentUser") || localStorage.getItem("current_user") || "unknown";
+        }
+
+        /* Region → country seed list, same shape as the landing page.
+           Sites come from proxy1; this is only the fallback. */
+        const regionData = {
+            APAC: { "India": [], "Japan": [], "Singapore": [], "Australia": [], "China": [], "Malaysia": [] },
+            EMEA: { "United Kingdom": [], "Germany": [], "Netherlands": [], "Spain": [], "UAE": [], "South Africa": [] },
+            AMER: { "United States": [], "Canada": [], "Mexico": [], "Brazil": [], "Argentina": [] }
+        };
+
+        const CLOUD_PROVIDERS = {
+            AWS:     { name: "AWS",     accountWord: "Account" },
+            AZURE:   { name: "Azure",   accountWord: "Subscription" },
+            GCP:     { name: "GCP",     accountWord: "Project" },
+            ALIBABA: { name: "Alibaba", accountWord: "Account" }
+        };
+
+        /* ═══ STATE ═══ */
+        const sel = {
+            kind: "",            // NETWORK | SERVER
+            region: "", country: "", site: "", device: null,
+            serverKind: "",      // ONPREM | CLOUD
+            provider: "", account: "", server: null
+        };
+
+        /* 🔒 in-memory only — deliberately not persisted anywhere */
+        const creds = { method: "PASSWORD", username: "", password: "", key: "", passphrase: "", vaultRef: "", enable: "", jumpPassword: "" };
+
+        let hops = [];
+        let cy = null;
+        let lastRun = null;
+        let dataLive = false;
+
+        /* ═══ OPERATIONS ═══════════════════════════════════════════
+           Everything here runs over an SSH session on the source.
+           Ordered by how often a path problem actually needs them.
+           ═══════════════════════════════════════════════════════ */
+        const OPERATIONS = [
+            { key: "TRACEROUTE",     name: "Traceroute — map every hop",             path: true,
+              hint: "Discovers each router between the source and the destination and how long each one takes to answer." },
+            { key: "PATH_PING",      name: "Path ping (MTR) — per-hop loss",         path: true,
+              hint: "Repeatedly probes every hop so you can see which one is actually dropping packets, not just where the path ends." },
+            { key: "TCP_TRACE",      name: "TCP traceroute to a port",               path: true,
+              hint: "Traces using TCP SYN to the service port, so firewalls that drop ICMP do not hide the real path." },
+            { key: "PMTU",           name: "Path MTU discovery",                     path: true,
+              hint: "Finds the largest packet that survives end to end. Catches the black-hole MTU faults that break only large transfers." },
+            { key: "PORT_CHECK",     name: "Port reachability check",                path: false,
+              hint: "Opens a TCP connection to each port you list and reports what answered." },
+            { key: "DNS_PATH",       name: "DNS resolution path",                    path: false,
+              hint: "Shows which resolver answered, what it returned and how long it took — from the source, not from your laptop." },
+            { key: "HTTP_TRACE",     name: "HTTP and TLS handshake trace",           path: false,
+              hint: "Times DNS, TCP connect, TLS handshake and first byte separately, so you can see which stage is slow." },
+            { key: "ROUTE_LOOKUP",   name: "Route table and next-hop lookup",        path: false,
+              hint: "Asks the source which interface and next hop it would actually use for that destination." },
+            { key: "IFACE_HEALTH",   name: "Interface errors and queue drops",       path: false,
+              hint: "Reads error, discard and queue counters on the egress interface — the usual cause of loss that ping alone will not show." },
+            { key: "CONT_MONITOR",   name: "Continuous path monitor",                path: true,
+              hint: "Runs the path test on a loop for a set duration to catch a fault that only appears intermittently." },
+            { key: "PCAP",           name: "Packet capture on the egress interface", path: false,
+              hint: "Captures traffic to the destination for a short window and returns a summary you can pull into Wireshark." },
+            { key: "BANDWIDTH",      name: "Throughput and latency baseline",        path: false,
+              hint: "Measures achievable throughput and round-trip time so you have a number to compare against next time." }
+        ];
+
+        function currentOp() {
+            return OPERATIONS.filter(o => o.key === document.getElementById("f-op").value)[0] || OPERATIONS[0];
+        }
+
+        /* per-operation controls */
+        function optionsFor(key) {
+            const dd = (id, label, opts, hint) =>
+                `<div class="field"><label for="${id}">${label}</label>
+                   <select class="query-dropdown" id="${id}">${opts}</select>
+                   ${hint ? `<div class="hint">${hint}</div>` : ''}</div>`;
+            const num = (id, label, value, hint) =>
+                `<div class="field"><label for="${id}">${label}</label>
+                   <input type="number" id="${id}" value="${value}">
+                   ${hint ? `<div class="hint">${hint}</div>` : ''}</div>`;
+            const txt = (id, label, ph, hint) =>
+                `<div class="field"><label for="${id}">${label}</label>
+                   <input type="text" id="${id}" placeholder="${ph}" autocomplete="off" spellcheck="false">
+                   ${hint ? `<div class="hint">${hint}</div>` : ''}</div>`;
+
+            const vrf = txt("o-vrf", "VRF or source interface — optional", "MGMT / eth0", "Forces the trace out of a specific routing table or interface.");
+
+            switch (key) {
+                case "TRACEROUTE":
+                    return `<div class="frow three">
+                      ${dd("o-proto", "Probe protocol",
+                        `<option value="ICMP">ICMP echo</option>
+                         <option value="UDP" selected>UDP — classic traceroute</option>
+                         <option value="TCP">TCP SYN</option>`)}
+                      ${num("o-maxhops", "Max hops", 30)}
+                      ${dd("o-resolve", "Resolve hop names",
+                        `<option value="yes" selected>Yes — resolve DNS</option>
+                         <option value="no">No — faster, addresses only</option>`)}
+                    </div><div class="frow two">${vrf}</div>`;
+                case "PATH_PING":
+                    return `<div class="frow three">
+                      ${num("o-count", "Probes per hop", 20)}
+                      ${num("o-interval", "Interval (ms)", 200)}
+                      ${dd("o-proto", "Probe protocol",
+                        `<option value="ICMP" selected>ICMP echo</option>
+                         <option value="UDP">UDP</option>
+                         <option value="TCP">TCP SYN</option>`)}
+                    </div><div class="frow two">${vrf}</div>`;
+                case "TCP_TRACE":
+                    return `<div class="frow three">
+                      ${num("o-port", "Destination port", 443)}
+                      ${num("o-maxhops", "Max hops", 30)}
+                      ${dd("o-resolve", "Resolve hop names",
+                        `<option value="yes" selected>Yes</option><option value="no">No</option>`)}
+                    </div><div class="frow two">${vrf}</div>`;
+                case "PMTU":
+                    return `<div class="frow three">
+                      ${num("o-mtu", "Start MTU", 1500)}
+                      ${num("o-floor", "Lowest MTU to test", 1200)}
+                      ${dd("o-df", "Fragmentation",
+                        `<option value="set" selected>Don't-fragment set</option>
+                         <option value="clear">Allow fragmentation</option>`)}
+                    </div>`;
+                case "PORT_CHECK":
+                    return `<div class="frow two">
+                      ${txt("o-ports", "Ports to test", "22,443,3306,8080", "Comma separated. Each is tried in turn from the source.")}
+                      ${num("o-timeout", "Timeout per port (s)", 3)}
+                    </div>`;
+                case "DNS_PATH":
+                    return `<div class="frow three">
+                      ${dd("o-rrtype", "Record type",
+                        `<option value="A" selected>A</option><option value="AAAA">AAAA</option>
+                         <option value="CNAME">CNAME</option><option value="MX">MX</option>
+                         <option value="TXT">TXT</option><option value="SRV">SRV</option>`)}
+                      ${txt("o-resolver", "Resolver — optional", "10.10.0.53", "Blank uses the source's own resolvers.")}
+                      ${dd("o-trace", "Query mode",
+                        `<option value="normal" selected>Normal lookup</option>
+                         <option value="trace">Full delegation trace from root</option>`)}
+                    </div>`;
+                case "HTTP_TRACE":
+                    return `<div class="frow three">
+                      ${dd("o-scheme", "Scheme",
+                        `<option value="https" selected>HTTPS</option><option value="http">HTTP</option>`)}
+                      ${num("o-port", "Port", 443)}
+                      ${txt("o-path", "Path", "/healthz", "Request path to fetch.")}
+                    </div>`;
+                case "ROUTE_LOOKUP":
+                    return `<div class="frow two">
+                      ${dd("o-detail", "Detail",
+                        `<option value="best" selected>Best path only</option>
+                         <option value="full">Full matching routes and protocol</option>`)}
+                      ${vrf}
+                    </div>`;
+                case "IFACE_HEALTH":
+                    return `<div class="frow two">
+                      ${dd("o-scope", "Interface scope",
+                        `<option value="egress" selected>Egress interface for this destination</option>
+                         <option value="all">All interfaces</option>`)}
+                      ${dd("o-clear", "Counters",
+                        `<option value="read" selected>Read only</option>
+                         <option value="delta">Read, wait 60s, report the delta</option>`)}
+                    </div>`;
+                case "CONT_MONITOR":
+                    return `<div class="frow three">
+                      ${dd("o-duration", "Duration",
+                        `<option value="5m" selected>5 minutes</option>
+                         <option value="15m">15 minutes</option>
+                         <option value="60m">60 minutes</option>`)}
+                      ${num("o-interval", "Probe interval (s)", 5)}
+                      ${dd("o-alert", "Report",
+                        `<option value="summary" selected>Summary at the end</option>
+                         <option value="breaches">Only intervals that breached</option>`)}
+                    </div>`;
+                case "PCAP":
+                    return `<div class="frow three">
+                      ${num("o-seconds", "Capture seconds", 30)}
+                      ${num("o-maxpkts", "Max packets", 5000)}
+                      ${txt("o-filter", "Extra BPF filter — optional", "tcp port 443", "Combined with the destination filter.")}
+                    </div>`;
+                case "BANDWIDTH":
+                    return `<div class="frow three">
+                      ${dd("o-dir", "Direction",
+                        `<option value="up" selected>Source to destination</option>
+                         <option value="down">Destination to source</option>
+                         <option value="both">Both</option>`)}
+                      ${num("o-seconds", "Test seconds", 10)}
+                      ${num("o-streams", "Parallel streams", 4)}
+                    </div>`;
+                default: return "";
+            }
+        }
+
+        /* ═══ HELPERS ═══ */
+        function $(id) { return document.getElementById(id); }
+        function val(id) { const e = $(id); return e ? String(e.value).trim() : ""; }
+        function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+        function escapeHtml(s) {
+            return String(s === null || s === undefined ? '' : s)
+                .replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m]);
+        }
+
+        function safeField(obj, keys) {
+            if (!obj || typeof obj !== 'object') return '';
+            for (const k of keys) {
+                if (k in obj && obj[k] !== null && obj[k] !== undefined && String(obj[k]).trim() !== '') return obj[k];
+            }
+            return '';
+        }
+
+        async function apiFetch(url, payload, timeoutMs) {
+            const ctl = new AbortController();
+            const timer = setTimeout(() => ctl.abort(), timeoutMs || 12000);
+            try {
+                return await fetch(url, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload),
+                    signal: ctl.signal
+                });
+            } finally { clearTimeout(timer); }
+        }
+
+        function toggleDropdown(id) {
+            const box = $(id);
+            if (!box) return;
+            box.style.display = box.style.display === "block" ? "none" : "block";
+        }
+
+        let seed = 19;
+        function rnd() { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; }
+
+        /* ═══ SOURCE SELECTION ═════════════════════════════════════ */
+        function initSourcePickers() {
+            document.querySelectorAll('#sourceKind .chip').forEach(c => {
+                c.onclick = () => {
+                    sel.kind = c.dataset.k;
+                    document.querySelectorAll('#sourceKind .chip').forEach(x => x.classList.toggle('on', x === c));
+                    $("networkBranch").style.display = sel.kind === "NETWORK" ? "block" : "none";
+                    $("serverBranch").style.display = sel.kind === "SERVER" ? "block" : "none";
+                    sel.device = null; sel.server = null;
+                    if (sel.kind === "NETWORK") loadRegions();
+                    paintSource();
+                };
+            });
+
+            document.querySelectorAll('#serverKind .chip').forEach(c => {
+                c.onclick = () => {
+                    sel.serverKind = c.dataset.k;
+                    document.querySelectorAll('#serverKind .chip').forEach(x => x.classList.toggle('on', x === c));
+                    $("cloudPickers").style.display = sel.serverKind === "CLOUD" ? "block" : "none";
+                    sel.server = null;
+                    if (sel.serverKind === "ONPREM") loadOnPremServers();
+                    else { $("serverBox").innerHTML = ""; $("serverCount").textContent = "—"; }
+                    paintSource();
+                };
+            });
+
+            document.querySelectorAll('#cloudProvider .chip').forEach(c => {
+                c.onclick = () => {
+                    sel.provider = c.dataset.k;
+                    document.querySelectorAll('#cloudProvider .chip').forEach(x => x.classList.toggle('on', x === c));
+                    $("accountLabel").textContent = CLOUD_PROVIDERS[sel.provider].accountWord;
+                    sel.account = ""; sel.server = null;
+                    loadCloudAccounts();
+                    paintSource();
+                };
+            });
+        }
+
+        function loadRegions() {
+            const box = $("regionBox");
+            box.innerHTML = "";
+            Object.keys(regionData).forEach(r => {
+                const d = document.createElement("div");
+                d.textContent = r;
+                d.onclick = () => {
+                    sel.region = r; sel.country = ""; sel.site = ""; sel.device = null;
+                    $("regionCount").textContent = r;
+                    $("countryCount").textContent = "—";
+                    $("siteCount").textContent = "—";
+                    $("deviceCount").textContent = "—";
+                    $("siteBox").innerHTML = ""; $("deviceBox").innerHTML = "";
+                    box.style.display = "none";
+                    loadCountries(r);
+                    paintSource();
+                };
+                box.appendChild(d);
+            });
+        }
+
+        function loadCountries(region) {
+            const box = $("countryBox");
+            box.innerHTML = "";
+            Object.keys(regionData[region]).forEach(c => {
+                const d = document.createElement("div");
+                d.textContent = c;
+                d.onclick = async () => {
+                    sel.country = c; sel.site = ""; sel.device = null;
+                    $("countryCount").textContent = c;
+                    $("siteCount").textContent = "—";
+                    $("deviceCount").textContent = "—";
+                    box.style.display = "none";
+                    paintSource();
+                    await loadSites(region, c);
+                };
+                box.appendChild(d);
+            });
+            box.style.display = "block";
+        }
+
+        async function loadSites(region, country) {
+            const box = $("siteBox");
+            box.innerHTML = `<div style="opacity:.7;">Loading sites for ${escapeHtml(country)}…</div>`;
+            box.style.display = "block";
+
+            let sites = [];
+            try {
+                const res = await apiFetch(SITES_API_URL, { region, country }, 12000);
+                if (!res.ok) throw new Error(`Status ${res.status}`);
+                const data = JSON.parse(await res.text());
+
+                let raw = Array.isArray(data) ? data
+                    : Array.isArray(data && data.sites) ? data.sites
+                    : Array.isArray(data && data.data) ? data.data
+                    : Array.isArray(data && data.result) ? data.result : [];
+
+                sites = raw.map(s => {
+                    if (typeof s === "string") return s;
+                    if (s && typeof s === "object") {
+                        return [s.U_SITE_ID, s.U_STREET_ADDRESS, s.U_CITY, s.U_STATE, s.U_COUNTRY, s.U_PINCODE]
+                            .filter(v => v && String(v).trim() !== "").join(" | ");
+                    }
+                    return String(s);
+                }).filter(Boolean);
+
+                if (!sites.length) throw new Error("No sites returned");
+                dataLive = true;
+            } catch (e) {
+                console.warn("[Path] site list unavailable, using sample:", e.message);
+                sites = sampleSites(country);
+                dataLive = false;
+                $("srcNote").textContent = "Sample inventory — discovery endpoint not reachable";
+            }
+
+            box.innerHTML = "";
+            sites.forEach(s => {
+                const d = document.createElement("div");
+                d.textContent = s.split("|")[0].trim();
+                d.title = s;
+                d.onclick = async () => {
+                    sel.site = s; sel.device = null;
+                    $("siteCount").textContent = s.split("|")[0].trim();
+                    $("deviceCount").textContent = "—";
+                    box.style.display = "none";
+                    paintSource();
+                    await loadDevices(sel.site);
+                };
+                box.appendChild(d);
+            });
+        }
+
+        function sampleSites(country) {
+            const code = String(country).slice(0, 3).toUpperCase();
+            return [`${code}-DC-001 | Sample address | ${country}`,
+                    `${code}-BR-014 | Sample branch | ${country}`,
+                    `${code}-POP-022 | Sample edge | ${country}`];
+        }
+
+        /* devices — same DEVICE_DISCOVERY contract as NetAutomation Flow */
+        async function loadDevices(siteId) {
+            const box = $("deviceBox");
+            box.innerHTML = `<div style="opacity:.7;">Loading devices…</div>`;
+            box.style.display = "block";
+
+            let list = [];
+            try {
+                const res = await apiFetch(RUN_API_URL, {
+                    workflow: "DEVICE_DISCOVERY",
+                    query: "FETCH_DEVICES",
+                    siteid: siteId
+                }, 12000);
+                if (!res.ok) throw new Error(`Status ${res.status}`);
+                const parsed = JSON.parse(await res.text());
+                const devList = parsed && parsed.response && parsed.response.devList;
+                if (!devList) throw new Error("No devList in response");
+
+                list = (Array.isArray(devList) ? devList : [devList]).map(item => ({
+                    hostname: safeField(item, ['U_HOSTNAME', 'hostname', 'host', 'name']) || 'Unknown',
+                    ip: safeField(item, ['U_LOGIN_IP', 'ip', 'address']) || '-',
+                    type: safeField(item, ['U_TYPE', 'type', 'role']) || 'Network device'
+                }));
+                dataLive = true;
+            } catch (e) {
+                console.warn("[Path] device list unavailable, using sample:", e.message);
+                list = sampleDevices(siteId);
+                dataLive = false;
+            }
+
+            box.innerHTML = "";
+            if (!list.length) {
+                box.innerHTML = `<div style="opacity:.7; text-align:center; padding:10px;">No devices found</div>`;
+                return;
+            }
+            list.forEach(dv => {
+                const d = document.createElement("div");
+                d.textContent = `${dv.hostname} (${dv.ip})`;
+                d.onclick = () => {
+                    sel.device = dv;
+                    $("deviceCount").textContent = dv.hostname;
+                    box.style.display = "none";
+                    paintSource();
+                };
+                box.appendChild(d);
+            });
+        }
+
+        function sampleDevices(siteId) {
+            const p = (String(siteId).split(/[-\s|]/)[0] || "site").toLowerCase().slice(0, 6);
+            return [
+                { hostname: `${p}-sd-rtr01`, ip: "10.20.4.1",  type: "Router" },
+                { hostname: `${p}-sd-rtr02`, ip: "10.20.4.2",  type: "Router" },
+                { hostname: `${p}-sw-core1`, ip: "10.20.4.20", type: "Switch" },
+                { hostname: `${p}-fw-edge1`, ip: "10.20.4.30", type: "Firewall" }
+            ];
+        }
+
+        /* on-prem servers — SERVER_DISCOVERY contract */
+        async function loadOnPremServers() {
+            const box = $("serverBox");
+            box.innerHTML = `<div style="opacity:.7;">Loading servers…</div>`;
+            box.style.display = "block";
+
+            let list = [];
+            try {
+                const res = await apiFetch(RUN_API_URL, {
+                    workflow: "SERVER_DISCOVERY",
+                    query: "FETCH_SERVERS",
+                    siteid: localStorage.getItem("selectedSite") || ""
+                }, 12000);
+                if (!res.ok) throw new Error(`Status ${res.status}`);
+                const parsed = JSON.parse(await res.text());
+                const srvList = (parsed && parsed.response && parsed.response.srvList) || parsed.servers;
+                if (!srvList) throw new Error("No server list in response");
+
+                list = (Array.isArray(srvList) ? srvList : [srvList]).map(item => ({
+                    hostname: safeField(item, ['U_HOSTNAME', 'hostname', 'name']) || 'Unknown',
+                    ip: safeField(item, ['U_LOGIN_IP', 'ip', 'address']) || '-',
+                    os: safeField(item, ['U_OS', 'os', 'platform']) || '-'
+                }));
+                dataLive = true;
+            } catch (e) {
+                console.warn("[Path] on-prem servers unavailable, using sample:", e.message);
+                list = [
+                    { hostname: "onprem-lnx-app01", ip: "10.30.2.11", os: "RHEL 9" },
+                    { hostname: "onprem-lnx-web01", ip: "10.30.2.21", os: "Ubuntu 22.04" },
+                    { hostname: "onprem-win-app01", ip: "10.30.3.11", os: "Windows 2022" },
+                    { hostname: "onprem-db-ora01",  ip: "10.30.4.10", os: "OEL 8" }
+                ];
+                dataLive = false;
+            }
+            paintServerBox(list);
+        }
+
+        async function loadCloudAccounts() {
+            const box = $("accountBox");
+            box.innerHTML = `<div style="opacity:.7;">Loading accounts…</div>`;
+            box.style.display = "block";
+
+            let accounts = [];
+            try {
+                const res = await apiFetch(RUN_API_URL, {
+                    workflow: "CLOUD_DISCOVERY", query: "FETCH_ACCOUNTS", provider: sel.provider
+                }, 8000);
+                if (!res.ok) throw new Error(`Status ${res.status}`);
+                const parsed = JSON.parse(await res.text());
+                const list = (parsed && parsed.response && parsed.response.accounts) || parsed.accounts;
+                if (!list) throw new Error("No accounts in response");
+                accounts = (Array.isArray(list) ? list : [list]).map(a => typeof a === "string" ? a
+                    : (safeField(a, ['id', 'accountId', 'subscriptionId', 'projectId', 'name']) || 'unknown'));
+                dataLive = true;
+            } catch (e) {
+                console.warn("[Path] cloud accounts unavailable, using sample:", e.message);
+                accounts = ({ AWS: ["prod-platform", "shared-services"],
+                              AZURE: ["sub-prod-eastus", "sub-nonprod"],
+                              GCP: ["prj-prod-core", "prj-data"],
+                              ALIBABA: ["acct-prod-cn", "acct-intl"] })[sel.provider] || ["default"];
+                dataLive = false;
+            }
+
+            box.innerHTML = "";
+            accounts.forEach(a => {
+                const d = document.createElement("div");
+                d.textContent = a;
+                d.onclick = async () => {
+                    sel.account = a; sel.server = null;
+                    $("accountCount").textContent = a;
+                    box.style.display = "none";
+                    paintSource();
+                    await loadCloudServers();
+                };
+                box.appendChild(d);
+            });
+        }
+
+        async function loadCloudServers() {
+            const box = $("serverBox");
+            box.innerHTML = `<div style="opacity:.7;">Loading instances…</div>`;
+            box.style.display = "block";
+
+            let list = [];
+            try {
+                const res = await apiFetch(RUN_API_URL, {
+                    workflow: "CLOUD_DISCOVERY", query: "FETCH_INSTANCES",
+                    provider: sel.provider, account: sel.account
+                }, 8000);
+                if (!res.ok) throw new Error(`Status ${res.status}`);
+                const parsed = JSON.parse(await res.text());
+                const raw = (parsed && parsed.response && parsed.response.instances) || parsed.instances || parsed.resources;
+                if (!raw) throw new Error("No instances in response");
+
+                list = (Array.isArray(raw) ? raw : [raw]).map(r => ({
+                    hostname: safeField(r, ['name', 'hostname', 'instanceName', 'id']) || 'unknown',
+                    ip: safeField(r, ['privateIp', 'ip', 'privateIpAddress', 'publicIp']) || '-',
+                    os: safeField(r, ['os', 'platform', 'image']) || '-',
+                    region: safeField(r, ['region', 'location', 'zone']) || '-'
+                }));
+                dataLive = true;
+            } catch (e) {
+                console.warn("[Path] cloud instances unavailable, using sample:", e.message);
+                const pfx = sel.provider.toLowerCase();
+                list = [
+                    { hostname: `${pfx}-app-01`, ip: "10.50.1.11", os: "Amazon Linux 2023", region: "primary" },
+                    { hostname: `${pfx}-app-02`, ip: "10.50.1.12", os: "Ubuntu 22.04",      region: "primary" },
+                    { hostname: `${pfx}-bastion`, ip: "10.50.0.9", os: "Ubuntu 22.04",      region: "primary" }
+                ];
+                dataLive = false;
+            }
+            paintServerBox(list);
+        }
+
+        function paintServerBox(list) {
+            const box = $("serverBox");
+            box.innerHTML = "";
+            if (!list.length) {
+                box.innerHTML = `<div style="opacity:.7; text-align:center; padding:10px;">No servers found</div>`;
+                return;
+            }
+            list.forEach(s => {
+                const d = document.createElement("div");
+                d.textContent = `${s.hostname} (${s.ip})`;
+                d.title = s.os || '';
+                d.onclick = () => {
+                    sel.server = s;
+                    $("serverCount").textContent = s.hostname;
+                    box.style.display = "none";
+                    paintSource();
+                };
+                box.appendChild(d);
+            });
+            box.style.display = "block";
+        }
+
+        /* the resolved source, used for the payload and the diagram */
+        function sourceNode() {
+            if (sel.kind === "NETWORK" && sel.device) {
+                return { kind: "NETWORK", hostname: sel.device.hostname, ip: sel.device.ip,
+                         detail: `${sel.device.type || 'Network device'} · ${String(sel.site).split('|')[0].trim()}`,
+                         region: sel.region, country: sel.country, site: sel.site };
+            }
+            if (sel.kind === "SERVER" && sel.server) {
+                return { kind: "SERVER", hostname: sel.server.hostname, ip: sel.server.ip,
+                         detail: sel.serverKind === "CLOUD"
+                             ? `${CLOUD_PROVIDERS[sel.provider] ? CLOUD_PROVIDERS[sel.provider].name : sel.provider} · ${sel.account}`
+                             : `On-prem · ${sel.server.os || 'server'}`,
+                         serverKind: sel.serverKind, provider: sel.provider, account: sel.account };
+            }
+            return null;
+        }
+
+        function paintSource() {
+            const s = sourceNode();
+            const rows = [];
+
+            if (sel.kind === "NETWORK") {
+                rows.push(["Source", "Network"]);
+                rows.push(["Region", sel.region]);
+                rows.push(["Country", sel.country]);
+                rows.push(["Site", sel.site ? String(sel.site).split('|')[0].trim() : ""]);
+                rows.push(["Device", sel.device ? sel.device.hostname : ""]);
+            } else if (sel.kind === "SERVER") {
+                rows.push(["Source", "Server"]);
+                rows.push(["Location", sel.serverKind === "CLOUD" ? "Cloud" : sel.serverKind === "ONPREM" ? "On-prem" : ""]);
+                if (sel.serverKind === "CLOUD") {
+                    rows.push(["Provider", sel.provider ? CLOUD_PROVIDERS[sel.provider].name : ""]);
+                    rows.push(["Account", sel.account]);
+                }
+                rows.push(["Server", sel.server ? sel.server.hostname : ""]);
+            } else {
+                rows.push(["Source", ""]);
+            }
+
+            $("srcSummary").innerHTML = rows.map(r =>
+                `<div class="r"><span>${escapeHtml(r[0])}</span><b class="${r[1] ? 'set' : ''}">${escapeHtml(r[1] || '—')}</b></div>`
+            ).join('');
+
+            $("srcNote").textContent = s
+                ? `Ready to run from ${s.hostname} (${s.ip})`
+                : "Choose where the trace should run from.";
+        }
+
+        /* ═══ AUTH FIELDS ══════════════════════════════════════════ */
+        function renderAuthFields() {
+            const method = val("f-auth") || "PASSWORD";
+            creds.method = method;
+            let html = "";
+
+            if (method === "PASSWORD") {
+                html = `<div class="frow two">
+                    <div class="field" id="fw-user"><label for="f-user">Username</label>
+                      <input type="text" id="f-user" autocomplete="off" spellcheck="false" placeholder="netops.admin"></div>
+                    <div class="field" id="fw-pass"><label for="f-pass">Password</label>
+                      <input type="password" id="f-pass" autocomplete="new-password" placeholder="••••••••"></div>
+                  </div>
+                  <div class="frow two" style="margin-top:14px;">
+                    <div class="field"><label for="f-enable">Enable / sudo password <span style="text-transform:none;opacity:.6;">— optional</span></label>
+                      <input type="password" id="f-enable" autocomplete="new-password" placeholder="Only if elevation is needed">
+                      <div class="hint">Needed for packet capture and interface counters on most platforms.</div></div>
+                  </div>`;
+            } else if (method === "SSH_KEY") {
+                html = `<div class="frow two">
+                    <div class="field" id="fw-user"><label for="f-user">Username</label>
+                      <input type="text" id="f-user" autocomplete="off" spellcheck="false" placeholder="netops.admin"></div>
+                    <div class="field"><label for="f-passphrase">Key passphrase <span style="text-transform:none;opacity:.6;">— optional</span></label>
+                      <input type="password" id="f-passphrase" autocomplete="new-password" placeholder="••••••••"></div>
+                  </div>
+                  <div class="frow" style="margin-top:14px;">
+                    <div class="field" id="fw-key"><label for="f-key">Private key</label>
+                      <textarea id="f-key" spellcheck="false" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----"></textarea>
+                      <div class="hint">Pasted here it stays in this tab's memory and is sent only with the run request.</div></div>
+                  </div>`;
+            } else {
+                html = `<div class="frow two">
+                    <div class="field" id="fw-vault"><label for="f-vault">Credential reference</label>
+                      <input type="text" id="f-vault" autocomplete="off" spellcheck="false" placeholder="netops/ssh/site-routers">
+                      <div class="hint">The backend resolves this from the vault. No secret is typed into or held by the browser.</div></div>
+                    <div class="field"><label for="f-user">Username override <span style="text-transform:none;opacity:.6;">— optional</span></label>
+                      <input type="text" id="f-user" autocomplete="off" spellcheck="false" placeholder="Leave blank to use the stored user"></div>
+                  </div>`;
+            }
+
+            $("authFields").innerHTML = html;
+            ["f-user", "f-pass", "f-enable", "f-passphrase", "f-key", "f-vault"].forEach(id => {
+                const el = $(id);
+                if (el) el.addEventListener("input", captureCreds);
+            });
+            captureCreds();
+
+            const note = $("credNoteText");
+            $("credNote").classList.toggle("warn", method !== "VAULT" && !isSecureEndpoint());
+            note.textContent = method === "VAULT"
+                ? "No secret is entered in the browser. The backend resolves the reference from your vault at run time."
+                : isSecureEndpoint()
+                    ? "Credentials are held in this browser tab only, in memory. They are never written to local storage and are cleared when you close or reload the tab."
+                    : "The automation endpoint is plain HTTP, so anything sent to it — including this password — travels unencrypted. Use a vault reference, or move the endpoint to HTTPS, before using real credentials.";
+        }
+
+        function isSecureEndpoint() {
+            return /^https:/i.test(RUN_API_URL);
+        }
+
+        function captureCreds() {
+            creds.username = val("f-user");
+            creds.password = $("f-pass") ? $("f-pass").value : "";
+            creds.enable = $("f-enable") ? $("f-enable").value : "";
+            creds.key = $("f-key") ? $("f-key").value : "";
+            creds.passphrase = $("f-passphrase") ? $("f-passphrase").value : "";
+            creds.vaultRef = val("f-vault");
+
+            const has = creds.password || creds.key || creds.vaultRef;
+            $("credState").textContent = has
+                ? `Credentials held in memory for ${creds.username || 'this session'} — not saved`
+                : "No credentials entered";
+        }
+
+        function clearCreds() {
+            ["f-pass", "f-enable", "f-key", "f-passphrase", "f-vault"].forEach(id => { if ($(id)) $(id).value = ""; });
+            creds.password = ""; creds.enable = ""; creds.key = ""; creds.passphrase = ""; creds.vaultRef = "";
+            captureCreds();
+            $("credState").textContent = "Credentials cleared";
+        }
+
+        /* ═══ VALIDATION ═══ */
+        function problems() {
+            const out = [];
+            if (!sourceNode()) out.push({ id: null, msg: "Select the device or server the trace should run from." });
+            if (!val("f-dest")) out.push({ id: "fw-dest", msg: "Enter the destination IP or hostname." });
+
+            if (creds.method === "PASSWORD") {
+                if (!creds.username) out.push({ id: "fw-user", msg: "Enter the username used to log in to the source." });
+                if (!creds.password) out.push({ id: "fw-pass", msg: "Enter the password for that account." });
+            } else if (creds.method === "SSH_KEY") {
+                if (!creds.username) out.push({ id: "fw-user", msg: "Enter the username used to log in to the source." });
+                if (!creds.key) out.push({ id: "fw-key", msg: "Paste the private key used to log in." });
+            } else if (!creds.vaultRef) {
+                out.push({ id: "fw-vault", msg: "Enter the vault reference to resolve." });
+            }
+            return out;
+        }
+
+        /* ═══ RUN ══════════════════════════════════════════════════ */
+        function collectOptions() {
+            const o = {};
+            document.querySelectorAll("#opOptions input, #opOptions select").forEach(el => {
+                if (el.value !== "") o[el.id.replace(/^o-/, "")] = el.value;
+            });
+            return o;
+        }
+
+        function updateProgress(p) {
+            $("progressBar").style.width = p + "%";
+            $("progressPct").textContent = Math.round(p) + "%";
+        }
+
+        async function runPath() {
+            const box = $("responseBox");
+            const btn = $("runBtn");
+
+            document.querySelectorAll(".field.bad").forEach(e => e.classList.remove("bad"));
+            const probs = problems();
+            if (probs.length) {
+                probs.forEach(p => { if (p.id && $(p.id)) $(p.id).classList.add("bad"); });
+                box.classList.remove("idle");
+                box.classList.add("error");
+                box.textContent = probs[0].msg;
+                return;
+            }
+
+            const op = currentOp();
+            const src = sourceNode();
+            const dest = val("f-dest");
+
+            box.classList.remove("error", "idle");
+            box.textContent = `Logging in to ${src.hostname} and starting ${op.name.split("—")[0].trim()}…`;
+
+            btn.disabled = true;
+            const origLabel = btn.textContent;
+            btn.textContent = "Running…";
+            $("progressBox").classList.add("active");
+            updateProgress(0);
+
+            let progress = 0;
+            const timer = setInterval(() => {
+                progress += Math.random() * 12;
+                if (progress > 88) progress = 88;
+                updateProgress(progress);
+            }, 250);
+
+            const payload = {
+                workflow: "PATH_ANALYSIS",
+                operation: op.key,
+                execution: "SSH",           // run ON the source, not from the backend host
+                source: src,
+                destination: dest,
+                options: collectOptions(),
+                sshPort: val("f-port") || "22",
+                jumpHost: val("f-jump"),
+                jumpUser: val("f-jumpuser"),
+                credentials: {
+                    method: creds.method,
+                    username: creds.username,
+                    password: creds.password,
+                    privateKey: creds.key,
+                    passphrase: creds.passphrase,
+                    enablePassword: creds.enable,
+                    vaultRef: creds.vaultRef
+                },
+                requestedBy: getUsername()
+            };
+
+            /* never print secrets to the console */
+            console.debug("sending", redact(payload));
+
+            try {
+                updateProgress(25);
+                const res = await apiFetch(RUN_API_URL, payload, 300000);
+                updateProgress(70);
+                box.textContent = "Receiving results…";
+                if (!res.ok) throw new Error(`Request failed (${res.status})`);
+
+                const rawText = await res.text();
+                let parsed;
+                try { parsed = JSON.parse(rawText); } catch (e) { parsed = rawText; }
+
+                const parsedHops = extractHops(parsed);
+                clearInterval(timer);
+                updateProgress(100);
+
+                if (parsedHops.length) {
+                    hops = parsedHops;
+                    dataLive = true;
+                    renderPath(src, dest, op);
+                    box.innerHTML = `<span class="rb-hint-title">${escapeHtml(op.name.split("—")[0].trim())} complete.</span> ${hops.length} hops from ${escapeHtml(src.hostname)} to ${escapeHtml(dest)}.`;
+                } else {
+                    hops = [];
+                    renderNonPathResult(parsed, op);
+                }
+
+                trackUsage(op.name);
+                lastRun = { op: op.key, dest: dest, at: new Date() };
+
+            } catch (err) {
+                clearInterval(timer);
+                updateProgress(100);
+                console.error("[Path] run failed:", err);
+                box.classList.add("error");
+                box.innerHTML = `<b>${escapeHtml(op.name.split("—")[0].trim())} could not run</b> — ${escapeHtml(err.message)}.<br>
+                    Showing a sample path so you can see the layout. Check that the automation endpoint is reachable and that the source accepts the login.`;
+                hops = sampleHops(src, dest);
+                dataLive = false;
+                renderPath(src, dest, op);
+            } finally {
+                clearInterval(timer);
+                btn.disabled = false;
+                btn.textContent = origLabel;
+                setTimeout(() => { $("progressBox").classList.remove("active"); updateProgress(0); }, 900);
+            }
+        }
+
+        function redact(p) {
+            const c = JSON.parse(JSON.stringify(p));
+            if (c.credentials) {
+                ["password", "privateKey", "passphrase", "enablePassword"].forEach(k => {
+                    if (c.credentials[k]) c.credentials[k] = "***redacted***";
+                });
+            }
+            return c;
+        }
+
+        function trackUsage(workflowName) {
+            try {
+                const username = getUsername();
+                const key = `usage_${username}_Path Analysis Flow_${workflowName}`;
+                let count = parseInt(localStorage.getItem(key) || "0", 10) + 1;
+                localStorage.setItem(key, count);
+                fetch(USAGE_API_URL, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        username: username,
+                        options_used: "Path Analysis Flow",
+                        date: new Date().toISOString(),
+                        workflow: workflowName,
+                        tool: "Smart NetOps",
+                        result: count
+                    })
+                });
+            } catch (e) { console.warn("Usage tracking failed:", e); }
+        }
+
+        /* pull a hop list out of whatever shape the backend returns */
+        function extractHops(parsed) {
+            let arr = null;
+            if (Array.isArray(parsed)) arr = parsed;
+            else if (parsed && typeof parsed === "object") {
+                arr = parsed.hops || (parsed.response && (parsed.response.hops || parsed.response.path)) || parsed.path || null;
+                if (!arr && parsed.response && Array.isArray(parsed.response)) arr = parsed.response;
+            }
+            if (!Array.isArray(arr)) return [];
+
+            return arr.map((h, i) => {
+                const rtt = parseFloat(safeField(h, ['avg', 'rtt', 'avgRtt', 'latency'])) || 0;
+                const loss = parseFloat(safeField(h, ['loss', 'lossPct', 'packetLoss'])) || 0;
+                const ip = safeField(h, ['ip', 'address', 'hop', 'host']) || '*';
+                return {
+                    n: parseInt(safeField(h, ['hop', 'n', 'ttl', 'seq']), 10) || (i + 1),
+                    ip: ip,
+                    hostname: safeField(h, ['hostname', 'name', 'rdns', 'fqdn']) || '',
+                    asn: safeField(h, ['asn', 'as', 'assn']) || '',
+                    isp: safeField(h, ['isp', 'org', 'network']) || '',
+                    geo: safeField(h, ['geo', 'location', 'city', 'country']) || '',
+                    min: parseFloat(safeField(h, ['min', 'minRtt'])) || 0,
+                    avg: rtt,
+                    max: parseFloat(safeField(h, ['max', 'maxRtt'])) || 0,
+                    jitter: parseFloat(safeField(h, ['jitter', 'stdev', 'mdev'])) || 0,
+                    loss: loss,
+                    timeout: ip === '*' || String(ip).trim() === ''
+                };
+            });
+        }
+
+        function sampleHops(src, dest) {
+            seed = 19 + String(dest).length;
+            const names = [
+                ["10.20.4.1", "site-gw-01", "AS64512", "Internal core", "Site LAN"],
+                ["10.10.0.1", "agg-rtr-01", "AS64512", "Internal core", "Regional hub"],
+                ["172.16.8.9", "wan-edge-02", "AS64512", "Internal WAN", "Regional hub"],
+                ["*", "", "", "", ""],
+                ["203.0.113.14", "isp-edge-lon", "AS64500", "Transit provider", "London"],
+                ["198.51.100.7", "isp-core-ams", "AS64500", "Transit provider", "Amsterdam"],
+                ["192.0.2.33", "peer-ix-fra", "AS64496", "Peering exchange", "Frankfurt"]
+            ];
+            let cum = 0.6;
+            const out = names.map((row, i) => {
+                cum += 1.5 + rnd() * (i === 4 ? 26 : 7);
+                const timeout = row[0] === "*";
+                const loss = timeout ? 0 : (i === 5 ? Math.round(rnd() * 9) : 0);
+                return {
+                    n: i + 1, ip: row[0], hostname: row[1], asn: row[2], isp: row[3], geo: row[4],
+                    min: timeout ? 0 : +(cum - 0.7).toFixed(2),
+                    avg: timeout ? 0 : +cum.toFixed(2),
+                    max: timeout ? 0 : +(cum + 1.4 + rnd() * 3).toFixed(2),
+                    jitter: timeout ? 0 : +(rnd() * 2.2).toFixed(2),
+                    loss: loss, timeout: timeout
+                };
+            });
+            cum += 2 + rnd() * 4;
+            out.push({
+                n: out.length + 1, ip: /^[\d.]+$/.test(dest) ? dest : "192.0.2.90",
+                hostname: /^[\d.]+$/.test(dest) ? "" : dest,
+                asn: "AS64496", isp: "Destination network", geo: "Frankfurt",
+                min: +(cum - 0.5).toFixed(2), avg: +cum.toFixed(2), max: +(cum + 2).toFixed(2),
+                jitter: +(rnd() * 1.5).toFixed(2), loss: 0, timeout: false
+            });
+            return out;
+        }
+
+        /* ═══ DIAGRAM ══════════════════════════════════════════════ */
+        /* RTT in a trace is cumulative, so comparing it against a flat
+           threshold marks every distant hop as slow. What identifies a
+           problem hop is how much latency IT adds over the one before. */
+        function hopDelta(i) {
+            const h = hops[i];
+            if (!h || h.timeout) return null;
+            let prev = 0;
+            for (let j = i - 1; j >= 0; j--) {
+                if (!hops[j].timeout) { prev = hops[j].avg || 0; break; }
+            }
+            return Math.max(0, (h.avg || 0) - prev);
+        }
+
+        function hopColour(h, isDest, delta) {
+            if (h.timeout) return "#FB7185";
+            if (h.loss >= 50) return "#FB7185";
+            if (h.loss > 0 || (delta !== null && delta > 30)) return "#FBBF24";
+            return isDest ? "#34D399" : "#3B82F6";
+        }
+
+        function renderPath(src, dest, op) {
+            $("graphEmpty").style.display = "none";
+            buildGraph(src, dest);
+            buildHopTable();
+            refreshKpis(op);
+        }
+
+        function buildGraph(src, dest) {
+            const container = $("graph");
+            const elements = [];
+
+            elements.push({
+                data: {
+                    id: "src", label: src.hostname, kind: "source",
+                    detail: { "Role": "Source", "Address": src.ip, "Context": src.detail }
+                }
+            });
+
+            hops.forEach((h, i) => {
+                const isDest = i === hops.length - 1;
+                elements.push({
+                    data: {
+                        id: "h" + i,
+                        label: h.timeout ? "* no reply" : (h.hostname || h.ip),
+                        kind: isDest ? "dest" : "hop",
+                        colour: hopColour(h, isDest, hopDelta(i)),
+                        idx: i
+                    }
+                });
+            });
+
+            const chain = ["src"].concat(hops.map((_, i) => "h" + i));
+            for (let i = 0; i < chain.length - 1; i++) {
+                const delta = hopDelta(i);
+                elements.push({
+                    data: {
+                        id: `e${i}`, source: chain[i], target: chain[i + 1],
+                        label: delta === null ? "?" : `+${delta.toFixed(1)}ms`,
+                        warn: delta !== null && delta > 20 ? 1 : 0
+                    }
+                });
+            }
+
+            /* Positions are computed rather than laid out by an algorithm:
+               a path has a real order, so it should read left to right and
+               wrap, not float wherever a force layout settles it. */
+            const perRow = 4;
+            const stepX = 168, stepY = 118;
+            const positions = {};
+            chain.forEach((id, i) => {
+                const row = Math.floor(i / perRow);
+                const col = row % 2 === 0 ? i % perRow : (perRow - 1 - (i % perRow));
+                positions[id] = { x: 90 + col * stepX, y: 70 + row * stepY };
+            });
+            elements.forEach(el => { if (positions[el.data.id]) el.position = positions[el.data.id]; });
+
+            if (typeof cytoscape !== "function") { renderFallbackGraph(src); return; }
+
+            try {
+                if (cy) { cy.destroy(); cy = null; }
+                cy = cytoscape({
+                    container: container,
+                    elements: elements,
+                    layout: { name: "preset" },
+                    minZoom: 0.3, maxZoom: 2.5,
+                    style: [
+                        { selector: "node",
+                          style: {
+                              "background-color": "data(colour)",
+                              "label": "data(label)",
+                              "color": "#EAF0F8",
+                              "font-size": "10px",
+                              "font-family": "Poppins, system-ui, sans-serif",
+                              "text-valign": "bottom",
+                              "text-margin-y": 7,
+                              "text-wrap": "ellipsis",
+                              "text-max-width": "120px",
+                              "width": 30, "height": 30,
+                              "border-width": 2,
+                              "border-color": "rgba(255,255,255,0.25)"
+                          } },
+                        { selector: 'node[kind = "source"]',
+                          style: { "background-color": "#2DD4BF", "width": 40, "height": 40, "font-size": "11px", "border-color": "rgba(45,212,191,0.6)" } },
+                        { selector: 'node[kind = "dest"]',
+                          style: { "width": 40, "height": 40, "font-size": "11px", "border-color": "rgba(52,211,153,0.6)" } },
+                        { selector: "node:selected",
+                          style: { "border-width": 4, "border-color": "#FFFFFF" } },
+                        { selector: "edge",
+                          style: {
+                              "width": 2,
+                              "line-color": "rgba(148,163,184,0.45)",
+                              "target-arrow-color": "rgba(148,163,184,0.65)",
+                              "target-arrow-shape": "triangle",
+                              "curve-style": "bezier",
+                              "label": "data(label)",
+                              "font-size": "9px",
+                              "color": "#7D8AA0",
+                              "text-background-color": "#0A0E17",
+                              "text-background-opacity": 0.75,
+                              "text-background-padding": 2,
+                              "arrow-scale": 0.9
+                          } },
+                        { selector: "edge[warn = 1]",
+                          style: { "line-color": "rgba(251,191,36,0.7)", "target-arrow-color": "rgba(251,191,36,0.8)", "color": "#FBBF24", "width": 3 } }
+                    ]
+                });
+
+                cy.on("tap", "node", evt => {
+                    const d = evt.target.data();
+                    if (d.kind === "source") showDetail("Source", d.detail);
+                    else showHopDetail(hops[d.idx]);
+                });
+
+                cy.fit(undefined, 40);
+            } catch (e) {
+                console.error("[Path] cytoscape render failed, using fallback:", e);
+                renderFallbackGraph(src);
+            }
+        }
+
+        /* If the CDN is blocked the page must still be usable, so the
+           path is drawn as a simple chain instead of failing silently. */
+        function renderFallbackGraph(src) {
+            const container = $("graph");
+            const chips = [`<div style="display:flex;align-items:center;gap:8px;">
+                    <span style="width:14px;height:14px;border-radius:50%;background:#2DD4BF;flex:0 0 auto;"></span>
+                    <b>${escapeHtml(src.hostname)}</b>
+                    <span style="opacity:.6;">${escapeHtml(src.ip)}</span></div>`];
+
+            hops.forEach((h, i) => {
+                const isDest = i === hops.length - 1;
+                chips.push(`<div style="margin-left:6px;height:16px;border-left:2px solid rgba(148,163,184,.35);"></div>
+                  <div class="fb-hop" data-i="${i}" style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                    <span style="width:14px;height:14px;border-radius:50%;background:${hopColour(h, isDest, hopDelta(i))};flex:0 0 auto;"></span>
+                    <b>${escapeHtml(h.timeout ? '* no reply' : (h.hostname || h.ip))}</b>
+                    <span style="opacity:.6;">${h.timeout ? '' : escapeHtml(h.avg + ' ms')}</span></div>`);
+            });
+
+            container.innerHTML =
+                `<div style="padding:18px; overflow-y:auto; height:100%; box-sizing:border-box; font-size:12.5px;">
+                   <div style="color:#FBBF24; margin-bottom:12px;">Diagram library did not load — showing a simple path view. Check that cdnjs.cloudflare.com is reachable.</div>
+                   ${chips.join('')}
+                 </div>`;
+
+            container.querySelectorAll(".fb-hop").forEach(el => {
+                el.onclick = () => showHopDetail(hops[+el.dataset.i]);
+            });
+        }
+
+        function showDetail(title, obj) {
+            $("hopDetail").innerHTML = `<h4>${escapeHtml(title)}</h4>` +
+                Object.keys(obj).map(k =>
+                    `<div class="hd-row"><span>${escapeHtml(k)}</span><b>${escapeHtml(obj[k] || '—')}</b></div>`).join('');
+        }
+
+        function showHopDetail(h) {
+            if (!h) return;
+            const rows = {
+                "Hop": h.n,
+                "Address": h.timeout ? "No reply" : h.ip,
+                "Hostname": h.hostname || "—",
+                "ASN": h.asn || "—",
+                "Network": h.isp || "—",
+                "Location": h.geo || "—",
+                "RTT min": h.timeout ? "—" : h.min + " ms",
+                "RTT avg": h.timeout ? "—" : h.avg + " ms",
+                "RTT max": h.timeout ? "—" : h.max + " ms",
+                "Jitter": h.timeout ? "—" : h.jitter + " ms",
+                "Loss": h.loss + " %"
+            };
+            showDetail(`Hop ${h.n}`, rows);
+
+            document.querySelectorAll("#hopTableWrap tr.hop-row").forEach(tr => {
+                tr.style.outline = (+tr.dataset.n === h.n) ? "1px solid rgba(45,212,191,.6)" : "none";
+            });
+        }
+
+        function buildHopTable() {
+            $("hopTableCard").style.display = "block";
+            const rows = hops.map((h, i) => {
+                const delta = hopDelta(i);
+                const cls = h.timeout || h.loss >= 50 ? "hop-lost"
+                    : (h.loss > 0 || (delta !== null && delta > 30) ? "hop-slow" : "");
+                const status = h.timeout ? `<span class="pill down">no reply</span>`
+                    : h.loss > 0 ? `<span class="pill warn">${h.loss}% loss</span>`
+                    : `<span class="pill up">ok</span>`;
+                return `<tr class="hop-row ${cls}" data-n="${h.n}">
+                    <td>${h.n}</td>
+                    <td>${escapeHtml(h.timeout ? '*' : h.ip)}</td>
+                    <td>${escapeHtml(h.hostname || '—')}</td>
+                    <td>${escapeHtml(h.asn || '—')}</td>
+                    <td>${escapeHtml(h.isp || '—')}</td>
+                    <td>${escapeHtml(h.geo || '—')}</td>
+                    <td>${h.timeout ? '—' : h.min}</td>
+                    <td>${h.timeout ? '—' : h.avg}</td>
+                    <td>${h.timeout ? '—' : h.max}</td>
+                    <td>${delta === null ? '—' : '+' + delta.toFixed(1)}</td>
+                    <td>${h.timeout ? '—' : h.jitter}</td>
+                    <td>${status}</td>
+                  </tr>`;
+            }).join('');
+
+            $("hopTableWrap").innerHTML =
+                `<table class="hosts-table"><thead><tr>
+                   <th>Hop</th><th>Address</th><th>Hostname</th><th>ASN</th><th>Network</th><th>Location</th>
+                   <th>Min ms</th><th>Avg ms</th><th>Max ms</th><th>Added</th><th>Jitter</th><th>Status</th>
+                 </tr></thead><tbody>${rows}</tbody></table>`;
+
+            $("hopTableWrap").querySelectorAll("tr.hop-row").forEach(tr => {
+                tr.onclick = () => {
+                    const h = hops.filter(x => x.n === +tr.dataset.n)[0];
+                    showHopDetail(h);
+                    if (cy) {
+                        const node = cy.getElementById("h" + hops.indexOf(h));
+                        if (node && node.length) { cy.elements().unselect(); node.select(); cy.center(node); }
+                    }
+                };
+            });
+        }
+
+        function renderNonPathResult(parsed, op) {
+            $("graphEmpty").style.display = "flex";
+            $("graphEmpty").textContent = `${op.name.split("—")[0].trim()} does not produce a hop path. See the result above.`;
+            $("hopTableCard").style.display = "none";
+
+            const text = typeof parsed === "string" ? parsed : JSON.stringify(parsed, null, 2);
+            $("responseBox").innerHTML =
+                `<div style="margin-bottom:6px;"><span class="rb-hint-title">${escapeHtml(op.name)}</span></div>
+                 <pre style="margin:0; white-space:pre-wrap; font-size:12px;">${escapeHtml(text)}</pre>`;
+        }
+
+        function refreshKpis(op) {
+            if (!hops.length) { $("kpiStrip").innerHTML = ""; return; }
+
+            const answered = hops.filter(h => !h.timeout);
+            const last = answered.length ? answered[answered.length - 1] : null;
+            const totalLatency = last ? last.avg : 0;
+            const timeouts = hops.filter(h => h.timeout).length;
+
+            /* A hop that does not reply is usually a router deprioritising
+               ICMP, not packet loss — counting it as 100% loss sends people
+               chasing a fault that is not there. Only hops that answered
+               can report a loss figure. */
+            const maxLoss = answered.length
+                ? Math.max.apply(null, answered.map(h => h.loss || 0)) : 0;
+            const jitter = answered.length
+                ? answered.reduce((s, h) => s + (h.jitter || 0), 0) / answered.length : 0;
+
+            /* the hop that added the most latency is usually the answer */
+            let worstDelta = 0, worstHop = "—";
+            hops.forEach((h, i) => {
+                const d = hopDelta(i);
+                if (d !== null && d > worstDelta) { worstDelta = d; worstHop = "#" + h.n; }
+            });
+
+            const boxes = [
+                { v: hops.length, l: "Hops", pct: 100, cls: "" },
+                { v: totalLatency.toFixed(1) + " ms", l: "End to end", pct: Math.min(100, totalLatency), cls: totalLatency > 150 ? "crit" : totalLatency > 80 ? "warn" : "good" },
+                { v: worstHop, l: `Slowest +${worstDelta.toFixed(0)}ms`, pct: Math.min(100, worstDelta * 2), cls: worstDelta > 30 ? "warn" : "" },
+                { v: maxLoss + "%", l: "Worst replied loss", pct: maxLoss, cls: maxLoss >= 50 ? "crit" : maxLoss > 0 ? "warn" : "good" },
+                { v: jitter.toFixed(1) + " ms", l: "Avg jitter", pct: Math.min(100, jitter * 10), cls: jitter > 8 ? "warn" : "good" },
+                { v: timeouts, l: "No reply", pct: (timeouts / hops.length) * 100, cls: timeouts ? "warn" : "good" }
+            ];
+
+            $("kpiStrip").innerHTML = boxes.map(b =>
+                `<div class="kpi-box ${b.cls}">
+                   <div class="kv">${escapeHtml(b.v)}</div>
+                   <div class="kl">${escapeHtml(b.l)}</div>
+                   <div class="kbar"><i data-w="${Math.max(0, Math.min(100, b.pct)).toFixed(0)}"></i></div>
+                 </div>`).join('');
+
+            setTimeout(() => {
+                document.querySelectorAll('#kpiStrip .kbar > i[data-w]').forEach(i => { i.style.width = i.dataset.w + '%'; });
+            }, 60);
+        }
+
+        /* ═══ INIT ═════════════════════════════════════════════════ */
+        function initOperations() {
+            $("f-op").innerHTML = OPERATIONS.map(o =>
+                `<option value="${o.key}">${escapeHtml(o.name)}</option>`).join('');
+            $("f-op").addEventListener("change", () => {
+                $("opOptions").innerHTML = optionsFor(val("f-op"));
+                $("opHint").textContent = currentOp().hint;
+            });
+            $("opOptions").innerHTML = optionsFor(OPERATIONS[0].key);
+            $("opHint").textContent = OPERATIONS[0].hint;
+        }
+
+        function init() {
+            initSourcePickers();
+            initOperations();
+            renderAuthFields();
+            paintSource();
+
+            $("f-auth").addEventListener("change", renderAuthFields);
+            $("clearCreds").addEventListener("click", clearCreds);
+            $("runBtn").addEventListener("click", runPath);
+            $("rerunBtn").addEventListener("click", runPath);
+
+            $("fitBtn").addEventListener("click", () => { if (cy) cy.fit(undefined, 40); });
+
+            $("exportBtn").addEventListener("click", () => {
+                if (!hops.length) return;
+                const src = sourceNode();
+                const blob = new Blob([JSON.stringify({
+                    source: src, destination: val("f-dest"),
+                    operation: lastRun ? lastRun.op : currentOp().key,
+                    generated: new Date().toISOString(), hops: hops
+                }, null, 2)], { type: "application/json" });
+                const a = document.createElement("a");
+                a.href = URL.createObjectURL(blob);
+                a.download = `path-${(src ? src.hostname : 'source')}-to-${val("f-dest") || 'dest'}.json`;
+                a.click();
+                setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+            });
+
+            /* prefill the scope the operator already chose elsewhere */
+            const r = localStorage.getItem("selectedRegion");
+            const c = localStorage.getItem("selectedCountry");
+            if (r && regionData[r]) {
+                sel.region = r; $("regionCount").textContent = r;
+                if (c && regionData[r][c]) { sel.country = c; $("countryCount").textContent = c; }
+            }
+
+            /* creds live in memory only — make sure a reload really does clear them */
+            addEventListener("beforeunload", () => {
+                creds.password = ""; creds.key = ""; creds.passphrase = ""; creds.enable = ""; creds.vaultRef = "";
+            });
+        }
+
+        if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
+        else init();
+    </script>
+
+</body>
+
+</html>

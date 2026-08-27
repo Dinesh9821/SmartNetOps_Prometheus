@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Request/Incident AI Analysis | Smart NetOps Hub</title>
+<script src="activity-tracker.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="theme.css">
+
+<style>
+  .app{ max-width:900px; margin:0 auto; padding:26px 22px 72px; }
+
+  .head{ display:flex; align-items:flex-end; justify-content:space-between;
+         gap:20px; flex-wrap:wrap; margin-bottom:22px; }
+  .head h1{ font-size:clamp(24px,2.4vw,34px); margin:6px 0 5px; }
+  .head .lede{ color:var(--ink-2); font-size:14px; max-width:56ch; }
+  .back-btn{ display:inline-flex; align-items:center; gap:8px; padding:9px 13px; }
+
+  .site-chip{
+    display:inline-flex; align-items:center; gap:9px;
+    padding:9px 14px; border-radius:var(--r);
+    background:linear-gradient(150deg,rgba(34,211,238,.1),rgba(167,139,250,.04));
+    border:1px solid var(--edge);
+    font-family:'JetBrains Mono',monospace; font-size:12.5px; color:var(--ink);
+  }
+  .site-chip .label{ color:var(--ink-3); }
+  .site-chip b{ color:var(--cyan); font-weight:600; }
+
+  /* ── flashcard ── */
+  .card.analysis-card{ padding:26px 26px 22px; }
+  .analysis-card > header{ display:flex; align-items:center; gap:13px;
+                           padding-bottom:16px; margin-bottom:20px;
+                           border-bottom:1px solid var(--edge); }
+  .analysis-card .fc-icon{
+    width:46px; height:46px; border-radius:14px; flex:0 0 auto;
+    display:grid; place-items:center; font-size:21px;
+    background:linear-gradient(150deg,rgba(34,211,238,.3),rgba(167,139,250,.1));
+    border:1px solid rgba(34,211,238,.34);
+    box-shadow:0 0 32px -10px rgba(34,211,238,.9), var(--inner);
+  }
+  .analysis-card .fc-title{ font-family:'Space Grotesk',sans-serif; font-size:18px;
+                            font-weight:600; color:#F5F8FC; }
+  .analysis-card .fc-sub{ font-size:12.5px; color:var(--ink-2); margin-top:2px; }
+
+  .row{ display:grid; grid-template-columns:200px 1fr; gap:14px 18px; align-items:end; }
+  .field label{ display:block; font-size:11px; font-weight:600;
+                letter-spacing:.05em; text-transform:uppercase;
+                color:var(--ink-3); margin-bottom:7px; }
+
+  /* dropdown with a clear chevron */
+  .type-select{
+    width:100%; box-sizing:border-box;
+    -webkit-appearance:none; -moz-appearance:none; appearance:none;
+    padding:12px 40px 12px 14px !important;
+    font-size:14px !important; font-weight:500;
+    border:1px solid rgba(34,211,238,0.35) !important;
+    border-radius:10px !important;
+    background-color:rgba(4,6,10,0.6) !important; color:#EAF0F8 !important;
+    cursor:pointer;
+    background-image:url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2322D3EE' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat:no-repeat; background-position:right 12px center; background-size:18px;
+  }
+  .type-select:focus{ outline:none; border-color:#22D3EE !important;
+                       box-shadow:0 0 0 3px rgba(34,211,238,0.14) !important; }
+  .type-select option{ background:#0E131E; color:#EAF0F8; }
+
+  .num-input{ width:100%; box-sizing:border-box;
+              padding:12px 14px !important; font-size:14px !important; }
+
+  .actions{ display:flex; align-items:center; gap:12px;
+            margin-top:22px; padding-top:20px; border-top:1px solid var(--edge); }
+  .actions .spacer{ flex:1; }
+  .btn-lg{ padding:11px 22px !important; font-size:13.5px !important; }
+
+  /* result / message box */
+  .result-box{
+    margin-top:18px; padding:14px 16px; border-radius:var(--r);
+    border:1px solid rgba(148,163,184,.14); background:rgba(4,6,10,.42);
+    color:#7D8AA0; font-size:13px; line-height:1.6;
+    white-space:pre-wrap; word-wrap:break-word;
+  }
+  .result-box.busy { border-color:rgba(34,211,238,.32); color:#EAF0F8; background:rgba(34,211,238,.06); }
+  .result-box.ok   { border-color:rgba(52,211,153,.35); color:#A7F3D0; background:rgba(52,211,153,.07); }
+  .result-box.error{ border-color:#FB7185; color:#FDA4AF; background:rgba(251,113,133,.08); }
+  .result-box .rb-title{ display:block; color:#C7D2E0; font-weight:600; margin-bottom:4px; }
+
+  @media (max-width:640px){ .row{ grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <div class="head">
+    <div>
+      <a href="landing page.html" class="back-btn">← Operations Home</a>
+      <h1 class="gradient-text">Request/Incident AI Analysis</h1>
+      <div class="lede">Pick a record type, enter its number, and run an AI analysis of the ticket.</div>
+    </div>
+    <div class="site-chip"><span class="led"></span><span class="label">SITE</span>
+      <b id="siteChip">—</b></div>
+  </div>
+
+  <!-- ── FLASHCARD ── -->
+  <div class="card analysis-card reveal">
+    <header>
+      <div class="fc-icon">🧠</div>
+      <div>
+        <div class="fc-title">Request / Incident AI Analysis</div>
+        <div class="fc-sub">Select the type, then enter the record number to analyze.</div>
+      </div>
+    </header>
+
+    <div class="row">
+      <div class="field">
+        <label for="typeSelect">Record type</label>
+        <select id="typeSelect" class="type-select" onchange="onTypeChange()">
+          <option value="incident">Incident</option>
+          <option value="request">Request</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="recordNumber" id="numberLabel">Incident number</label>
+        <input type="text" id="recordNumber" class="num-input"
+               placeholder="Enter Incident Number (e.g., INC0012345)"
+               onkeypress="handleKey(event)" />
+      </div>
+    </div>
+
+    <div class="actions">
+      <div class="spacer"></div>
+      <button type="button" class="btn ghost btn-lg" id="clearBtn" onclick="clearForm()">Clear</button>
+      <button type="button" class="btn primary btn-lg" id="analyzeBtn" onclick="analyze()">Analyze</button>
+    </div>
+
+    <div class="result-box" id="resultBox">
+      <span class="rb-title">Ready.</span>
+      Choose <b>Incident</b> or <b>Request</b> above, type the record number, then press Enter or Analyze.
+    </div>
+  </div>
+
+</div>
+
+<script defer src="theme.js"></script>
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   Request / Incident AI Analysis
+   Sends the selected record type + number to the analysis backend.
+   ═══════════════════════════════════════════════════════════════ */
+(function () {
+  "use strict";
+
+  // backend endpoint (ServiceNow-style source)
+  var ANALYSIS_API = "http://snow.placeholder.com";
+
+  // per-type UI hints
+  var TYPES = {
+    incident: { label: "Incident number", placeholder: "Enter Incident Number (e.g., INC0012345)" },
+    request:  { label: "Request number",  placeholder: "Enter Request Number (e.g., REQ0012345)" }
+  };
+
+  var typeSelect = document.getElementById("typeSelect");
+  var numberLabel = document.getElementById("numberLabel");
+  var numberInput = document.getElementById("recordNumber");
+  var resultBox = document.getElementById("resultBox");
+  var analyzeBtn = document.getElementById("analyzeBtn");
+  var clearBtn = document.getElementById("clearBtn");
+
+  // reflect the selected site (read-only)
+  var site = localStorage.getItem("selectedSite");
+  document.getElementById("siteChip").textContent = site || "None selected";
+
+  function getSavedSelections() {
+    return {
+      region: localStorage.getItem("selectedRegion") || "Not selected",
+      country: localStorage.getItem("selectedCountry") || "Not selected",
+      site: localStorage.getItem("selectedSite") || "Not selected",
+      siteInfo: localStorage.getItem("selectedSiteInfo") || null
+    };
+  }
+
+  function escapeHtml(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (m) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m];
+    });
+  }
+
+  function setResult(html, kind) {
+    resultBox.className = "result-box" + (kind ? " " + kind : "");
+    resultBox.innerHTML = html;
+  }
+
+  // update label + placeholder when the dropdown changes
+  window.onTypeChange = function () {
+    var t = TYPES[typeSelect.value] || TYPES.incident;
+    numberLabel.textContent = t.label;
+    numberInput.placeholder = t.placeholder;
+  };
+
+  window.handleKey = function (e) {
+    if (e.key === "Enter") { e.preventDefault(); analyze(); }
+  };
+
+  window.clearForm = function () {
+    numberInput.value = "";
+    setResult('<span class="rb-title">Cleared.</span> Enter a record number and press Analyze.', null);
+    numberInput.focus();
+  };
+
+  window.analyze = async function () {
+    var type = typeSelect.value;                 // "incident" | "request"
+    var typeLabel = type === "request" ? "Request" : "Incident";
+    var number = numberInput.value.trim();
+
+    if (!number) {
+      setResult('<span class="rb-title">Nothing to analyze.</span> Please enter a ' +
+                typeLabel + ' number first.', "error");
+      return;
+    }
+
+    analyzeBtn.disabled = true;
+    clearBtn.disabled = true;
+    numberInput.disabled = true;
+    var origLabel = analyzeBtn.textContent;
+    analyzeBtn.textContent = "Analyzing…";
+    setResult('<span class="loading"></span> Analyzing ' + typeLabel + ' ' + escapeHtml(number) + '…', "busy");
+
+    var selections = getSavedSelections();
+    var payload = {
+      type: type,                                // which record type was chosen
+      number: number,                            // the record number entered
+      region: selections.region,
+      country: selections.country,
+      site: selections.site,
+      siteInfo: selections.siteInfo ? JSON.parse(selections.siteInfo) : null
+    };
+
+    try {
+      var res = await fetch(ANALYSIS_API, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) throw new Error("Request failed (" + res.status + ")");
+
+      var raw = await res.text();
+      var data;
+      try { data = JSON.parse(raw); } catch (e) { data = raw; }
+
+      var reply = (data && typeof data === "object" && "response" in data) ? data.response : data;
+
+      setResult(
+        '<span class="rb-title">' + typeLabel + ' ' + escapeHtml(number) + '</span>' +
+        escapeHtml((reply == null || reply === "") ? "No analysis returned." : reply),
+        "ok"
+      );
+      if (window.NetOps) window.NetOps.toast(typeLabel + " analysis complete");
+
+    } catch (err) {
+      setResult(
+        '<span class="rb-title">Analysis failed.</span>' + escapeHtml(err.message) +
+        '. The analysis service may be unreachable — check the number and try again.',
+        "error"
+      );
+    } finally {
+      analyzeBtn.disabled = false;
+      clearBtn.disabled = false;
+      numberInput.disabled = false;
+      analyzeBtn.textContent = origLabel;
+      numberInput.focus();
+    }
+  };
+
+  // init
+  onTypeChange();
+})();
+</script>
+
+</body>
+</html>

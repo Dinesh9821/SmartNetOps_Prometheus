@@ -1,0 +1,1266 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>NetAutomation Flow | Smart NetOps Hub</title>
+
+    <style>
+        /* ====== GLOBAL THEME (Matches Main Page) ====== */
+        body {
+            margin: 0;
+            font-family: "Poppins", system-ui, sans-serif;
+            background: linear-gradient(135deg, #0A0E17, #0E131E);
+            min-height: 100vh;
+            color: #EAF0F8;
+            overflow-x: hidden;
+        }
+
+        /* Background glowing circles */
+        .bg-circle {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(90px);
+            opacity: 0.55;
+            animation: float 7s infinite ease-in-out;
+            z-index: 0;
+        }
+
+        .c1 {
+            width: 380px;
+            height: 380px;
+            background: #FBBF24;
+            top: 8%;
+            left: 12%;
+        }
+
+        .c2 {
+            width: 450px;
+            height: 450px;
+            background: #FB7185;
+            bottom: 10%;
+            right: 10%;
+            animation-delay: 2s;
+        }
+
+        @keyframes float {
+            0% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-35px);
+            }
+
+            100% {
+                transform: translateY(0);
+            }
+        }
+
+        /* ====== LAYOUT ====== */
+        .layout {
+            display: flex;
+            gap: 25px;
+            max-width: 1400px;
+            margin: 50px auto;
+            padding: 0 30px;
+            position: relative;
+            z-index: 2;
+        }
+
+        /* ====== SIDEBAR (Same as Main Page) ====== */
+        .sidebar {
+            width: 260px;
+            background: rgba(255,255,255,0.04);
+            padding: 20px;
+            border-radius: 14px;
+            backdrop-filter: blur(14px);
+            box-shadow: 0 10px 35px rgba(0,0,0,0.59);
+            max-height: 85vh;
+            overflow-y: auto;
+        }
+
+        .sidebar::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .sidebar::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.07);
+            border-radius: 5px;
+        }
+
+        .dropdown-content {
+            display: none;
+            background: rgba(255,255,255,0.03);
+            padding: 10px;
+            border-radius: 10px;
+        }
+
+        .dropdown-content div {
+            padding: 10px;
+            cursor: pointer;
+            border-radius: 8px;
+            margin: 5px 0;
+            transition: 0.2s;
+        }
+
+        .dropdown-content div:hover {
+            background: rgba(255,255,255,0.055);
+        }
+
+        /* ====== MAIN CONTENT ====== */
+        .main-panel {
+            flex: 1;
+        }
+
+        /* Title Section */
+        .header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .header-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 14px;
+            background: linear-gradient(135deg, #FBBF24, #FB7185);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 32px;
+        }
+
+        /* Glass Cards */
+        .card {
+            background: rgba(255,255,255,0.04);
+            backdrop-filter: blur(12px);
+            padding: 20px;
+            border-radius: 14px;
+            margin-bottom: 25px;
+            box-shadow: 0 10px 35px rgba(0,0,0,0.51);
+        }
+
+        .card h2 {
+            margin: 0;
+        }
+
+        /* Workflow item */
+        .workflow-item {
+            padding: 15px;
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 12px;
+            margin-bottom: 12px;
+            transition: 0.25s;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 12px;
+            position: relative;
+        }
+
+        .workflow-item:hover {
+            background: rgba(255,255,255,0.06);
+        }
+
+        /* Query area (for workflows that use it) */
+        .query-area {
+            display: block;          /* always visible, no longer hover-gated */
+            margin-top: 10px;
+            position: relative;
+        }
+
+        .workflow-item:hover .query-area {
+            display: block;
+        }
+
+        .query-area-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .query-controls-row {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .query-dropdown {
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            background-color: rgba(255,255,255,0.06);
+            border: 1px solid rgba(34,211,238,0.35);
+            border-radius: 8px;
+            padding: 10px 40px 10px 14px;   /* room for the chevron on the right */
+            color: #EAF0F8;
+            font-size: 13px;
+            font-weight: 500;
+            min-width: 190px;
+            cursor: pointer;
+            /* bright, high-contrast chevron so it is obviously a dropdown */
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2322D3EE' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            background-size: 18px;
+            transition: border-color .2s ease, background-color .2s ease, box-shadow .2s ease;
+        }
+
+        .query-dropdown:hover {
+            background-color: rgba(34,211,238,0.10);
+            border-color: rgba(34,211,238,0.55);
+        }
+
+        .query-dropdown:focus {
+            outline: none;
+            border-color: #22D3EE;
+            box-shadow: 0 0 0 3px rgba(34,211,238,0.16);
+        }
+
+        .query-dropdown option {
+            background: #0E131E;
+            color: #EAF0F8;
+            padding: 8px;
+        }
+
+        /* labelled wrapper so the control reads clearly as a chooser */
+        .query-field-label {
+            display: block;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: .04em;
+            text-transform: uppercase;
+            color: #98A5B8;
+            margin-bottom: 6px;
+        }
+
+        .query-area textarea {
+            width: 100%;
+            min-height: 5.2em;
+            padding: 10px;
+            border-radius: 10px;
+            border: 1px solid rgba(255,255,255,0.06);
+            background: rgba(0,0,0,0.51);
+            color: #EAF0F8;
+            resize: vertical;
+            box-sizing: border-box;
+        }
+
+        /* Response box — always visible with a resting message.
+           !important where needed to win over the global glass-panel rule. */
+        .response-box {
+            display: block !important;      /* shown at all times, before/after Run */
+            margin-top: 10px;
+            padding: 11px 13px;
+            border-radius: 10px !important;
+            border: 1px solid rgba(34,211,238,0.16) !important;
+            background: rgba(4,6,10,0.55) !important;
+            color: #98A5B8;
+            font-size: 12.5px;
+            line-height: 1.55;
+            min-height: 20px;
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
+            box-shadow: none !important;
+        }
+
+        /* muted "idle" look for the default hint, so it does not shout */
+        .response-box.idle {
+            border-color: rgba(148,163,184,0.14) !important;
+            background: rgba(4,6,10,0.42) !important;
+            color: #7D8AA0;
+        }
+
+        .response-box .rb-hint-title {
+            color: #C7D2E0;
+            font-weight: 600;
+        }
+
+        .response-box.error {
+            border-color: #FB7185 !important;
+            color: #FDA4AF;
+            background: rgba(251,113,133,0.08) !important;
+        }
+
+        /* Hosts table style (for workflows 1 & 2) */
+        .hosts-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            color: #EAF0F8;
+        }
+
+        .hosts-table th,
+        .hosts-table td {
+            padding: 8px 10px;
+            border: 1px solid rgba(255,255,255,0.028);
+            text-align: left;
+        }
+
+        .hosts-table th {
+            background: rgba(255,255,255,0.022);
+            font-weight: 600;
+        }
+
+        .hosts-empty {
+            opacity: 0.9;
+            margin-top: 8px;
+            font-size: 13px;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 8px 14px;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            background: rgba(255,255,255,0.05);
+            color: #EAF0F8;
+            transition: 0.25s;
+        }
+
+        .btn:hover {
+            background: rgba(255,255,255,0.08);
+        }
+
+        /* Progress Bar */
+        .progress-container {
+            display: none;
+            flex-direction: column;
+            align-items: flex-end;
+            min-width: 150px;
+            gap: 4px;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity .3s, visibility .3s;
+        }
+
+        .progress-container.active {
+            display: flex;
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .progress-percentage {
+            font-size: 12px;
+            color: rgba(234,240,248,0.9);
+            font-weight: 500;
+        }
+
+        .progress-bar-wrapper {
+            width: 100%;
+            height: 8px;
+            background: rgba(0,0,0,0.51);
+            border-radius: 4px;
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #FBBF24, #FB7185);
+            border-radius: 4px;
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+
+        /* Site Update form (index 4) — always visible, in normal flow.
+           No longer a floating hover popup, so it can never slide behind
+           other cards and is always fillable. */
+        .hover-form {
+            position: relative;      /* in-flow, not absolutely positioned */
+            top: auto;
+            left: auto;
+            width: 100%;
+            max-width: 100%;
+            margin-top: 12px;
+            background: rgba(4,6,10,0.55);
+            border: 1px solid rgba(34,211,238,0.18);
+            padding: 16px;
+            border-radius: 12px;
+            opacity: 1;              /* always shown */
+            transform: none;
+            pointer-events: auto;    /* always interactive */
+            z-index: 1;
+            color: #EAF0F8;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+        }
+
+        /* keep a gentle emphasis when the operator is working in it */
+        #workflowList .workflow-item:focus-within .hover-form {
+            border-color: rgba(34,211,238,0.4);
+            box-shadow: 0 0 0 3px rgba(34,211,238,0.08), inset 0 1px 0 rgba(255,255,255,0.05);
+        }
+
+        .hover-form h4 {
+            margin: 0 0 12px 0;
+            font-size: 14px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(148,163,184,0.12);
+        }
+
+        .hover-form .form-row {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px 14px;
+        }
+
+        .hover-form label {
+            display: block;
+            font-size: 13px;
+            margin-bottom: 4px;
+            color: #EAF0F8;
+        }
+
+        .hover-form input[type="text"] {
+            display: block;
+            width: 100%;
+            padding: 8px;
+            font-size: 13px;
+            border: 1px solid rgba(255,255,255,0.035);
+            border-radius: 6px;
+            background: rgba(255,255,255,0.018);
+            color: #EAF0F8;
+            box-sizing: border-box;
+        }
+
+        .hover-form .form-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+            justify-content: flex-end;
+        }
+
+        .hover-form button {
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+        }
+
+        .hover-form button.cancel {
+            background: #04060A;
+            color: #EAF0F8;
+        }
+
+        .hover-form button[type="submit"] {
+            background: #2563EB;
+            color: #EAF0F8;
+        }
+
+        /* Responsive tweak */
+        @media (max-width: 820px) {
+            .hover-form {
+                width: calc(100% - 16px);
+                left: 8px;
+                top: 70px;
+            }
+
+            .hover-form .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Back button */
+        .back-btn {
+            margin-bottom: 20px;
+            padding: 10px 16px;
+            background: rgba(255,255,255,0.045);
+            border-radius: 10px;
+            text-decoration: none;
+            font-size: 15px;
+            color: white;
+            display: inline-block;
+        }
+
+        .back-btn:hover {
+            background: rgba(255,255,255,0.07);
+        }
+
+        .box {
+            background: rgba(255,255,255,0.03);
+            padding: 10px 14px;
+            margin: 6px 0;
+            border-radius: 8px;
+            cursor: pointer;
+            color: #EAF0F8;
+        }
+    </style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="theme.css">
+<script defer src="theme.js"></script>
+</head>
+
+<body>
+
+    <!-- Background Glow -->
+    <div class="bg-circle c1"></div>
+    <div class="bg-circle c2"></div>
+
+    <!-- Layout -->
+    <div class="layout">
+
+        <!-- ========== SIDEBAR ========== -->
+        <div class="sidebar">
+            <a href="landing page.html" class="back-btn">⬅ Back to Home</a>
+
+            <!-- REGION -->
+            <div class="dropdown-content" id="regionBox"></div>
+
+            <!-- COUNTRY -->
+            <div class="dropdown-content" id="countryBox"></div>
+
+            <!-- SITE -->
+            <div class="dropdown-content" id="siteBox"></div>
+
+            <div class="box">
+                <p><strong>🌐 Region:</strong> <span id="regionDisplay"></span></p>
+                <p><strong>📡 Country:</strong> <span id="countryDisplay"></span></p>
+                <p><strong>🛠 Site ID:</strong> <span id="siteDisplay"></span></p>
+            </div>
+
+            <!-- DEV LIST DROPDOWN -->
+            <div class="box" onclick="toggleDropdown('devListBox')">
+                <strong>🖥 Available Devices</strong>
+            </div>
+            <div class="dropdown-content" id="devListBox"></div>
+
+            <!-- DEVICE TYPE DROPDOWNS -->
+            <div class="box" onclick="toggleDropdown('sdListBox')">
+                <strong>Routers</strong>
+            </div>
+            <div class="dropdown-content" id="sdListBox"></div>
+
+            <div class="box" onclick="toggleDropdown('swListBox')">
+                <strong>Switches</strong>
+            </div>
+            <div class="dropdown-content" id="swListBox"></div>
+
+            <div class="box" onclick="toggleDropdown('apListBox')">
+                <strong>Access Points</strong>
+            </div>
+            <div class="dropdown-content" id="apListBox"></div>
+
+            <div class="box" onclick="toggleDropdown('fwListBox')">
+                <strong>Firewall</strong>
+            </div>
+            <div class="dropdown-content" id="fwListBox"></div>
+
+        </div>
+
+        <!-- ========== MAIN PANEL ========== -->
+        <div class="main-panel">
+
+            <!-- Header -->
+            <div class="header">
+                <div class="header-icon">🔗</div>
+                <div>
+                    <h1>NetAutomation Flow</h1>
+                    <p style="opacity:0.8;">Streamline network automation with visual workflow management</p>
+                </div>
+            </div>
+
+            <!-- Summary Cards -->
+            <div class="card">
+                <h2>Automation Workflows</h2>
+                <p style="opacity:0.8;">Manage and monitor your automated network workflows</p>
+            </div>
+
+            <!-- Workflow List -->
+            <div id="workflowList">
+                <!-- Loaded by JavaScript -->
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        /* ======= Config & data (keep as-is) ======= */
+        const regionData = {
+            APAC: {
+                "🇮🇳 India": ["Mumbai-01", "Delhi-02"],
+                "🇯🇵 Japan": ["Tokyo-1"],
+            },
+            EMEA: { "🇬🇧 United Kingdom": ["London-45"] },
+            AMER: { "🇺🇸 United States": ["US-WA-23"] }
+        };
+        let devListStore = []; // Global device store
+        let selectedDevice = null;
+
+
+        const workflow5FieldNames = [
+            "Business Unit", "Site Priority", "Building, Floor", "Street Address", "City", "State", "Country", "Zipcode",
+            "Primary Contact Name", "Secondary Contact Name", "Primary Contact", "Secondary Contact", "Primary Contact E-mail",
+            "Secondary Contact E-mail", "Building Type"
+        ];
+
+        const RUN_API_URL = "http://cussya5w.carcgl.com:8080/proxy2";
+        const CNS_API_URL = "http://cussya5w.carcgl.com:8080/proxy5";
+        const PATH_DIVERSITY_API_URL = "http://cussya5w.carcgl.com:8080/proxy6";  // Path Diversity API endpoint
+        function getUsername() {
+            return localStorage.getItem("username") || localStorage.getItem("currentUser") || localStorage.getItem("current_user") || "unknown";
+        }
+
+        /* ===== Sidebar helpers (unchanged) ===== */
+        function toggleDropdown(id) { const box = document.getElementById(id); box.style.display = box.style.display === "block" ? "none" : "block"; }
+        function loadRegions() { const regionBox = document.getElementById("regionBox"); regionBox.innerHTML = ''; Object.keys(regionData).forEach(region => { const d = document.createElement("div"); d.textContent = region; d.onclick = () => loadCountries(region); regionBox.appendChild(d); }); }
+        function loadCountries(region) { const countryBox = document.getElementById("countryBox"); countryBox.innerHTML = ''; Object.keys(regionData[region]).forEach(country => { const d = document.createElement("div"); d.textContent = country; d.onclick = () => loadSites(region, country); countryBox.appendChild(d); }); document.getElementById("siteBox").innerHTML = ''; }
+        function loadSites(region, country) {
+            const siteBox = document.getElementById("siteBox"); siteBox.innerHTML = ''; regionData[region][country].forEach(site => {
+                const d = document.createElement("div"); d.textContent = site;
+                d.onclick = () => {
+                    localStorage.setItem("selectedRegion", region);
+                    localStorage.setItem("selectedCountry", country);
+                    localStorage.setItem("selectedSite", site);
+
+                    document.getElementById("regionDisplay").textContent = region;
+                    document.getElementById("countryDisplay").textContent = country;
+                    document.getElementById("siteDisplay").textContent = site;
+
+                    loadDevListFromWorkflowAPI(); // 🔑 auto-load devices
+                };
+
+                siteBox.appendChild(d);
+            });
+        }
+
+        loadRegions();
+
+        //workflows
+
+        const workflows = [
+            { name: "Check Audit Compliance", status: "running", lastRun: "Never run" },
+            { name: "Check CMDB Compliance", status: "scheduled", lastRun: "Never run" },
+            { name: "Site Handover", status: "idle", lastRun: "Never run" },
+            { name: "Health check of Device", status: "running", lastRun: "Never run" },
+            { name: "Site Update", status: "running", lastRun: "Never run" },
+            { name: "Check Network Status", status: "running", lastRun: "Never run" },
+            { name: "Check Path Diversity", status: "running", lastRun: "Never run" }
+        ];
+
+        /* Always-on descriptions shown in each workflow's message box,
+           whether or not the operator has pressed Run. */
+        const workflowHints = [
+            "Audits the selected site against policy baselines and reports any configuration or compliance gaps. Press Run to start the audit.",
+            "Cross-checks device inventory against the CMDB and flags mismatched or missing records. Press Run to compare.",
+            "Runs the site handover checklist and confirms the site is ready to move to operations. Press Run to begin.",
+            "Runs a live health check on the device selected in DevList (CPU, memory, interface and reachability). Select a device, then press Run.",
+            "Update the master record for the selected site. Fill any of the fields below — blank fields are left unchanged — then press Run to save.",
+            "Checks interface status on the selected device. Pick the interface scope from the dropdown, then press Run.",
+            "Analyses path diversity for the selected site and highlights single points of failure. Press Run to analyse."
+        ];
+
+        function getLastRunText(idx) {
+            const key = `lastRun_${idx}`;
+            const lastRunTime = localStorage.getItem(key);
+
+            if (!lastRunTime) return "Never used";
+
+            const runTime = new Date(parseInt(lastRunTime, 10));
+            const now = new Date();
+            const diffMs = now - runTime;
+
+            const diffSeconds = Math.floor(diffMs / 1000);
+            const diffMins = Math.floor(diffSeconds / 60);
+            const diffHours = Math.floor(diffMins / 60);
+            const diffDays = Math.floor(diffHours / 24);
+
+            if (diffSeconds < 30) return "Just now";
+            if (diffMins < 1) return `${diffSeconds} seconds ago`;
+            if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? "s" : ""} ago`;
+            if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? "s" : ""} ago`;
+            return `${diffDays} day${diffDays > 1 ? "s" : ""} ago`;
+        }
+
+        function updateLastRun(idx) {
+            const key = `lastRun_${idx}`;
+            localStorage.setItem(key, Date.now());
+
+            const span = document.querySelector(
+                `.workflow-item[data-idx="${idx}"] span.last-run`
+            );
+
+            if (span) {
+                span.textContent = getLastRunText(idx);
+            }
+        }
+
+        function loadWorkflows() {
+            const list = document.getElementById("workflowList");
+            list.innerHTML = '';
+            workflows.forEach((w, idx) => {
+                // Site Update (idx 4) now lives on its own page: site-info-update.html.
+                // Skip rendering it here WITHOUT removing it from the array, so the
+                // index-based logic for idx 5 (Check Network Status) and idx 6
+                // (Check Path Diversity) stays exactly as-is.
+                if (idx === 4) return;
+
+                let inputArea = '';
+                if (idx === 4) {
+                    let fields = '';
+                    for (let i = 1; i <= 15; i++) {
+                        const name = workflow5FieldNames[i - 1] || `Field ${i}`;
+                        fields += `<div><label for="f${i}">${name}</label><input id="f${i}" name="f${i}" type="text" placeholder="Enter ${name}" /></div>`;
+                    }
+                    inputArea = `<div class="hover-form" id="hover-form-4">
+      <h4>
+        ${w.name} — Details
+        <span style="opacity:0.75; font-weight:400;">
+          <br>(${localStorage.getItem("selectedSite") || "No Site Selected"})
+        </span>
+      </h4>
+
+
+      <form id="form-4" autocomplete="off" novalidate><div class="form-row">${fields}</div><div class="form-actions"><button type="button" class="cancel" onclick="document.getElementById('form-4').reset();">Clear</button></div></form></div>`;
+                } else if (idx < 4) {
+                    inputArea = '';
+                } else if (idx === 5) {
+                    inputArea = `<div class="query-area" id="query-${idx}"><div class="query-area-wrapper"><div class="query-controls-row"><div style="width:100%;max-width:320px;"><label class="query-field-label" for="dropdown-${idx}">Interface scope to check</label><select class="query-dropdown" id="dropdown-${idx}"><option value="option1">All Interfaces — every WAN &amp; LAN port</option><option value="WAN">WAN Link — upstream / internet-facing</option><option value="option3">LAN Link — internal / access-side</option></select></div></div></div></div>`;
+                } else if (idx === 6) {
+                    inputArea = '';
+                } else {
+                    inputArea = `<div class="query-area" id="query-${idx}"><div class="query-area-wrapper"><div class="query-controls-row"><div style="width:100%;max-width:320px;"><label class="query-field-label" for="dropdown-${idx}">Interface scope</label><select class="query-dropdown" id="dropdown-${idx}"><option value="option1">All Interfaces — every WAN &amp; LAN port</option><option value="WAN">WAN Link — upstream / internet-facing</option><option value="option3">LAN Link — internal / access-side</option></select></div></div><textarea placeholder="Enter a quick query for ${w.name}..."></textarea></div></div>`;
+                }
+
+                list.innerHTML += `
+                    <div class="workflow-item" data-idx="${idx}">
+                        <div style="flex:1;">
+                        <strong>${w.name}</strong>
+                        <span class="last-run" style="opacity:0.7; display:block; margin-top:4px;">
+                            ${getLastRunText(idx)}
+                        </span>
+                        ${inputArea}
+                        <div class="response-box idle" id="response-${idx}"><span class="rb-hint-title">${w.name}.</span> ${workflowHints[idx] || "Press Run to execute this workflow."}</div>
+                        </div>
+                        <div style="display:flex; gap:8px; align-items:center;">
+                        <div class="progress-container" id="progress-${idx}"><div class="progress-percentage" id="progress-percent-${idx}">0%</div><div class="progress-bar-wrapper"><div class="progress-bar-fill" id="progress-bar-${idx}"></div></div></div>
+                        <button class="btn" id="run-${idx}" onclick="runWorkflow(${idx})">Run</button>
+                        </div>
+                    </div>`;
+            });
+        }
+
+        function categorizeDevices() {
+            const categories = {
+                routers: [],
+                switches: [],
+                accessPoints: [],
+                firewalls: []
+            };
+
+            devListStore.forEach(dev => {
+                const hostname = dev.hostname.toUpperCase();
+                if (hostname.includes('SD')) {
+                    categories.routers.push(dev);
+                } else if (hostname.includes('SW')) {
+                    categories.switches.push(dev);
+                } else if (hostname.includes('AP')) {
+                    categories.accessPoints.push(dev);
+                } else if (hostname.includes('FW')) {
+                    categories.firewalls.push(dev);
+                }
+            });
+
+            return categories;
+        }
+
+        function renderDeviceList(devices, boxId, deviceType) {
+            const box = document.getElementById(boxId);
+            box.innerHTML = "";
+
+            if (!devices.length) {
+                box.innerHTML = `<div style="opacity:.7; text-align:center; padding:10px;">No ${deviceType} found</div>`;
+                return;
+            }
+
+            devices.forEach(dev => {
+                const d = document.createElement("div");
+                d.textContent = `${dev.hostname} (${dev.ip})`;
+
+                d.onclick = () => {
+                    selectedDevice = dev;
+
+                    // update sidebar label WITHOUT changing structure
+                    const label = document.querySelector(".box[onclick*='devListBox'] strong");
+                    if (label) label.textContent = `🖥 DevList: ${dev.hostname}`;
+
+                    box.style.display = "none";
+                };
+
+                box.appendChild(d);
+            });
+        }
+
+        function renderDevList() {
+            const box = document.getElementById("devListBox");
+            box.innerHTML = "";
+
+            if (!devListStore.length) {
+                box.innerHTML = `<div style="opacity:.7; text-align:center; padding:10px;">No device found</div>`;
+                return;
+            }
+
+            devListStore.forEach(dev => {
+                const d = document.createElement("div");
+                d.textContent = `${dev.hostname} (${dev.ip})`;
+
+                d.onclick = () => {
+                    selectedDevice = dev;
+
+                    // update sidebar label WITHOUT changing structure
+                    const label = document.querySelector(".box[onclick*='devListBox'] strong");
+                    if (label) label.textContent = `🖥 DevList: ${dev.hostname}`;
+
+                    box.style.display = "none";
+                };
+
+                box.appendChild(d);
+            });
+
+            // Categorize and render devices into device type dropdowns
+            const categories = categorizeDevices();
+            renderDeviceList(categories.routers, 'sdListBox', 'Routers');
+            renderDeviceList(categories.switches, 'swListBox', 'Switches');
+            renderDeviceList(categories.accessPoints, 'apListBox', 'Access Points');
+            renderDeviceList(categories.firewalls, 'fwListBox', 'Firewalls');
+        }
+
+        /* ====== HELPERS ====== */
+        function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+        function escapeHtml(s) { return String(s || '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m]); }
+
+        function safeField(obj, keys) {
+            if (!obj || typeof obj !== 'object') return '';
+            for (const k of keys) {
+                if (k in obj && obj[k] !== null && obj[k] !== undefined && String(obj[k]).trim() !== '') return obj[k];
+            }
+            return '';
+        }
+
+        function updateProgress(i, p) {
+            const bar = document.getElementById(`progress-bar-${i}`);
+            const pct = document.getElementById(`progress-percent-${i}`);
+            if (bar && pct) {
+                bar.style.width = p + "%";
+                pct.textContent = Math.round(p) + "%";
+            }
+        }
+
+        async function loadDevListFromWorkflowAPI() {
+            const siteId = localStorage.getItem("selectedSite");
+            if (!siteId) return;
+
+            try {
+                const payload = {
+                    workflow: "DEVICE_DISCOVERY",
+                    query: "FETCH_DEVICES",
+                    siteid: siteId
+                };
+
+                const res = await fetch(RUN_API_URL, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!res.ok) throw new Error("DevList fetch failed");
+                const rawText = await res.text();
+
+                let parsed;
+                try { parsed = JSON.parse(rawText); } catch { return; }
+
+                const devList = parsed?.response?.devList;
+                devListStore = []; // Clear existing store
+                if (!devList) {
+                    renderDevList();
+                    return;
+                }
+
+                const devArray = Array.isArray(devList) ? devList : [devList];
+
+                devListStore = devArray.map(item => ({
+                    hostname: safeField(item, ['U_HOSTNAME', 'hostname', 'host', 'name']) || 'Unknown',
+                    ip: safeField(item, ['U_LOGIN_IP', 'ip', 'address']) || '-'
+                }));
+
+                renderDevList();
+            } catch (e) {
+                console.error("DevList auto-load failed:", e);
+            }
+        }
+
+        /* ====== CORE: runWorkflow with U_HOSTNAME / U_LOGIN_IP table rendering ====== */
+        async function runWorkflow(idx) {
+            const responseBox = document.getElementById(`response-${idx}`);
+            const runBtn = document.getElementById(`run-${idx}`);
+
+            if ((idx === 3 || idx === 5) && !selectedDevice) {
+                responseBox.style.display = "block";
+                responseBox.classList.remove("idle");
+                responseBox.classList.add("error");
+                responseBox.textContent = idx === 3
+                    ? "Please select a device from DevList before running Health Check."
+                    : "Please select a device from DevList before running Network Status Check.";
+                return;
+            }
+
+            if (!responseBox || !runBtn) return;
+
+            responseBox.classList.remove("error");
+            responseBox.classList.remove("idle");
+            responseBox.style.display = "block";
+            responseBox.innerHTML = '';
+
+            let query = '';
+            if (idx < 4 || idx === 5 || idx === 6) {
+                query = workflows[idx].name;
+            } else if (idx === 4) {
+                const form = document.getElementById('form-4');
+                if (!form) return;
+                let any = false; const parts = [];
+                for (let i = 1; i <= 15; i++) { const el = form.querySelector(`#f${i}`); if (el && el.value.trim()) { parts.push(el.value.trim()); any = true; } }
+                if (!any) { responseBox.textContent = "Please fill at least one field before running."; return; }
+                query = parts.join(' | ');
+            } else {
+                const textarea = document.querySelector(`#query-${idx} textarea`);
+                if (!textarea) return;
+                if (!textarea.value.trim()) { responseBox.textContent = "Please enter a query before running."; return; }
+                query = textarea.value.trim();
+            }
+
+            // progress UI
+            const progressContainer = document.getElementById(`progress-${idx}`);
+            const progressBar = document.getElementById(`progress-bar-${idx}`);
+            const progressPercent = document.getElementById(`progress-percent-${idx}`);
+            runBtn.disabled = true; const origText = runBtn.textContent; runBtn.textContent = "Running...";
+            if (progressContainer && progressBar && progressPercent) { progressContainer.classList.add("active"); updateProgress(idx, 0); }
+            responseBox.textContent = "Sending query...";
+
+            let progress = 0;
+            const progressInterval = setInterval(() => { progress += Math.random() * 15; if (progress > 90) progress = 90; updateProgress(idx, progress); }, 200);
+
+            try {
+                updateProgress(idx, 20);
+                await delay(200);
+                updateProgress(idx, 40);
+
+                const payload = idx === 5 ? {
+                    ip: selectedDevice.ip,
+                    int_name: document.getElementById(`dropdown-${idx}`).value
+                } : {
+                    workflow: workflows[idx].name,
+                    siteid: localStorage.getItem("selectedSite"),
+                    query,
+                    device: (idx === 3 || idx === 5) && selectedDevice
+                        ? {
+                            hostname: selectedDevice.hostname,
+                            ip: selectedDevice.ip
+                        }
+                        : null
+                };
+
+
+                console.debug('sending', payload);
+
+                const apiUrl = idx === 5 ? CNS_API_URL : (idx === 6 ? PATH_DIVERSITY_API_URL : RUN_API_URL);
+                const res = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                updateProgress(idx, 70);
+                responseBox.textContent = "Receiving response...";
+
+                if (!res.ok) throw new Error(`Request failed (${res.status})`);
+
+                try {
+                    const usagePayload = buildUsagePayload({
+                        username: getUsername(),
+                        module: workflows[idx].name,
+                        workflow: workflows[idx].name
+                    });
+
+                    fetch("http://cussya5w.carcgl.com:8080/proxy3", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: usagePayload
+                    });
+                } catch (e) {
+                    console.warn("Usage tracking failed:", e);
+                }
+
+                // Read raw text (handles cases where response isn't strict JSON)
+                const rawText = await res.text();
+                <!--    const responseLine = extractCleanResponseLine(rawText);-->
+
+                // Try to parse to JSON; if fails, pass the rawText into parser
+                let parsed;
+                try { parsed = JSON.parse(rawText); } catch (e) { parsed = rawText; }
+
+                // Normalize to array of objects (supports single object, array, newline-separated objects, comma-separated)
+                console.log(parsed);
+
+                const normalized = parsed;
+                // If normalized contains objects with U_HOSTNAME / U_LOGIN_IP (case-insensitive), render table
+
+                if (idx === 5) {
+                    const interfaces =
+                        normalized?.response?.interfaces ||
+                        normalized?.interfaces ||
+                        normalized?.response ||
+                        normalized;
+
+                    responseBox.innerHTML = buildInterfaceStatusTable(interfaces);
+                }
+
+                else {
+                        let content = buildUHostTable(normalized.response);
+                        if (idx === 6) {
+                            const siteId = localStorage.getItem("selectedSite") || '-';
+                            const siteHtml = `<p style="margin-top:8px; font-weight:600;">Site ID: ${escapeHtml(siteId)}</p>`;
+                            const routerInfo = selectedDevice && selectedDevice.hostname.toUpperCase().includes('SD')
+                                ? `<p style="margin-top:6px; font-weight:600;">Selected Router: ${escapeHtml(selectedDevice.hostname)} (${escapeHtml(selectedDevice.ip)})</p>`
+                                : `<p style="margin-top:6px; color:#FDA4AF; font-weight:600;">No selected router</p>`;
+
+                            // Build Path Diversity table from API response
+                            const pdSource = normalized.response || normalized;
+                            const pdTable = buildPathDiversityTable(pdSource);
+
+                            content = siteHtml + routerInfo + pdTable;
+                        }
+                        responseBox.innerHTML = content;
+                }
+                updateLastRun(idx);
+
+                // Capture devices ONLY for first two workflows
+                if ((idx === 0 || idx === 1) && normalized.response?.devList) {
+                    const devArray = Array.isArray(normalized.response.devList)
+                        ? normalized.response.devList
+                        : [normalized.response.devList];
+
+                    devListStore = devArray.map(item => ({
+                        hostname: safeField(item, ['U_HOSTNAME', 'hostname', 'host', 'name']) || 'Unknown',
+                        ip: safeField(item, ['U_LOGIN_IP', 'ip', 'address']) || '-'
+                    }));
+
+                    renderDevList();
+                }
+
+                clearInterval(progressInterval);
+                updateProgress(idx, 100);
+                await delay(200);
+            } catch (err) {
+                clearInterval(progressInterval);
+                updateProgress(idx, 100);
+                console.error(err);
+                responseBox.classList.add("error");
+                responseBox.textContent = `Error: ${err.message || err}`;
+            } finally {
+                runBtn.disabled = false;
+                runBtn.textContent = origText;
+                setTimeout(() => { if (progressContainer) { progressContainer.classList.remove("active"); updateProgress(idx, 0); } }, 1000);
+            }
+
+            // Parse raw/varied backend payloads into array of objects
+            function parseRawToArray(data) {
+                if (!data && data !== 0) return [];
+                if (Array.isArray(data)) return data.filter(x => x && typeof x === 'object');
+                if (typeof data === 'object') return [data];
+                if (typeof data === 'string') {
+                    const trimmed = data.trim();
+                    if (!trimmed) return [];
+                    try {
+                        const p = JSON.parse(trimmed);
+                        if (Array.isArray(p)) return p.filter(x => x && typeof x === 'object');
+                        if (p && typeof p === 'object') return [p];
+                    } catch (e) { }
+                    const lines = trimmed.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+                    const out = [];
+                    for (const ln of lines) {
+                        try {
+                            const p = JSON.parse(ln);
+                            if (p && typeof p === 'object') out.push(p);
+                            continue;
+                        } catch (_) {
+                            const pieces = ln.split(/\}\s*,\s*\{/);
+                            if (pieces.length > 1) {
+                                for (let i = 0; i < pieces.length; i++) {
+                                    let piece = pieces[i];
+                                    if (i === 0 && !piece.endsWith('}')) piece = piece + '}';
+                                    else if (i === pieces.length - 1 && !piece.startsWith('{')) piece = '{' + piece;
+                                    else piece = '{' + piece + '}';
+                                    try { const p2 = JSON.parse(piece); if (p2 && typeof p2 === 'object') out.push(p2); } catch (e) { }
+                                }
+                                continue;
+                            }
+                        }
+                    }
+                    if (out.length) return out;
+                    try {
+                        const wrapped = '[' + trimmed.replace(/\}\s*,\s*\{/g, '},{') + ']';
+                        const p2 = JSON.parse(wrapped);
+                        if (Array.isArray(p2)) return p2.filter(x => x && typeof x === 'object');
+                    } catch (_) { }
+                    const objRegex = /\{[^{}]*\}/g;
+                    const matches = trimmed.match(objRegex);
+                    if (matches && matches.length) {
+                        const out2 = [];
+                        for (const m of matches) {
+                            try { const p = JSON.parse(m); if (p && typeof p === 'object') out2.push(p); } catch (e) { }
+                        }
+                        if (out2.length) return out2;
+                    }
+                }
+                return [];
+            }
+
+            function buildUHostTable(arr) {
+                if (!arr || !arr.devList) return `<p>No device data received.</p>`;
+                const devArray = Array.isArray(arr.devList) ? arr.devList : [arr.devList];
+                if (!devArray.length) return `<p>No devices found.</p>`;
+                const rows = devArray.map(item => {
+                    const hostname = safeField(item, ['U_HOSTNAME', 'hostname', 'host', 'name']) || '-';
+                    const ip = safeField(item, ['U_LOGIN_IP', 'ip', 'address']) || '-';
+                    return `<tr><td>${escapeHtml(String(hostname))}</td><td>${escapeHtml(String(ip))}</td></tr>`;
+                }).join('');
+                return `<p>${escapeHtml(arr.opString || '')}</p><table class="hosts-table"><thead><tr><th>Device Name</th><th>Login IP</th></tr></thead><tbody>${rows}</tbody></table>`;
+            }
+        }
+
+        function buildInterfaceStatusTable(interfaces) {
+    if (!interfaces) return `<p>No interface data received.</p>`;
+
+    const list = Array.isArray(interfaces) ? interfaces : [interfaces];
+    if (!list.length) return `<p>No interfaces found.</p>`;
+
+    const rows = list.map(intf => {
+        const name = safeField(intf, ['interface', 'intf', 'name']) || '-';
+        const ip = safeField(intf, ['ip_address', 'ip', 'address']) || '-';
+        const proto = safeField(intf, ['proto', 'protocol']) || '-';
+        const status = safeField(intf, ['status', 'state']) || '-';
+
+        const statusColor = status.toLowerCase() === 'up' ? '#34D399' : '#FB7185';
+
+        return `
+            <tr>
+                <td>${escapeHtml(name)}</td>
+                <td>${escapeHtml(ip)}</td>
+                <td>${escapeHtml(proto)}</td>
+                <td style="color:${statusColor}; font-weight:600;">
+                    ${escapeHtml(status)}
+                </td>
+            </tr>
+        `;
+    }).join('');
+
+    return `
+        <table class="hosts-table">
+            <thead>
+                <tr>
+                    <th>Interface</th>
+                    <th>IP Address</th>
+                    <th>Protocol</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+        </table>
+    `;
+}
+
+            // Build a table specifically for Check Path Diversity results
+            function buildPathDiversityTable(data) {
+                if (!data) return `<p>No path diversity data received.</p>`;
+
+                // Normalize possible shapes into an array of entries
+                let list = [];
+                if (Array.isArray(data)) list = data;
+                else if (Array.isArray(data?.response)) list = data.response;
+                else if (Array.isArray(data?.data)) list = data.data;
+                else if (Array.isArray(data?.devList)) list = data.devList;
+                else if (data && typeof data === 'object') list = [data];
+
+                if (!list.length) return `<p>No entries found.</p>`;
+
+                const rows = list.map(item => {
+                    const circuit = safeField(item, ['U_CIRCUITID', 'circuitId', 'circuit']) || '-';
+                    const status = safeField(item, ['U_SERVICESTATUS', 'serviceStatus', 'status']) || '-';
+                    const isp = safeField(item, ['U_ISP_NAME', 'isp', 'provider', 'U_ISP']) || '-';
+
+                    return `
+                        <tr>
+                            <td>${escapeHtml(String(circuit))}</td>
+                            <td>${escapeHtml(String(status))}</td>
+                            <td>${escapeHtml(String(isp))}</td>
+                        </tr>`;
+                }).join('');
+
+                return `
+                    <table class="hosts-table">
+                        <thead>
+                            <tr>
+                                <th>Circuit ID</th>
+                                <th>Service Status</th>
+                                <th>ISP Name</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rows}
+                        </tbody>
+                    </table>
+                `;
+            }
+
+        function buildUsagePayload({ username, module, workflow }) {
+            const toolName = "Smart NetOps";
+
+            // unique key per user + module + workflow
+            const key = `usage_${username}_${module}_${workflow}`;
+
+            // get previous count
+            let count = parseInt(localStorage.getItem(key) || "0", 10);
+            count += 1;
+
+            // store updated count
+            localStorage.setItem(key, count);
+
+            return JSON.stringify({
+                username: username,
+                options_used: module,
+                date: new Date().toISOString(),   // real-time access timestamp
+                workflow: workflow,
+                tool: toolName,
+                result: count                     // number of times used
+            });
+        }
+
+
+        /* ===== init ===== */
+        loadWorkflows();
+        window.onload = function () {
+            const region = localStorage.getItem("selectedRegion");
+            const country = localStorage.getItem("selectedCountry");
+            const site = localStorage.getItem("selectedSite");
+            if (document.getElementById("regionDisplay")) document.getElementById("regionDisplay").textContent = region || "-";
+            if (document.getElementById("countryDisplay")) document.getElementById("countryDisplay").textContent = country || "-";
+            if (document.getElementById("siteDisplay")) document.getElementById("siteDisplay").textContent = site || "-";
+
+            // Auto-fetch devices if site is already selected
+            if (site) loadDevListFromWorkflowAPI();
+        };
+
+        // ===== Auto-refresh "Last run" text every 30 seconds =====
+        setInterval(() => {
+            document.querySelectorAll(".workflow-item").forEach(item => {
+                const idx = item.getAttribute("data-idx");
+                const span = item.querySelector(".last-run");
+                if (span) {
+                    span.textContent = getLastRunText(idx);
+                }
+            });
+        }, 30000);
+    </script>
+
+</body>
+
+</html>

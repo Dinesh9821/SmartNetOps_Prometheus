@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Site-Info Update | Smart NetOps Hub</title>
+<script src="activity-tracker.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="theme.css">
+
+<style>
+  .app{ max-width:1080px; margin:0 auto; padding:26px 22px 72px; }
+
+  .head{ display:flex; align-items:flex-end; justify-content:space-between;
+         gap:20px; flex-wrap:wrap; margin-bottom:20px; }
+  .head h1{ font-size:clamp(24px,2.4vw,34px); margin:6px 0 5px; }
+  .head .lede{ color:var(--ink-2); font-size:14px; max-width:56ch; }
+  .back-btn{ display:inline-flex; align-items:center; gap:8px; padding:9px 13px; }
+
+  /* scope chip */
+  .site-chip{
+    display:inline-flex; align-items:center; gap:9px;
+    padding:9px 14px; border-radius:var(--r);
+    background:linear-gradient(150deg,rgba(34,211,238,.1),rgba(167,139,250,.04));
+    border:1px solid var(--edge);
+    font-family:'JetBrains Mono',monospace; font-size:12.5px; color:var(--ink);
+  }
+  .site-chip .label{ color:var(--ink-3); }
+  .site-chip b{ color:var(--cyan); font-weight:600; }
+
+  /* ── the flashcard ── */
+  .card.form-card{ padding:26px 26px 22px; }
+  .form-card > header{ display:flex; align-items:center; gap:13px;
+                       padding-bottom:16px; margin-bottom:20px;
+                       border-bottom:1px solid var(--edge); }
+  .form-card .fc-icon{
+    width:46px; height:46px; border-radius:14px; flex:0 0 auto;
+    display:grid; place-items:center; font-size:21px;
+    background:linear-gradient(150deg,rgba(167,139,250,.3),rgba(139,92,246,.08));
+    border:1px solid rgba(167,139,250,.34);
+    box-shadow:0 0 32px -10px rgba(167,139,250,.9), var(--inner);
+  }
+  .form-card .fc-title{ font-family:'Space Grotesk',sans-serif; font-size:18px;
+                        font-weight:600; color:#F5F8FC; }
+  .form-card .fc-sub{ font-size:12.5px; color:var(--ink-2); margin-top:2px; }
+
+  .form-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:16px 20px; }
+  .field label{ display:block; font-size:11px; font-weight:600;
+                letter-spacing:.05em; text-transform:uppercase;
+                color:var(--ink-3); margin-bottom:7px; }
+  .field input{ width:100%; padding:11px 13px !important; font-size:13.5px !important; }
+
+  .form-actions{ display:flex; align-items:center; gap:12px;
+                 margin-top:24px; padding-top:20px;
+                 border-top:1px solid var(--edge); }
+  .form-actions .spacer{ flex:1; }
+  .btn-lg{ padding:11px 22px !important; font-size:13.5px !important; }
+
+  /* status / message box — always visible */
+  .status-box{
+    margin-top:18px; padding:13px 15px;
+    border-radius:var(--r);
+    border:1px solid rgba(148,163,184,.14);
+    background:rgba(4,6,10,.42);
+    color:#7D8AA0; font-size:12.8px; line-height:1.6;
+  }
+  .status-box.busy{ border-color:rgba(34,211,238,.3); color:var(--ink); background:rgba(34,211,238,.06); }
+  .status-box.ok{ border-color:rgba(52,211,153,.35); color:#A7F3D0; background:rgba(52,211,153,.07); }
+  .status-box.error{ border-color:#FB7185; color:#FDA4AF; background:rgba(251,113,133,.08); }
+  .status-box .st-title{ color:#C7D2E0; font-weight:600; }
+
+  .hosts-table{ width:100%; border-collapse:separate; border-spacing:0;
+                font-size:13px; margin-top:10px; }
+  .hosts-table th{ text-align:left; padding:9px 12px; font-size:10.5px;
+                   text-transform:uppercase; letter-spacing:.1em; color:var(--ink-3);
+                   border-bottom:1px solid var(--edge); }
+  .hosts-table td{ padding:9px 12px; border-bottom:1px solid rgba(148,163,184,.07);
+                   color:var(--ink); }
+
+  /* progress */
+  .progress{ display:none; align-items:center; gap:10px; margin-top:16px; }
+  .progress.active{ display:flex; }
+  .progress .bar{ flex:1; height:7px; border-radius:999px; overflow:hidden;
+                  background:rgba(4,6,10,.85); border:1px solid var(--edge); }
+  .progress .bar > i{ display:block; height:100%; width:0%;
+                      background:linear-gradient(90deg,var(--indigo),var(--cyan));
+                      box-shadow:0 0 14px rgba(34,211,238,.7);
+                      transition:width .3s ease; }
+  .progress .pct{ font-family:'JetBrains Mono',monospace; font-size:12px;
+                  color:var(--ink-2); min-width:38px; text-align:right; }
+
+  @media (max-width:720px){ .form-grid{ grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <div class="head">
+    <div>
+      <a href="landing page.html" class="back-btn">← Operations Home</a>
+      <h1 class="gradient-text">Site-Info Update</h1>
+      <div class="lede">Update the master record for the selected site. Fill any of the fields —
+        blank fields are left unchanged — then Submit to save.</div>
+    </div>
+    <div class="site-chip"><span class="led"></span><span class="label">SITE</span>
+      <b id="siteChip">—</b></div>
+  </div>
+
+  <!-- ── FLASHCARD ── -->
+  <div class="card form-card reveal">
+    <header>
+      <div class="fc-icon">🏢</div>
+      <div>
+        <div class="fc-title">Site-Info Update — Details</div>
+        <div class="fc-sub" id="fcSub">No site selected</div>
+      </div>
+    </header>
+
+    <form id="siteForm" autocomplete="off" novalidate>
+      <div class="form-grid" id="formGrid"><!-- fields injected --></div>
+
+      <div class="form-actions">
+        <div class="spacer"></div>
+        <button type="button" class="btn ghost btn-lg" id="clearBtn">Clear</button>
+        <button type="button" class="btn primary btn-lg" id="submitBtn">Submit</button>
+      </div>
+    </form>
+
+    <div class="progress" id="progress">
+      <div class="bar"><i id="progressBar"></i></div>
+      <div class="pct" id="progressPct">0%</div>
+    </div>
+
+    <div class="status-box" id="statusBox">
+      <span class="st-title">Ready.</span>
+      Fill in the fields you want to change, then press Submit. You can clear the form at any time.
+    </div>
+  </div>
+
+</div>
+
+<script defer src="theme.js"></script>
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   Site-Info Update
+   Backend contract is IDENTICAL to the original "Site Update"
+   workflow (idx 4) on the NetAutomation Flow page:
+     • POST { workflow:"Site Update", siteid, query, device:null } -> proxy2
+     • usage tracking POST -> proxy3
+     • response rendered with the same device-table shape
+   Only the presentation changed (own page, Submit/Clear buttons).
+   ═══════════════════════════════════════════════════════════════ */
+(function () {
+  "use strict";
+
+  // ── same field set + order as the original form ──
+  var FIELD_NAMES = [
+    "Business Unit", "Site Priority", "Building, Floor", "Street Address", "City",
+    "State", "Country", "Zipcode", "Primary Contact Name", "Secondary Contact Name",
+    "Primary Contact", "Secondary Contact", "Primary Contact E-mail",
+    "Secondary Contact E-mail", "Building Type"
+  ];
+
+  // ── same endpoints as the flow page ──
+  var RUN_API_URL = "http://cussya5w.carcgl.com:8080/proxy2";
+  var USAGE_API_URL = "http://cussya5w.carcgl.com:8080/proxy3";
+  var WORKFLOW_NAME = "Site Update";   // backend key — must stay exactly this
+
+  var grid = document.getElementById("formGrid");
+  var statusBox = document.getElementById("statusBox");
+  var submitBtn = document.getElementById("submitBtn");
+  var clearBtn = document.getElementById("clearBtn");
+  var form = document.getElementById("siteForm");
+  var progress = document.getElementById("progress");
+  var progressBar = document.getElementById("progressBar");
+  var progressPct = document.getElementById("progressPct");
+
+  // build the 15 fields (ids f1..f15 preserved for parity)
+  FIELD_NAMES.forEach(function (name, i) {
+    var n = i + 1;
+    var wrap = document.createElement("div");
+    wrap.className = "field";
+    wrap.innerHTML =
+      '<label for="f' + n + '">' + name + '</label>' +
+      '<input id="f' + n + '" name="f' + n + '" type="text" placeholder="Enter ' + name + '">';
+    grid.appendChild(wrap);
+  });
+
+  // reflect selected site
+  var site = localStorage.getItem("selectedSite");
+  document.getElementById("siteChip").textContent = site || "None selected";
+  document.getElementById("fcSub").textContent = site
+    ? "Updating record for " + site
+    : "No site selected — choose one from Operations Home first";
+
+  function escapeHtml(s) {
+    return String(s || "").replace(/[&<>"']/g, function (m) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m];
+    });
+  }
+  function safeField(obj, keys) {
+    if (!obj) return null;
+    for (var i = 0; i < keys.length; i++) {
+      if (obj[keys[i]] != null && obj[keys[i]] !== "") return obj[keys[i]];
+    }
+    return null;
+  }
+  function delay(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+
+  function setStatus(html, kind) {
+    statusBox.className = "status-box" + (kind ? " " + kind : "");
+    statusBox.innerHTML = html;
+  }
+
+  function setProgress(p) {
+    progressBar.style.width = p + "%";
+    progressPct.textContent = Math.round(p) + "%";
+  }
+
+  // same usage-tracking payload builder as the flow page
+  function buildUsagePayload(username, moduleName, workflow) {
+    var key = "usage_" + username + "_" + moduleName + "_" + workflow;
+    var count = parseInt(localStorage.getItem(key) || "0", 10) + 1;
+    localStorage.setItem(key, count);
+    return JSON.stringify({
+      username: username, options_used: moduleName,
+      date: new Date().toISOString(), workflow: workflow,
+      tool: "Smart NetOps", result: count
+    });
+  }
+  function getUsername() {
+    return localStorage.getItem("username") ||
+           localStorage.getItem("currentUser") ||
+           localStorage.getItem("current_user") || "unknown";
+  }
+
+  // same device-table renderer as buildUHostTable(arr)
+  function buildUHostTable(arr) {
+    if (!arr || !arr.devList) return "<p>Update accepted. No device data returned.</p>";
+    var devArray = Array.isArray(arr.devList) ? arr.devList : [arr.devList];
+    if (!devArray.length) return "<p>No devices found.</p>";
+    var rows = devArray.map(function (item) {
+      var hostname = safeField(item, ["U_HOSTNAME", "hostname", "host", "name"]) || "-";
+      var ip = safeField(item, ["U_LOGIN_IP", "ip", "address"]) || "-";
+      return "<tr><td>" + escapeHtml(String(hostname)) + "</td><td>" + escapeHtml(String(ip)) + "</td></tr>";
+    }).join("");
+    return "<p>" + escapeHtml(arr.opString || "") + "</p>" +
+      '<table class="hosts-table"><thead><tr><th>Device Name</th><th>Login IP</th></tr></thead><tbody>' +
+      rows + "</tbody></table>";
+  }
+
+  clearBtn.addEventListener("click", function () {
+    form.reset();
+    setStatus('<span class="st-title">Cleared.</span> All fields reset. Fill in what you want to change, then Submit.', null);
+    if (window.NetOps) window.NetOps.toast("Form cleared");
+  });
+
+  submitBtn.addEventListener("click", async function () {
+    var currentSite = localStorage.getItem("selectedSite");
+    if (!currentSite) {
+      setStatus('<span class="st-title">No site selected.</span> Open <a href="landing page.html">Operations Home</a> and choose a region, country, and site first.', "error");
+      return;
+    }
+
+    // collect non-empty fields, same join contract as the original
+    var parts = [], any = false;
+    for (var i = 1; i <= 15; i++) {
+      var el = document.getElementById("f" + i);
+      if (el && el.value.trim()) { parts.push(el.value.trim()); any = true; }
+    }
+    if (!any) {
+      setStatus('<span class="st-title">Nothing to submit.</span> Please fill at least one field before submitting.', "error");
+      return;
+    }
+    var query = parts.join(" | ");
+
+    submitBtn.disabled = true;
+    clearBtn.disabled = true;
+    var origLabel = submitBtn.textContent;
+    submitBtn.textContent = "Submitting…";
+    progress.classList.add("active");
+    setProgress(0);
+    setStatus('<span class="st-title">Submitting…</span> Sending updated site information.', "busy");
+
+    var prog = 0;
+    var timer = setInterval(function () {
+      prog += Math.random() * 15; if (prog > 90) prog = 90; setProgress(prog);
+    }, 200);
+
+    try {
+      setProgress(25); await delay(150); setProgress(45);
+
+      // ── identical payload + endpoint to the original Site Update ──
+      var payload = {
+        workflow: WORKFLOW_NAME,
+        siteid: currentSite,
+        query: query,
+        device: null
+      };
+      console.debug("sending", payload);
+
+      var res = await fetch(RUN_API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      setProgress(70);
+      if (!res.ok) throw new Error("Request failed (" + res.status + ")");
+
+      // usage tracking (same as flow page) — best effort
+      try {
+        fetch(USAGE_API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: buildUsagePayload(getUsername(), WORKFLOW_NAME, WORKFLOW_NAME)
+        });
+      } catch (e) { console.warn("Usage tracking failed:", e); }
+
+      var rawText = await res.text();
+      var parsed;
+      try { parsed = JSON.parse(rawText); } catch (e) { parsed = rawText; }
+
+      clearInterval(timer); setProgress(100); await delay(150);
+
+      var body = (parsed && parsed.response)
+        ? buildUHostTable(parsed.response)
+        : "<p>" + escapeHtml(typeof parsed === "string" ? parsed : "Update accepted.") + "</p>";
+
+      setStatus('<span class="st-title">Update submitted for ' + escapeHtml(currentSite) + '.</span>' + body, "ok");
+      if (window.NetOps) window.NetOps.toast("Site info submitted");
+
+    } catch (err) {
+      clearInterval(timer); setProgress(100);
+      console.error(err);
+      setStatus('<span class="st-title">Submit failed.</span> ' + escapeHtml(err.message) +
+                '. The server may be unreachable — check your connection and try again.', "error");
+    } finally {
+      submitBtn.disabled = false;
+      clearBtn.disabled = false;
+      submitBtn.textContent = origLabel;
+      setTimeout(function () { progress.classList.remove("active"); setProgress(0); }, 600);
+    }
+  });
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,1519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Logic Monitor Operations | Smart NetOps Hub</title>
+<script src="activity-tracker.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="theme.css">
+
+<style>
+  .app{ max-width:1520px; margin:0 auto; padding:26px 22px 72px; }
+
+  /* ── HEADER ── */
+  .lm-head{ display:flex; align-items:flex-end; justify-content:space-between;
+            gap:24px; flex-wrap:wrap; margin-bottom:22px; }
+  .lm-head h1{ font-size:clamp(26px,2.8vw,36px); margin:6px 0 6px; }
+  .lm-head .lede{ color:var(--ink-2); max-width:56ch; font-size:14px; }
+
+  .scope-strip{ display:flex; gap:8px; flex-wrap:wrap; }
+  .sbit{ padding:9px 14px; border-radius:var(--r-sm);
+         background:rgba(255,255,255,.04); border:1px solid var(--edge);
+         backdrop-filter:blur(18px); }
+  .sbit .l{ font-size:9.5px; text-transform:uppercase; letter-spacing:.14em; color:var(--ink-3); }
+  .sbit .v{ font-family:'JetBrains Mono',monospace; font-size:12.5px;
+            font-weight:600; color:var(--cyan); margin-top:3px; }
+  .sbit.empty .v{ color:var(--ink-3); }
+
+  /* ── LAYOUT ── */
+  .lm-grid{ display:grid; grid-template-columns:1fr 372px; gap:20px; align-items:start; }
+  .stack{ display:flex; flex-direction:column; gap:20px; }
+  .panel{ padding:22px; }
+  /* The theme puts backdrop-filter on .panel, which makes each panel its
+     own stacking context — so a dropdown opening near the bottom of the
+     request panel would be painted under the panel below it. Lifting the
+     whole panel is the only thing that escapes that context. */
+  .panel.lift{ z-index:30; }
+
+  .p-head{ display:flex; align-items:center; gap:12px; margin-bottom:16px; }
+  .p-head .eyebrow{ display:block; }
+  .p-head h2{ font-size:17px; margin:2px 0 0; }
+  .p-head .spacer{ flex:1; }
+
+  /* ── FORM ── */
+  .frow{ display:grid; gap:14px; margin-bottom:14px; }
+  .frow.two{ grid-template-columns:1fr 1fr; }
+  .field label{ display:block; font-size:10.5px; font-weight:700; text-transform:uppercase;
+                letter-spacing:.12em; color:var(--ink-3); margin-bottom:7px; }
+  .field label .opt{ font-weight:500; letter-spacing:.04em; text-transform:none; color:var(--ink-3); }
+  .field input,.field textarea{
+    width:100%; padding:11px 12px !important; font-size:13.5px !important;
+  }
+  .field textarea{ resize:vertical; min-height:70px; line-height:1.6; }
+  .hint{ font-size:11.5px; color:var(--ink-3); margin-top:6px; line-height:1.5; }
+  .field.bad input,.field.bad textarea,.field.bad .sel-btn{
+    border-color:rgba(251,113,133,.6) !important;
+    box-shadow:0 0 0 3px rgba(251,113,133,.11) !important;
+  }
+  .field.bad .hint{ color:var(--rose); }
+
+  /* ═══ THEMED DROPDOWN ═══════════════════════════════════════
+     Native <select> popups are drawn by the OS and ignore the
+     theme, so every select on this page is kept in the DOM for
+     its value and events but presented with the same glass
+     panel the rest of the hub uses. */
+  .sel{ position:relative; }
+  .sel-native{
+    position:absolute !important; width:1px !important; height:1px !important;
+    padding:0 !important; margin:0 !important; border:0 !important;
+    opacity:0 !important; pointer-events:none !important;
+    clip:rect(0 0 0 0); overflow:hidden;
+  }
+  .sel-btn{
+    width:100%; display:flex; align-items:center; justify-content:space-between; gap:10px;
+    padding:11px 12px !important; font-size:13.5px !important;
+    text-align:left !important; font-weight:500 !important;
+    background:rgba(4,6,10,.75) !important;
+    border:1px solid var(--edge) !important;
+    border-radius:var(--r-sm) !important;
+    color:var(--ink) !important;
+  }
+  .sel-btn:hover{
+    background:rgba(4,6,10,.9) !important;
+    border-color:rgba(34,211,238,.45) !important;
+    transform:none;
+  }
+  .sel.open .sel-btn{
+    border-color:rgba(34,211,238,.65) !important;
+    box-shadow:0 0 0 3px rgba(34,211,238,.13), 0 0 26px -8px rgba(34,211,238,.7) !important;
+  }
+  .sel-btn .sel-lbl{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .sel-btn.ph .sel-lbl{ color:var(--ink-3); }
+  .sel-btn .sel-chev{ flex:0 0 auto; color:var(--ink-3); font-size:14px; line-height:1;
+                      transition:transform .22s var(--ease); }
+  .sel.open .sel-btn .sel-chev{ transform:rotate(180deg); color:var(--cyan); }
+  /* the shine sweep the theme puts on every button reads as a glitch here */
+  .sel-btn::after{ display:none !important; }
+
+  .sel-menu{
+    position:absolute; top:calc(100% + 8px); left:0; right:0; z-index:60;
+    display:none; padding:6px; max-height:290px; overflow-y:auto;
+    background:linear-gradient(168deg,rgba(20,26,39,.985),rgba(8,11,18,.99)) !important;
+    border:1px solid var(--edge-hot) !important;
+    border-radius:var(--r) !important;
+    backdrop-filter:blur(22px) saturate(160%);
+    -webkit-backdrop-filter:blur(22px) saturate(160%);
+    box-shadow:var(--e3), 0 0 60px -26px rgba(34,211,238,.55);
+  }
+  /* the animation lives on the open state, not on the hidden element —
+     an animation declared while display:none never gets to run and the
+     menu would stay stuck on its opening frame */
+  .sel.open .sel-menu{ display:block; animation:sel-in .18s var(--swift); }
+  @keyframes sel-in{ from{ opacity:0; transform:translateY(-6px); } to{ opacity:1; transform:none; } }
+
+  .sel-grp{
+    font-family:'JetBrains Mono',monospace; font-size:9.5px; font-weight:700;
+    text-transform:uppercase; letter-spacing:.16em; color:var(--ink-3);
+    padding:11px 12px 6px; }
+  .sel-grp + .sel-opt{ margin-top:0; }
+  .sel-opt{
+    display:flex; align-items:center; gap:9px;
+    padding:9px 12px; border-radius:var(--r-xs); cursor:pointer;
+    font-size:13px; color:var(--ink-2);
+    border-left:2px solid transparent;
+    transition:all .16s var(--ease);
+  }
+  .sel-opt .sel-tick{ margin-left:auto; color:var(--cyan); opacity:0; font-size:12px; }
+  .sel-opt:hover,.sel-opt.cursor{
+    background:linear-gradient(90deg,rgba(34,211,238,.14),transparent);
+    border-left-color:var(--cyan); color:#fff; padding-left:16px;
+  }
+  .sel-opt.on{ color:#fff; }
+  .sel-opt.on .sel-tick{ opacity:1; }
+  .sel-opt.ph{ color:var(--ink-3); }
+
+  /* the operation picker is the pivot of the page — give it weight */
+  .op-pick .sel-btn{
+    padding:14px 12px !important; font-size:15px !important;
+    font-family:'Space Grotesk',sans-serif !important; font-weight:600 !important;
+  }
+
+  /* site details readout */
+  .site-card{ padding:14px 16px; border-radius:var(--r);
+              background:linear-gradient(150deg,rgba(34,211,238,.07),rgba(167,139,250,.03));
+              border:1px solid var(--edge); }
+  .site-card .sid{ font-family:'JetBrains Mono',monospace; font-size:15px;
+                   font-weight:700; color:#F5F8FC; letter-spacing:-.01em; }
+  .site-meta{ display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr));
+              gap:10px 18px; margin-top:12px; }
+  .site-meta div .k{ font-size:9.5px; text-transform:uppercase; letter-spacing:.13em; color:var(--ink-3); }
+  .site-meta div .v{ font-size:12.5px; color:var(--ink-2); margin-top:2px; word-break:break-word; }
+  .site-card.none{ color:var(--ink-3); font-size:13px; }
+
+  /* dynamic field region */
+  #op-fields:empty{ display:none; }
+  .fs-title{ display:flex; align-items:center; gap:9px; margin:20px 0 12px; }
+  .fs-title span{ font-family:'JetBrains Mono',monospace; font-size:10px; font-weight:700;
+                  letter-spacing:.16em; text-transform:uppercase; color:var(--ink-3); }
+  .fs-title i{ flex:1; height:1px;
+               background:linear-gradient(90deg,var(--edge),transparent); }
+
+  .presets{ display:flex; gap:6px; flex-wrap:wrap; margin-top:9px; }
+  .preset{ font-family:'JetBrains Mono',monospace; font-size:10.5px !important;
+           padding:5px 10px !important; border-radius:999px !important; }
+
+  .checks{ display:flex; gap:8px; flex-wrap:wrap; }
+  .check{ display:inline-flex; align-items:center; gap:8px; cursor:pointer;
+          padding:8px 12px; border-radius:999px; font-size:12.5px; color:var(--ink-2);
+          background:rgba(255,255,255,.04); border:1px solid var(--edge);
+          transition:all .18s var(--ease); user-select:none; }
+  .check:hover{ border-color:rgba(34,211,238,.4); color:var(--ink); }
+  .check input{ width:auto !important; margin:0; accent-color:#22D3EE; }
+  .check.on{ background:linear-gradient(90deg,rgba(34,211,238,.16),rgba(167,139,250,.06));
+             border-color:rgba(34,211,238,.42); color:#fff; }
+
+  .tree{ margin-top:12px; padding:13px 15px; border-radius:var(--r);
+         background:rgba(3,5,9,.9); border:1px solid var(--edge);
+         font-family:'JetBrains Mono',monospace; font-size:12px;
+         color:#A5F3FC; line-height:1.85; white-space:pre; overflow-x:auto; }
+
+  /* ── RUN SHEET (signature) ── */
+  .sheet{ position:sticky; top:calc(var(--rail-h) + 22px); }
+  .sheet-rows{ border-top:1px solid var(--edge); }
+  .srow{ display:flex; align-items:flex-start; gap:12px; padding:11px 0;
+         border-bottom:1px solid rgba(148,163,184,.07); font-size:12.5px; }
+  .srow .k{ color:var(--ink-3); flex:0 0 96px; text-transform:uppercase;
+            font-size:9.5px; letter-spacing:.13em; font-weight:700; padding-top:2px; }
+  .srow .v{ flex:1; font-family:'JetBrains Mono',monospace; font-size:12px;
+            color:var(--ink); text-align:right; word-break:break-word; }
+  .srow .v.pend{ color:var(--ink-3); }
+
+  .impact{ display:flex; align-items:center; gap:9px; padding:11px 13px;
+           border-radius:var(--r); margin:16px 0 14px; font-size:12.5px;
+           background:rgba(255,255,255,.04); border:1px solid var(--edge); color:var(--ink-2); }
+  .impact.read{ background:rgba(52,211,153,.08); border-color:rgba(52,211,153,.28); color:#86EFAC; }
+  .impact.caution{ background:rgba(251,191,36,.09); border-color:rgba(251,191,36,.34); color:#FCD34D; }
+  .impact.change{ background:rgba(34,211,238,.09); border-color:rgba(34,211,238,.32); color:#A5F3FC; }
+  .impact.destructive{ background:rgba(251,113,133,.1); border-color:rgba(251,113,133,.4); color:#FDA4AF; }
+
+  .confirm-lock{ display:none; margin-bottom:14px; }
+  .confirm-lock.on{ display:block; }
+
+  #run-btn{ width:100%; padding:13px !important; font-size:14px !important; }
+  #run-btn:disabled{ opacity:.4; cursor:not-allowed; transform:none !important;
+                     filter:none !important; box-shadow:none !important; }
+  .sheet-foot{ margin-top:11px; font-size:11.5px; color:var(--ink-3); line-height:1.55; text-align:center; }
+
+  /* ── LOG ── */
+  .log{ display:flex; flex-direction:column; gap:9px; max-height:280px; overflow-y:auto; }
+  .log-item{ display:flex; gap:11px; align-items:flex-start; padding:11px 13px;
+             border-radius:var(--r); background:rgba(255,255,255,.04);
+             border:1px solid var(--edge); font-size:12.5px; }
+  .log-item .lt{ flex:1; }
+  .log-item .lt b{ color:var(--ink); font-weight:600; display:block; }
+  .log-item .lt small{ color:var(--ink-3); font-family:'JetBrains Mono',monospace; font-size:10.5px; }
+  .log-empty{ padding:22px; text-align:center; color:var(--ink-3); font-size:12.5px;
+              border:1px dashed var(--edge); border-radius:var(--r); }
+
+  /* ── ROUTER DASHBOARD ── */
+  .kpis{ display:grid; grid-template-columns:repeat(auto-fit,minmax(132px,1fr)); gap:12px; margin-bottom:20px; }
+  .kpi{ padding:14px 15px; border-radius:var(--r);
+        background:rgba(255,255,255,.04); border:1px solid var(--edge); }
+  .kpi .k{ font-family:'JetBrains Mono',monospace; font-size:24px; font-weight:700;
+           color:#F5F8FC; letter-spacing:-.03em; line-height:1.15; }
+  .kpi .l{ font-size:9.5px; text-transform:uppercase; letter-spacing:.13em;
+           color:var(--ink-3); margin-top:5px; }
+  .kpi.alert .k{ color:var(--amber); }
+  .kpi.down .k{ color:var(--rose); }
+
+  .chart-wrap{ position:relative; }
+  .chart-wrap svg{ display:block; width:100%; height:auto; }
+  .legend{ display:flex; gap:16px; flex-wrap:wrap; margin-top:12px;
+           font-size:11.5px; color:var(--ink-2); }
+  .legend i{ display:inline-block; width:16px; height:2px; margin-right:7px;
+             vertical-align:middle; background:var(--cyan);
+             box-shadow:0 0 8px rgba(34,211,238,.9); }
+  .legend .dash i{ background:linear-gradient(90deg,var(--violet) 0 4px,transparent 4px 8px);
+                   background-size:8px 2px; box-shadow:none; }
+  .tip{ position:absolute; pointer-events:none; opacity:0; z-index:5;
+        padding:9px 11px; border-radius:10px; transform:translate(-50%,-118%);
+        background:rgba(10,14,23,.96); border:1px solid var(--edge-hot);
+        box-shadow:var(--e3), 0 0 40px -18px rgba(34,211,238,.8);
+        font-size:11.5px; white-space:nowrap;
+        transition:opacity .14s var(--ease); }
+  .tip b{ display:block; font-family:'JetBrains Mono',monospace; font-size:10px;
+          color:var(--ink-3); font-weight:600; letter-spacing:.1em; margin-bottom:5px; }
+  .tip .tl{ display:flex; align-items:center; gap:8px; color:var(--ink); }
+  .tip .tl em{ font-style:normal; color:var(--ink-3); }
+  .tip .tl span{ margin-left:auto; font-family:'JetBrains Mono',monospace; }
+
+  .rtr{ display:flex; align-items:center; gap:13px; padding:11px 0;
+        border-bottom:1px solid rgba(148,163,184,.07); }
+  .rtr:last-child{ border-bottom:0; }
+  .rtr .nm{ flex:0 0 190px; min-width:0; }
+  .rtr .nm b{ display:block; font-size:13px; color:var(--ink); font-weight:600;
+              overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .rtr .nm small{ font-family:'JetBrains Mono',monospace; font-size:10.5px; color:var(--ink-3); }
+  .rtr .meter{ flex:1; min-width:60px; }
+  .rtr .pc{ flex:0 0 58px; text-align:right; font-family:'JetBrains Mono',monospace;
+            font-size:12.5px; color:var(--ink); }
+
+  .src{ display:flex; align-items:center; gap:10px; margin-top:16px;
+        font-size:11px; color:var(--ink-3); font-family:'JetBrains Mono',monospace; }
+  .src .spacer{ flex:1; }
+
+  .seg{ display:inline-flex; padding:3px; border-radius:999px;
+        background:rgba(4,6,10,.75); border:1px solid var(--edge); }
+  .seg button{ padding:5px 12px !important; border:0 !important; border-radius:999px !important;
+               background:transparent !important; font-family:'JetBrains Mono',monospace !important;
+               font-size:10.5px !important; color:var(--ink-3) !important; box-shadow:none !important; }
+  .seg button:hover{ color:var(--ink) !important; transform:none; box-shadow:none !important; }
+  .seg button.on{ background:linear-gradient(180deg,rgba(34,211,238,.26),rgba(59,130,246,.1)) !important;
+                  color:#fff !important; }
+
+  /* ── GATE ── */
+  .gate{ padding:34px 26px; text-align:center; }
+  .gate .lk{ font-size:30px; margin-bottom:10px; }
+  .gate p{ color:var(--ink-2); font-size:13.5px; max-width:44ch; margin:0 auto 18px; }
+
+  @media (max-width:1080px){
+    .lm-grid{ grid-template-columns:1fr; }
+    .sheet{ position:static; }
+  }
+  @media (max-width:620px){
+    .frow.two{ grid-template-columns:1fr; }
+    .rtr .nm{ flex:0 0 120px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <div class="lm-head">
+    <div>
+      <span class="eyebrow">Logic Monitor</span>
+      <h1 class="gradient-text">Logic Monitor Operations</h1>
+      <div class="lede">Raise a change against monitoring for the site you have in scope. Fill the request number, pick the operation, and check the run sheet before you commit.</div>
+    </div>
+    <div class="scope-strip" id="scope-strip"></div>
+  </div>
+
+  <!-- shown when no site is in scope -->
+  <div class="panel gate" id="gate" style="display:none;">
+    <div class="lk">🔒</div>
+    <h3>Pick a site first</h3>
+    <p>Logic Monitor operations run against one site. Choose a region, country, and site ID on the operations home, then come back.</p>
+    <button class="primary" onclick="location.href='landing_page.html'">Go to operations home</button>
+  </div>
+
+  <div class="lm-grid" id="workbench">
+
+    <!-- ═══ LEFT: request + telemetry ═══ -->
+    <div class="stack">
+
+      <section class="panel lift reveal">
+        <div class="p-head">
+          <div>
+            <span class="eyebrow">Step 1</span>
+            <h2>Operation request</h2>
+          </div>
+        </div>
+
+        <div class="frow two">
+          <div class="field" id="fw-req">
+            <label for="f-request">Request number</label>
+            <input type="text" id="f-request" placeholder="CHG0041288" autocomplete="off" spellcheck="false">
+            <div class="hint" id="h-request">Change, incident, or service request that authorises this work.</div>
+          </div>
+          <div class="field">
+            <label for="f-user">Raised by</label>
+            <input type="text" id="f-user" readonly>
+            <div class="hint">Taken from your signed-in session.</div>
+          </div>
+        </div>
+
+        <div class="fs-title"><span>Site in scope</span><i></i></div>
+        <div class="site-card" id="site-card"></div>
+
+        <div class="fs-title"><span>Operation</span><i></i></div>
+        <div class="field op-pick">
+          <label for="f-op">What do you want to do</label>
+          <select id="f-op">
+            <option value="">Select an operation…</option>
+          </select>
+        </div>
+
+        <div id="op-fields"></div>
+      </section>
+
+      <section class="panel reveal">
+        <div class="p-head">
+          <div>
+            <span class="eyebrow">Live from Logic Monitor</span>
+            <h2>Router health</h2>
+          </div>
+          <span class="spacer"></span>
+          <div class="seg" id="range-seg">
+            <button class="on" data-range="24h">24H</button>
+            <button data-range="7d">7D</button>
+            <button data-range="30d">30D</button>
+          </div>
+        </div>
+
+        <div class="kpis" id="kpis"></div>
+
+        <div class="chart-wrap" id="chart-wrap">
+          <div id="chart"></div>
+          <div class="tip" id="tip"></div>
+        </div>
+        <div class="legend">
+          <span><i></i>Availability %</span>
+          <span class="dash"><i></i>Average CPU %</span>
+        </div>
+
+        <div class="fs-title"><span>Routers at this site</span><i></i></div>
+        <div id="router-list"></div>
+
+        <div class="src">
+          <span id="src-label">—</span>
+          <span class="spacer"></span>
+          <button class="btn ghost" id="refresh-btn" style="padding:6px 12px !important;font-size:11.5px !important;">Refresh</button>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- ═══ RIGHT: run sheet + log ═══ -->
+    <div class="stack sheet">
+
+      <section class="panel reveal">
+        <div class="p-head">
+          <div>
+            <span class="eyebrow">Step 2</span>
+            <h2>Run sheet</h2>
+          </div>
+        </div>
+
+        <div class="sheet-rows" id="sheet-rows"></div>
+
+        <div class="impact" id="impact">
+          <span class="led"></span><span>Pick an operation to see what it will change.</span>
+        </div>
+
+        <div class="field confirm-lock" id="confirm-lock">
+          <label for="f-confirm">Type <b id="confirm-word" class="mono">—</b> to confirm</label>
+          <input type="text" id="f-confirm" placeholder="Confirm the name" autocomplete="off" spellcheck="false">
+          <div class="hint">This removes objects from Logic Monitor. Historical data goes with them.</div>
+        </div>
+
+        <button class="primary" id="run-btn" disabled>Select an operation</button>
+        <div class="sheet-foot" id="sheet-foot">Nothing is sent until you run it.</div>
+      </section>
+
+      <section class="panel reveal">
+        <div class="p-head">
+          <div>
+            <span class="eyebrow">This session</span>
+            <h2>Operations run</h2>
+          </div>
+        </div>
+        <div class="log" id="log">
+          <div class="log-empty">No operations yet. Anything you run shows up here with its request number.</div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<script defer src="theme.js"></script>
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   LOGIC MONITOR OPERATIONS
+   ───────────────────────────────────────────────────────────────
+   ⚙️  WIRING: every backend detail lives in LM_API below. Point
+   those values at the real Logic Monitor proxy routes and the page
+   goes live — nothing else in this file needs to change. Until an
+   endpoint answers, the page falls back to sample data and says so
+   on screen, so it is never silently wrong.
+   ═══════════════════════════════════════════════════════════════ */
+
+const LM_API = {
+  base:        "https://cussya5w.carcgl.com",
+  sites:       "/proxy1",            // POST {region,country}   -> [ "SITE | addr | city…" ]
+  devices:     "/lm/devices",        // POST {site}             -> [ {name,ip,type,role} ]
+  routerStats: "/lm/router-stats",   // POST {site,range}       -> {routers:[…], series:{…}}
+  execute:     "/lm/operation"       // POST {operation,requestNumber,…}
+};
+
+const OPERATIONS = [
+  { key:'disable-alert-site',   label:'Disable alert for site',            group:'Alerting',
+    cta:'Disable site alerts',   impact:'caution',
+    note:'Alerts for every device at this site stay suppressed for the window you set.',
+    fields:['site','window','reason'] },
+
+  { key:'disable-alert-device', label:'Disable alert for device',          group:'Alerting',
+    cta:'Disable device alerts', impact:'caution',
+    note:'Alerts for the selected device stay suppressed for the window you set.',
+    fields:['site','device','window','reason'] },
+
+  { key:'remove-site',          label:'Remove complete site',              group:'Inventory',
+    cta:'Remove site',           impact:'destructive',
+    note:'Deletes the site folder and every device under it, along with their history.',
+    fields:['site','reason'] },
+
+  { key:'remove-device',        label:'Remove device',                     group:'Inventory',
+    cta:'Remove device',         impact:'destructive',
+    note:'Deletes the device and its collected history from Logic Monitor.',
+    fields:['site','device','reason'] },
+
+  { key:'add-site',             label:'Add site with folder structure',    group:'Inventory',
+    cta:'Add site',              impact:'change',
+    note:'Creates the site folder and the sub-folders you tick below.',
+    fields:['newSite','folder'] },
+
+  { key:'add-device',           label:'Add device to existing site',       group:'Inventory',
+    cta:'Add device',            impact:'change',
+    note:'Adds one device under the selected site and starts collection.',
+    fields:['site','newDevice'] },
+
+  { key:'check-availability',   label:'Check device availability',         group:'Read-only',
+    cta:'Check availability',    impact:'read',
+    note:'Reads current reachability. Changes nothing.',
+    fields:['site','device'] },
+
+  { key:'network-report',       label:'Get network report',                group:'Read-only',
+    cta:'Generate report',       impact:'read',
+    note:'Builds a report over the range you pick. Changes nothing.',
+    fields:['site','reportRange'] }
+];
+
+const IMPACT_TEXT = {
+  read:        'Read-only. Nothing changes in Logic Monitor.',
+  caution:     'Suppresses alerting. Nobody gets paged for this scope during the window.',
+  change:      'Adds objects to Logic Monitor.',
+  destructive: 'Permanent. Deleted objects and their history cannot be restored.'
+};
+
+/* ── scope, read from the selection the operator already made ── */
+const scope = {
+  region:  localStorage.getItem('selectedRegion')  || '',
+  country: localStorage.getItem('selectedCountry') || '',
+  siteRaw: localStorage.getItem('selectedSite')    || '',
+  user:    localStorage.getItem('currentUser')     || 'Unknown'
+};
+
+/* landing page stores a site as "ID | street | city | state | country | pin" */
+function parseSite(raw){
+  if(!raw) return null;
+  const parts = String(raw).split('|').map(s => s.trim()).filter(Boolean);
+  return { raw:String(raw), id:parts[0] || String(raw), detail:parts.slice(1) };
+}
+const SITE_DETAIL_KEYS = ['Street', 'City', 'State', 'Country', 'Postcode'];
+
+const state = {
+  op:null, site:null, device:null, from:'', to:'',
+  reason:'', range:'24h'
+};
+
+let siteList = [];
+let deviceList = [];
+let statsData = null;
+let statsLive = false;
+
+/* ── tiny helpers ─────────────────────────────────────────────── */
+const $  = id => document.getElementById(id);
+const esc = s => String(s == null ? '' : s)
+  .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const val = id => { const e = $(id); return e ? String(e.value).trim() : ''; };
+
+async function post(path, body){
+  const res = await fetch(LM_API.base + path, {
+    method:'POST', mode:'cors',
+    headers:{ 'Content-Type':'application/json' },
+    body:JSON.stringify(body)
+  });
+  if(!res.ok) throw new Error('Status ' + res.status);
+  return res.json();
+}
+
+/* deterministic sample generator — same numbers every reload, no flicker */
+let seed = 91;
+function rnd(){ seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; }
+
+/* ═══════════════════════════════════════════════════════════════
+   THEMED DROPDOWN
+   The native <select> stays in the DOM and keeps its value, its
+   options and its change event — so every read elsewhere in this
+   file is untouched. Only the presentation is replaced.
+   ═══════════════════════════════════════════════════════════════ */
+const OPEN_SELECTS = [];
+
+function enhanceSelect(sel){
+  if(!sel) return;
+  if(sel.__ui){ refreshSelect(sel); return; }
+
+  const wrap = document.createElement('div');
+  wrap.className = 'sel';
+  sel.parentNode.insertBefore(wrap, sel);
+  wrap.appendChild(sel);
+  sel.classList.add('sel-native');
+  sel.setAttribute('tabindex', '-1');
+  sel.setAttribute('aria-hidden', 'true');
+
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'sel-btn';
+  btn.setAttribute('aria-haspopup', 'listbox');
+  btn.setAttribute('aria-expanded', 'false');
+  if(sel.id) btn.id = sel.id + '-btn';
+  btn.innerHTML = '<span class="sel-lbl"></span><span class="sel-chev">⌄</span>';
+
+  const menu = document.createElement('div');
+  menu.className = 'sel-menu';
+  menu.setAttribute('role', 'listbox');
+
+  wrap.appendChild(btn);
+  wrap.appendChild(menu);
+  sel.__ui = { wrap:wrap, btn:btn, menu:menu, cursor:-1 };
+
+  /* the <label for="…"> still points at the select, so clicking it
+     should open the control the operator can actually see */
+  const lab = sel.id && document.querySelector('label[for="' + sel.id + '"]');
+  if(lab) lab.addEventListener('click', e => { e.preventDefault(); openSelect(sel); });
+
+  btn.addEventListener('click', e => {
+    e.stopPropagation();
+    wrap.classList.contains('open') ? closeSelect(sel) : openSelect(sel);
+  });
+
+  btn.addEventListener('keydown', e => {
+    const open = wrap.classList.contains('open');
+    if(e.key === 'ArrowDown' || e.key === 'ArrowUp'){
+      e.preventDefault();
+      if(!open){ openSelect(sel); return; }
+      moveCursor(sel, e.key === 'ArrowDown' ? 1 : -1);
+    } else if(e.key === 'Enter' || e.key === ' '){
+      e.preventDefault();
+      if(!open) openSelect(sel);
+      else commitCursor(sel);
+    } else if(e.key === 'Escape' && open){
+      e.preventDefault(); closeSelect(sel); btn.focus();
+    } else if(e.key === 'Tab' && open){
+      closeSelect(sel);
+    }
+  });
+
+  refreshSelect(sel);
+}
+
+/* rebuild the visible list from the <select>'s current options */
+function refreshSelect(sel){
+  const ui = sel.__ui;
+  if(!ui) return;
+  let html = '';
+  Array.prototype.forEach.call(sel.children, node => {
+    if(node.tagName === 'OPTGROUP'){
+      html += '<div class="sel-grp">' + esc(node.label) + '</div>';
+      Array.prototype.forEach.call(node.children, o => { html += optHTML(o, sel); });
+    } else if(node.tagName === 'OPTION'){
+      html += optHTML(node, sel);
+    }
+  });
+  ui.menu.innerHTML = html;
+
+  ui.menu.querySelectorAll('.sel-opt').forEach(el => {
+    el.addEventListener('click', ev => {
+      ev.stopPropagation();
+      pick(sel, el.dataset.v);
+    });
+  });
+
+  paintSelectLabel(sel);
+}
+
+function optHTML(o, sel){
+  const on = o.value === sel.value;
+  return '<div class="sel-opt' + (on ? ' on' : '') + (o.value === '' ? ' ph' : '') + '" ' +
+         'role="option" aria-selected="' + (on ? 'true' : 'false') + '" ' +
+         'data-v="' + esc(o.value) + '">' +
+           '<span>' + esc(o.textContent) + '</span>' +
+           '<span class="sel-tick">✓</span>' +
+         '</div>';
+}
+
+function paintSelectLabel(sel){
+  const ui = sel.__ui;
+  if(!ui) return;
+  const o = sel.options[sel.selectedIndex];
+  const txt = o ? o.textContent : '';
+  ui.btn.querySelector('.sel-lbl').textContent = txt || '—';
+  ui.btn.classList.toggle('ph', !sel.value);
+}
+
+function pick(sel, value){
+  if(sel.value !== value){
+    sel.value = value;
+    sel.dispatchEvent(new Event('change', { bubbles:true }));
+  }
+  refreshSelect(sel);
+  closeSelect(sel);
+  sel.__ui.btn.focus();
+}
+
+function openSelect(sel){
+  closeAllSelects();
+  const ui = sel.__ui;
+  if(!ui) return;
+  ui.wrap.classList.add('open');
+  ui.btn.setAttribute('aria-expanded', 'true');
+  OPEN_SELECTS.push(sel);
+  const on = ui.menu.querySelector('.sel-opt.on');
+  if(on) on.scrollIntoView({ block:'nearest' });
+  ui.cursor = -1;
+}
+
+function closeSelect(sel){
+  const ui = sel.__ui;
+  if(!ui) return;
+  ui.wrap.classList.remove('open');
+  ui.btn.setAttribute('aria-expanded', 'false');
+  ui.menu.querySelectorAll('.cursor').forEach(e => e.classList.remove('cursor'));
+  const i = OPEN_SELECTS.indexOf(sel);
+  if(i > -1) OPEN_SELECTS.splice(i, 1);
+}
+
+function closeAllSelects(){
+  while(OPEN_SELECTS.length) closeSelect(OPEN_SELECTS[0]);
+}
+
+function moveCursor(sel, d){
+  const ui = sel.__ui;
+  const els = ui.menu.querySelectorAll('.sel-opt');
+  if(!els.length) return;
+  if(ui.cursor < 0){
+    const on = ui.menu.querySelector('.sel-opt.on');
+    ui.cursor = on ? Array.prototype.indexOf.call(els, on) : 0;
+  } else {
+    els[ui.cursor].classList.remove('cursor');
+    ui.cursor = (ui.cursor + d + els.length) % els.length;
+  }
+  els[ui.cursor].classList.add('cursor');
+  els[ui.cursor].scrollIntoView({ block:'nearest' });
+}
+
+function commitCursor(sel){
+  const ui = sel.__ui;
+  const els = ui.menu.querySelectorAll('.sel-opt');
+  const el = ui.cursor > -1 ? els[ui.cursor] : ui.menu.querySelector('.sel-opt.on');
+  if(el) pick(sel, el.dataset.v);
+  else closeSelect(sel);
+}
+
+document.addEventListener('click', closeAllSelects);
+document.addEventListener('keydown', e => { if(e.key === 'Escape') closeAllSelects(); });
+
+/* ═══════════════════════════════════════════════════════════════
+   SCOPE HEADER + SITE CARD
+   ═══════════════════════════════════════════════════════════════ */
+function paintScope(){
+  const s = parseSite(scope.siteRaw);
+  const bits = [
+    ['Region',  scope.region],
+    ['Country', scope.country],
+    ['Site ID', s ? s.id : '']
+  ];
+  $('scope-strip').innerHTML = bits.map(b =>
+    '<div class="sbit' + (b[1] ? '' : ' empty') + '">' +
+      '<div class="l">' + b[0] + '</div>' +
+      '<div class="v">' + esc(b[1] || '—') + '</div>' +
+    '</div>').join('');
+
+  const card = $('site-card');
+  if(!s){
+    card.className = 'site-card none';
+    card.textContent = 'No site selected.';
+    return;
+  }
+  card.className = 'site-card';
+  let html = '<div class="sid">' + esc(s.id) + '</div>';
+  if(s.detail.length){
+    html += '<div class="site-meta">' + s.detail.map((d, i) =>
+      '<div><div class="k">' + esc(SITE_DETAIL_KEYS[i] || 'Detail ' + (i + 1)) + '</div>' +
+      '<div class="v">' + esc(d) + '</div></div>').join('') + '</div>';
+  } else {
+    html += '<div class="site-meta"><div><div class="k">Region</div><div class="v">' +
+            esc(scope.region || '—') + '</div></div>' +
+            '<div><div class="k">Country</div><div class="v">' +
+            esc(scope.country || '—') + '</div></div></div>';
+  }
+  card.innerHTML = html;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   DATA: sites + devices
+   ═══════════════════════════════════════════════════════════════ */
+async function loadSites(){
+  const current = parseSite(scope.siteRaw);
+  siteList = current ? [current.id] : [];
+  if(!scope.region || !scope.country) return;
+  try{
+    const data = await post(LM_API.sites, { region:scope.region, country:scope.country });
+    let raw = Array.isArray(data) ? data
+            : Array.isArray(data && data.sites) ? data.sites
+            : Array.isArray(data && data.data) ? data.data
+            : Array.isArray(data && data.result) ? data.result : [];
+    const ids = raw.map(r => {
+      if(typeof r === 'string') return parseSite(r).id;
+      if(r && typeof r === 'object') return r.U_SITE_ID || r.siteId || r.name || '';
+      return String(r);
+    }).filter(Boolean);
+    if(ids.length) siteList = Array.from(new Set(ids.concat(siteList)));
+  }catch(e){
+    console.warn('[LM] site list unavailable, using scope only:', e.message);
+  }
+}
+
+async function loadDevices(siteId){
+  if(!siteId){ deviceList = []; return; }
+  try{
+    const data = await post(LM_API.devices, { site:siteId });
+    const raw = Array.isArray(data) ? data : (data && data.devices) || [];
+    deviceList = raw.map(d => typeof d === 'string'
+      ? { name:d, ip:'', type:'' }
+      : { name:d.name || d.hostname || d.displayName || '',
+          ip:d.ip || d.ipAddress || '',
+          type:d.type || d.role || '' })
+      .filter(d => d.name);
+    if(deviceList.length) return;
+  }catch(e){
+    console.warn('[LM] device list unavailable, using sample devices:', e.message);
+  }
+  deviceList = sampleDevices(siteId);
+}
+
+function sampleDevices(siteId){
+  const short = String(siteId).split(/[-\s]/)[0].toLowerCase().slice(0, 6) || 'site';
+  return [
+    { name:short + '-rtr-01',  ip:'10.20.4.1',   type:'Router' },
+    { name:short + '-rtr-02',  ip:'10.20.4.2',   type:'Router' },
+    { name:short + '-wan-01',  ip:'10.20.4.9',   type:'Router' },
+    { name:short + '-sw-core', ip:'10.20.4.20',  type:'Switch' },
+    { name:short + '-sw-acc1', ip:'10.20.4.21',  type:'Switch' },
+    { name:short + '-fw-01',   ip:'10.20.4.30',  type:'Firewall' },
+    { name:short + '-ap-ctrl', ip:'10.20.4.40',  type:'Wireless' }
+  ];
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   DYNAMIC FIELDS — driven entirely by OPERATIONS[].fields
+   ═══════════════════════════════════════════════════════════════ */
+function siteOptions(){
+  const cur = parseSite(scope.siteRaw);
+  const sel = state.site || (cur ? cur.id : '');
+  return siteList.map(s =>
+    '<option value="' + esc(s) + '"' + (s === sel ? ' selected' : '') + '>' + esc(s) + '</option>'
+  ).join('');
+}
+
+function deviceOptions(){
+  if(!deviceList.length){
+    return '<option value="">No devices returned for this site</option>';
+  }
+  return '<option value="">Select a device…</option>' + deviceList.map(d =>
+    '<option value="' + esc(d.name) + '"' + (d.name === state.device ? ' selected' : '') + '>' +
+      esc(d.name) + (d.ip ? ' — ' + esc(d.ip) : '') + (d.type ? ' (' + esc(d.type) + ')' : '') +
+    '</option>').join('');
+}
+
+const FIELD_HTML = {
+  site: () =>
+    '<div class="fs-title"><span>Target site</span><i></i></div>' +
+    '<div class="field" id="fw-site"><label for="f-site">Site</label>' +
+      '<select id="f-site">' + siteOptions() + '</select>' +
+      '<div class="hint">Defaults to the site you have in scope.</div></div>',
+
+  device: () =>
+    '<div class="field" id="fw-device" style="margin-top:14px;"><label for="f-device">Device</label>' +
+      '<select id="f-device">' + deviceOptions() + '</select>' +
+      '<div class="hint" id="h-device">Loaded from Logic Monitor for the selected site.</div></div>',
+
+  window: () =>
+    '<div class="fs-title"><span>Suppression window</span><i></i></div>' +
+    '<div class="frow two" style="margin-bottom:0;">' +
+      '<div class="field" id="fw-from"><label for="f-from">From time</label>' +
+        '<input type="datetime-local" id="f-from" value="' + esc(state.from) + '"></div>' +
+      '<div class="field" id="fw-to"><label for="f-to">To time</label>' +
+        '<input type="datetime-local" id="f-to" value="' + esc(state.to) + '"></div>' +
+    '</div>' +
+    '<div class="presets">' +
+      ['1h','4h','8h','24h','7d'].map(p =>
+        '<button type="button" class="btn preset" data-preset="' + p + '">Next ' + p + '</button>').join('') +
+    '</div>' +
+    '<div class="hint" id="h-window">Alerting resumes automatically at the end time.</div>',
+
+  reason: () =>
+    '<div class="field" id="fw-reason" style="margin-top:16px;">' +
+      '<label for="f-reason">Reason <span class="opt">— goes on the LM audit record</span></label>' +
+      '<textarea id="f-reason" placeholder="Planned circuit swap, site offline for the duration.">' +
+        esc(state.reason) + '</textarea></div>',
+
+  newSite: () =>
+    '<div class="fs-title"><span>New site</span><i></i></div>' +
+    '<div class="frow two">' +
+      '<div class="field" id="fw-nsid"><label for="f-nsid">Site ID</label>' +
+        '<input type="text" id="f-nsid" placeholder="IND-PNQ-BR-042" autocomplete="off"></div>' +
+      '<div class="field"><label for="f-nsname">Site name</label>' +
+        '<input type="text" id="f-nsname" placeholder="Pune Branch 42" autocomplete="off"></div>' +
+    '</div>' +
+    '<div class="frow two">' +
+      '<div class="field"><label for="f-nsregion">Region</label>' +
+        '<input type="text" id="f-nsregion" value="' + esc(scope.region) + '"></div>' +
+      '<div class="field"><label for="f-nscountry">Country</label>' +
+        '<input type="text" id="f-nscountry" value="' + esc(scope.country) + '"></div>' +
+    '</div>',
+
+  folder: () =>
+    '<div class="fs-title"><span>Folder structure</span><i></i></div>' +
+    '<div class="field"><label for="f-root">Parent folder</label>' +
+      '<input type="text" id="f-root" value="Sites" autocomplete="off">' +
+      '<div class="hint">Where the site folder is created in the LM tree.</div></div>' +
+    '<div style="margin-top:14px;"><label class="label" style="display:block;margin-bottom:9px;">Sub-folders to create</label>' +
+      '<div class="checks" id="folder-checks">' +
+        ['Routers','Switches','Firewalls','Wireless','WAN Circuits','Servers','UPS'].map((f, i) =>
+          '<label class="check' + (i < 3 ? ' on' : '') + '">' +
+            '<input type="checkbox" value="' + esc(f) + '"' + (i < 3 ? ' checked' : '') + '>' + esc(f) +
+          '</label>').join('') +
+      '</div></div>' +
+    '<div class="tree" id="folder-tree"></div>',
+
+  newDevice: () =>
+    '<div class="fs-title"><span>New device</span><i></i></div>' +
+    '<div class="frow two">' +
+      '<div class="field" id="fw-ndname"><label for="f-ndname">Hostname</label>' +
+        '<input type="text" id="f-ndname" placeholder="pnq-rtr-03" autocomplete="off"></div>' +
+      '<div class="field" id="fw-ndip"><label for="f-ndip">IP address</label>' +
+        '<input type="text" id="f-ndip" placeholder="10.20.4.3" autocomplete="off" spellcheck="false"></div>' +
+    '</div>' +
+    '<div class="frow two">' +
+      '<div class="field"><label for="f-ndtype">Device type</label>' +
+        '<select id="f-ndtype">' +
+          ['Router','Switch','Firewall','Load balancer','Wireless controller','Server']
+            .map(t => '<option>' + t + '</option>').join('') +
+        '</select></div>' +
+      '<div class="field"><label for="f-ndcoll">Collector group</label>' +
+        '<select id="f-ndcoll">' +
+          ['Auto-balanced','APAC-COL-01','EMEA-COL-01','AMER-COL-01']
+            .map(t => '<option>' + t + '</option>').join('') +
+        '</select></div>' +
+    '</div>' +
+    '<div class="field"><label for="f-ndsnmp">SNMP profile</label>' +
+      '<select id="f-ndsnmp">' +
+        ['snmpv3-default','snmpv2-readonly','snmpv3-secure']
+          .map(t => '<option>' + t + '</option>').join('') +
+      '</select>' +
+      '<div class="hint">Collection starts as soon as the device is added.</div></div>',
+
+  reportRange: () =>
+    '<div class="fs-title"><span>Report</span><i></i></div>' +
+    '<div class="field"><label for="f-rrange">Period</label>' +
+      '<select id="f-rrange">' +
+        '<option value="24h">Last 24 hours</option>' +
+        '<option value="7d">Last 7 days</option>' +
+        '<option value="30d">Last 30 days</option>' +
+        '<option value="90d">Last 90 days</option>' +
+      '</select></div>' +
+    '<div style="margin-top:14px;"><label class="label" style="display:block;margin-bottom:9px;">Include</label>' +
+      '<div class="checks" id="report-checks">' +
+        [['availability','Availability'],['bandwidth','Bandwidth'],['cpu','CPU and memory'],
+         ['errors','Interface errors'],['alerts','Alert history'],['sla','SLA summary']]
+          .map((r, i) =>
+            '<label class="check' + (i === 0 ? ' on' : '') + '">' +
+              '<input type="checkbox" value="' + r[0] + '"' + (i === 0 ? ' checked' : '') + '>' + r[1] +
+            '</label>').join('') +
+      '</div></div>'
+};
+
+function renderFields(){
+  const host = $('op-fields');
+  if(!state.op){ host.innerHTML = ''; return; }
+  host.innerHTML = state.op.fields.map(f => FIELD_HTML[f] ? FIELD_HTML[f]() : '').join('');
+  host.querySelectorAll('select').forEach(enhanceSelect);
+  wireFields();
+}
+
+function wireFields(){
+  const host = $('op-fields');
+
+  const siteSel = $('f-site');
+  if(siteSel){
+    state.site = siteSel.value;
+    siteSel.addEventListener('change', async () => {
+      state.site = siteSel.value;
+      state.device = '';
+      const dev = $('f-device');
+      if(dev){
+        dev.innerHTML = '<option value="">Loading devices…</option>';
+        refreshSelect(dev);
+        await loadDevices(state.site);
+        dev.innerHTML = deviceOptions();
+        refreshSelect(dev);
+      }
+      loadStats();
+      paintSheet();
+    });
+  }
+
+  const devSel = $('f-device');
+  if(devSel){
+    devSel.addEventListener('change', () => { state.device = devSel.value; paintSheet(); });
+  }
+
+  ['f-from','f-to'].forEach(id => {
+    const el = $(id);
+    if(!el) return;
+    el.addEventListener('change', () => {
+      state.from = $('f-from') ? $('f-from').value : '';
+      state.to   = $('f-to')   ? $('f-to').value   : '';
+      paintSheet();
+    });
+  });
+
+  host.querySelectorAll('[data-preset]').forEach(b => {
+    b.addEventListener('click', () => {
+      const hours = { '1h':1, '4h':4, '8h':8, '24h':24, '7d':168 }[b.dataset.preset] || 1;
+      const now = new Date();
+      const end = new Date(now.getTime() + hours * 3600e3);
+      if($('f-from')) $('f-from').value = state.from = localISO(now);
+      if($('f-to'))   $('f-to').value   = state.to   = localISO(end);
+      paintSheet();
+    });
+  });
+
+  const reason = $('f-reason');
+  if(reason) reason.addEventListener('input', () => { state.reason = reason.value; paintSheet(); });
+
+  ['f-nsid','f-nsname','f-nsregion','f-nscountry','f-root',
+   'f-ndname','f-ndip','f-ndtype','f-ndcoll','f-ndsnmp','f-rrange'].forEach(id => {
+    const el = $(id);
+    if(!el) return;
+    const onEdit = () => { paintTree(); paintSheet(); };
+    el.addEventListener('input', onEdit);
+    if(el.tagName === 'SELECT') el.addEventListener('change', onEdit);
+  });
+
+  host.querySelectorAll('.check input').forEach(cb => {
+    cb.addEventListener('change', () => {
+      cb.closest('.check').classList.toggle('on', cb.checked);
+      paintTree();
+      paintSheet();
+    });
+  });
+
+  paintTree();
+  paintSheet();
+}
+
+function localISO(d){
+  const p = n => String(n).padStart(2, '0');
+  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) +
+         'T' + p(d.getHours()) + ':' + p(d.getMinutes());
+}
+
+function checked(hostId){
+  const host = $(hostId);
+  if(!host) return [];
+  return Array.prototype.slice.call(host.querySelectorAll('input:checked')).map(i => i.value);
+}
+
+function paintTree(){
+  const tree = $('folder-tree');
+  if(!tree) return;
+  const root = val('f-root') || 'Sites';
+  const site = val('f-nsid') || 'NEW-SITE-ID';
+  const subs = checked('folder-checks');
+  let out = root + '\n└─ ' + site;
+  subs.forEach((s, i) => {
+    out += '\n   ' + (i === subs.length - 1 ? '└─ ' : '├─ ') + s;
+  });
+  if(!subs.length) out += '\n   (no sub-folders selected)';
+  tree.textContent = out;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   RUN SHEET — the live manifest of what will be submitted
+   ═══════════════════════════════════════════════════════════════ */
+function fmtWindow(){
+  if(!state.from || !state.to) return null;
+  const a = new Date(state.from), b = new Date(state.to);
+  if(isNaN(a) || isNaN(b)) return null;
+  const mins = Math.round((b - a) / 60000);
+  if(mins <= 0) return { bad:true, text:'End time is not after start time' };
+  const h = Math.floor(mins / 60), m = mins % 60;
+  return { bad:false, text:state.from.replace('T', ' ') + ' → ' + state.to.replace('T', ' ') +
+           '  (' + (h ? h + 'h ' : '') + (m ? m + 'm' : (h ? '' : '0m')) + ')' };
+}
+
+function buildPayload(){
+  if(!state.op) return null;
+  const p = { operation:state.op.key, requestNumber:val('f-request'),
+              raisedBy:scope.user, region:scope.region, country:scope.country };
+  const f = state.op.fields;
+  if(f.indexOf('site')   > -1) p.site   = val('f-site');
+  if(f.indexOf('device') > -1) p.device = val('f-device');
+  if(f.indexOf('window') > -1){ p.fromTime = val('f-from'); p.toTime = val('f-to'); }
+  if(f.indexOf('reason') > -1) p.reason = val('f-reason');
+  if(f.indexOf('newSite') > -1){
+    p.site = val('f-nsid');
+    p.siteName = val('f-nsname');
+    p.region = val('f-nsregion') || scope.region;
+    p.country = val('f-nscountry') || scope.country;
+  }
+  if(f.indexOf('folder') > -1){ p.parentFolder = val('f-root'); p.subFolders = checked('folder-checks'); }
+  if(f.indexOf('newDevice') > -1){
+    p.device = val('f-ndname');
+    p.ipAddress = val('f-ndip');
+    p.deviceType = val('f-ndtype');
+    p.collectorGroup = val('f-ndcoll');
+    p.snmpProfile = val('f-ndsnmp');
+  }
+  if(f.indexOf('reportRange') > -1){ p.range = val('f-rrange'); p.sections = checked('report-checks'); }
+  return p;
+}
+
+function issues(){
+  const out = [];
+  if(!val('f-request')) out.push({ id:'fw-req', msg:'Add the request number that authorises this work.' });
+  if(!state.op) return out;
+  const f = state.op.fields;
+  if(f.indexOf('site') > -1 && !val('f-site')) out.push({ id:'fw-site', msg:'Select a site.' });
+  if(f.indexOf('device') > -1 && !val('f-device')) out.push({ id:'fw-device', msg:'Select a device.' });
+  if(f.indexOf('window') > -1){
+    const w = fmtWindow();
+    if(!w) out.push({ id:'fw-from', msg:'Set both a start and an end time.' });
+    else if(w.bad) out.push({ id:'fw-to', msg:w.text + '.' });
+  }
+  if(f.indexOf('newSite') > -1 && !val('f-nsid')) out.push({ id:'fw-nsid', msg:'Give the new site an ID.' });
+  if(f.indexOf('newDevice') > -1){
+    if(!val('f-ndname')) out.push({ id:'fw-ndname', msg:'Give the device a hostname.' });
+    const ip = val('f-ndip');
+    if(!ip) out.push({ id:'fw-ndip', msg:'Add the management IP address.' });
+    else if(!/^(\d{1,3}\.){3}\d{1,3}$/.test(ip) || ip.split('.').some(n => +n > 255))
+      out.push({ id:'fw-ndip', msg:'That is not a valid IPv4 address.' });
+  }
+  return out;
+}
+
+function confirmWord(){
+  if(!state.op || state.op.impact !== 'destructive') return null;
+  return state.op.key === 'remove-site' ? val('f-site') : val('f-device');
+}
+
+function paintSheet(){
+  const rows = $('sheet-rows');
+  const op = state.op;
+
+  const line = (k, v) =>
+    '<div class="srow"><span class="k">' + k + '</span>' +
+    '<span class="v' + (v ? '' : ' pend') + '">' + esc(v || 'Not set') + '</span></div>';
+
+  let html = line('Request', val('f-request')) +
+             line('Operation', op ? op.label : '') +
+             line('Raised by', scope.user);
+
+  if(op){
+    const f = op.fields;
+    if(f.indexOf('site') > -1)    html += line('Site', val('f-site'));
+    if(f.indexOf('newSite') > -1) html += line('New site', val('f-nsid')) + line('Site name', val('f-nsname'));
+    if(f.indexOf('device') > -1)  html += line('Device', val('f-device'));
+    if(f.indexOf('newDevice') > -1) html += line('Device', val('f-ndname')) + line('IP', val('f-ndip')) +
+                                            line('Type', val('f-ndtype'));
+    if(f.indexOf('folder') > -1){
+      const subs = checked('folder-checks');
+      html += line('Parent', val('f-root')) +
+              line('Folders', subs.length ? subs.length + ' — ' + subs.join(', ') : '');
+    }
+    if(f.indexOf('window') > -1){
+      const w = fmtWindow();
+      html += '<div class="srow"><span class="k">Window</span><span class="v' +
+              (w && !w.bad ? '' : ' pend') + '"' + (w && w.bad ? ' style="color:var(--rose)"' : '') + '>' +
+              esc(w ? w.text : 'Not set') + '</span></div>';
+    }
+    if(f.indexOf('reportRange') > -1){
+      const rr = $('f-rrange');
+      const secs = checked('report-checks');
+      html += line('Period', rr && rr.options[rr.selectedIndex] ? rr.options[rr.selectedIndex].text : '') +
+              line('Sections', secs.join(', '));
+    }
+    if(f.indexOf('reason') > -1 && val('f-reason')) html += line('Reason', val('f-reason'));
+  }
+  rows.innerHTML = html;
+
+  /* impact strip */
+  const imp = $('impact');
+  imp.className = 'impact ' + (op ? op.impact : '');
+  const led = op && op.impact === 'destructive' ? 'led crit'
+            : op && op.impact === 'caution' ? 'led warn' : 'led';
+  imp.innerHTML = '<span class="' + led + '"></span><span>' +
+    esc(op ? (op.note + ' ' + IMPACT_TEXT[op.impact]) : 'Pick an operation to see what it will change.') +
+    '</span>';
+
+  /* confirm-to-delete lock */
+  const lock = $('confirm-lock');
+  const word = confirmWord();
+  lock.classList.toggle('on', !!word);
+  if(word) $('confirm-word').textContent = word;
+
+  /* gate the button */
+  const probs = issues();
+  const btn = $('run-btn');
+  const foot = $('sheet-foot');
+
+  let ready = op && probs.length === 0;
+  if(ready && word && val('f-confirm') !== word) ready = false;
+
+  btn.disabled = !ready;
+  btn.textContent = op ? op.cta : 'Select an operation';
+
+  if(!op) foot.textContent = 'Nothing is sent until you run it.';
+  else if(probs.length) foot.textContent = probs[0].msg;
+  else if(word && val('f-confirm') !== word) foot.textContent = 'Type the name above to unlock this.';
+  else foot.textContent = 'Nothing is sent until you run it.';
+
+  document.querySelectorAll('.field.bad').forEach(e => e.classList.remove('bad'));
+}
+
+function flagIssues(){
+  document.querySelectorAll('.field.bad').forEach(e => e.classList.remove('bad'));
+  issues().forEach(p => { const e = $(p.id); if(e) e.classList.add('bad'); });
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SUBMIT
+   ═══════════════════════════════════════════════════════════════ */
+async function runOperation(){
+  const probs = issues();
+  if(probs.length){ flagIssues(); toast(probs[0].msg, 'warn'); return; }
+  const payload = buildPayload();
+  const btn = $('run-btn');
+  const label = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Running…';
+
+  let ok = true, detail = 'Queued in Logic Monitor';
+  try{
+    const res = await post(LM_API.execute, payload);
+    detail = (res && (res.message || res.status)) || 'Accepted';
+  }catch(e){
+    ok = false;
+    detail = 'Endpoint not reachable — ' + e.message;
+    console.warn('[LM] execute failed:', e);
+  }
+
+  if(window.ActivityTracker){
+    window.ActivityTracker.trackTask('Logic Monitor', state.op.label, payload);
+  }
+
+  addLogEntry(payload, ok, detail);
+  toast(ok ? state.op.cta + ' sent for ' + payload.requestNumber
+           : 'Could not reach Logic Monitor. Logged locally.', ok ? '' : 'crit');
+
+  const conf = $('f-confirm');
+  if(conf) conf.value = '';
+  btn.textContent = label;
+  paintSheet();
+}
+
+const runLog = [];
+function addLogEntry(payload, ok, detail){
+  runLog.unshift({ payload:payload, ok:ok, detail:detail, at:new Date() });
+  const host = $('log');
+  host.innerHTML = runLog.map(e =>
+    '<div class="log-item">' +
+      '<span class="led' + (e.ok ? '' : ' crit') + '" style="margin-top:4px;"></span>' +
+      '<span class="lt"><b>' + esc(labelFor(e.payload.operation)) + '</b>' +
+        '<small>' + esc(e.payload.requestNumber) + ' · ' +
+        esc(e.payload.device || e.payload.site || '') + ' · ' +
+        e.at.toTimeString().slice(0, 8) + '</small>' +
+        '<div class="hint" style="margin-top:5px;">' + esc(e.detail) + '</div>' +
+      '</span>' +
+    '</div>').join('');
+}
+function labelFor(key){
+  const o = OPERATIONS.filter(o => o.key === key)[0];
+  return o ? o.label : key;
+}
+function toast(msg, kind){
+  if(window.NetOps && window.NetOps.toast) window.NetOps.toast(msg, kind);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ROUTER DASHBOARD
+   ═══════════════════════════════════════════════════════════════ */
+function sampleStats(siteId, range){
+  seed = 91 + String(siteId).length + range.length;
+  const n = range === '24h' ? 24 : range === '7d' ? 28 : 30;
+  const avail = [], cpu = [], labels = [];
+  let a = 99.4, c = 38;
+  for(let i = 0; i < n; i++){
+    a += (rnd() - 0.48) * 0.55; a = Math.max(96.2, Math.min(100, a));
+    c += (rnd() - 0.5) * 9;     c = Math.max(14, Math.min(88, c));
+    avail.push(a); cpu.push(c);
+    if(range === '24h')      labels.push(String((i + 1) % 24).padStart(2, '0') + ':00');
+    else if(range === '7d')  labels.push('D' + (Math.floor(i / 4) + 1));
+    else                     labels.push('D' + (i + 1));
+  }
+  const fixed = [99.98, 99.71, 96.4];
+  const routers = sampleDevices(siteId).filter(d => d.type === 'Router').map((d, i) => {
+    const av = fixed[i] != null ? fixed[i] : 99.2;
+    return { name:d.name, ip:d.ip, availability:av, cpu:Math.round(30 + rnd() * 40),
+             status:av > 99.5 ? 'up' : av > 98 ? 'warn' : 'down' };
+  });
+  return { routers:routers, series:{ labels:labels, availability:avail, cpu:cpu } };
+}
+
+async function loadStats(){
+  const site = state.site || (parseSite(scope.siteRaw) || {}).id || '';
+  $('src-label').textContent = 'Loading from Logic Monitor…';
+  try{
+    const data = await post(LM_API.routerStats, { site:site, range:state.range });
+    if(!data || !data.series || !Array.isArray(data.series.availability) ||
+       !data.series.availability.length) throw new Error('unexpected shape');
+    /* a live feed may not send every series — fill the gaps so the
+       chart draws instead of throwing on a half-populated response */
+    const av = data.series.availability.map(Number);
+    data.series.availability = av;
+    data.series.cpu = Array.isArray(data.series.cpu) && data.series.cpu.length === av.length
+      ? data.series.cpu.map(Number) : av.map(() => 0);
+    data.series.labels = Array.isArray(data.series.labels) && data.series.labels.length === av.length
+      ? data.series.labels : av.map((_, i) => String(i + 1));
+    data.routers = Array.isArray(data.routers) ? data.routers : [];
+    statsData = data; statsLive = true;
+  }catch(e){
+    console.warn('[LM] router stats unavailable, showing sample data:', e.message);
+    statsData = sampleStats(site, state.range); statsLive = false;
+  }
+  paintStats();
+}
+
+function paintStats(){
+  const d = statsData;
+  if(!d) return;
+  const routers = d.routers || [];
+  const up    = routers.filter(r => r.status === 'up').length;
+  const warn  = routers.filter(r => r.status === 'warn').length;
+  const down  = routers.filter(r => r.status === 'down').length;
+  const avg   = routers.length
+    ? routers.reduce((s, r) => s + (+r.availability || 0), 0) / routers.length : 0;
+
+  $('kpis').innerHTML =
+    kpi(routers.length, 'Routers', '') +
+    kpi(up, 'Reachable', '') +
+    kpi(warn, 'Degraded', warn ? 'alert' : '') +
+    kpi(down, 'Down', down ? 'down' : '') +
+    kpi(avg.toFixed(2) + '%', 'Avg availability', '');
+
+  $('router-list').innerHTML = routers.length ? routers.map(r => {
+    const av = +r.availability || 0;
+    const cls = r.status === 'down' ? 'rose' : r.status === 'warn' ? 'amber' : 'emerald';
+    return '<div class="rtr">' +
+      '<span class="led' + (r.status === 'down' ? ' crit' : r.status === 'warn' ? ' warn' : '') + '"></span>' +
+      '<span class="nm"><b>' + esc(r.name) + '</b><small>' + esc(r.ip || '') + '</small></span>' +
+      '<span class="meter ' + cls + '"><i style="width:' + av.toFixed(1) + '%"></i></span>' +
+      '<span class="pc">' + av.toFixed(2) + '%</span>' +
+    '</div>';
+  }).join('') : '<div class="log-empty">No routers returned for this site.</div>';
+
+  $('src-label').textContent = statsLive
+    ? 'Logic Monitor · updated ' + new Date().toTimeString().slice(0, 8)
+    : 'Sample data — LM endpoint not reachable · ' + new Date().toTimeString().slice(0, 8);
+
+  drawChart();
+}
+
+function kpi(v, l, cls){
+  return '<div class="kpi ' + (cls || '') + '"><div class="k">' + esc(v) + '</div>' +
+         '<div class="l">' + esc(l) + '</div></div>';
+}
+
+/* hand-built SVG so the chart matches the panel exactly */
+let chartGeo = null;
+function drawChart(){
+  const host = $('chart');
+  if(!host || !statsData) return;
+  const s = statsData.series;
+  const W = Math.max(360, host.clientWidth || 640), H = 208;
+  const pl = 40, pr = 12, pt = 14, pb = 26;
+  const iw = W - pl - pr, ih = H - pt - pb;
+  const n = s.availability.length;
+  const xs = i => pl + (n === 1 ? iw / 2 : (i / (n - 1)) * iw);
+
+  const aMin = 95, aMax = 100;
+  const yA = v => pt + ih - ((Math.max(aMin, Math.min(aMax, v)) - aMin) / (aMax - aMin)) * ih;
+  const yC = v => pt + ih - (Math.max(0, Math.min(100, v)) / 100) * ih;
+
+  const path = (arr, y) => arr.map((v, i) => (i ? 'L' : 'M') + xs(i).toFixed(1) + ' ' + y(v).toFixed(1)).join(' ');
+  const area = path(s.availability, yA) +
+    ' L' + xs(n - 1).toFixed(1) + ' ' + (pt + ih) + ' L' + xs(0).toFixed(1) + ' ' + (pt + ih) + ' Z';
+
+  let grid = '', ticks = '';
+  [95, 96.25, 97.5, 98.75, 100].forEach(v => {
+    const y = yA(v).toFixed(1);
+    grid += '<line x1="' + pl + '" x2="' + (W - pr) + '" y1="' + y + '" y2="' + y +
+            '" stroke="rgba(148,163,184,.11)" stroke-width="1"/>';
+    ticks += '<text x="' + (pl - 8) + '" y="' + (+y + 3.5) + '" text-anchor="end" ' +
+             'fill="#7B8AA1" font-family="JetBrains Mono, monospace" font-size="9.5">' +
+             v.toFixed(v % 1 ? 2 : 0) + '</text>';
+  });
+
+  const step = Math.max(1, Math.round(n / 6));
+  let xlab = '';
+  for(let i = 0; i < n; i += step){
+    xlab += '<text x="' + xs(i).toFixed(1) + '" y="' + (H - 8) + '" text-anchor="middle" ' +
+            'fill="#7B8AA1" font-family="JetBrains Mono, monospace" font-size="9.5">' +
+            esc(s.labels[i]) + '</text>';
+  }
+
+  host.innerHTML =
+  '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" height="' + H + '" role="img" ' +
+       'aria-label="Router availability and CPU over the selected period">' +
+    '<defs>' +
+      '<linearGradient id="lmfill" x1="0" y1="0" x2="0" y2="1">' +
+        '<stop offset="0%" stop-color="#22D3EE" stop-opacity=".34"/>' +
+        '<stop offset="100%" stop-color="#22D3EE" stop-opacity="0"/>' +
+      '</linearGradient>' +
+      '<filter id="lmglow" x="-20%" y="-40%" width="140%" height="180%">' +
+        '<feGaussianBlur stdDeviation="3.2" result="b"/>' +
+        '<feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>' +
+      '</filter>' +
+    '</defs>' +
+    grid + ticks + xlab +
+    '<path d="' + area + '" fill="url(#lmfill)"/>' +
+    '<path d="' + path(s.cpu, yC) + '" fill="none" stroke="#A78BFA" stroke-width="1.5" ' +
+      'stroke-dasharray="4 4" stroke-linejoin="round" stroke-linecap="round"/>' +
+    '<path d="' + path(s.availability, yA) + '" fill="none" stroke="#22D3EE" stroke-width="2" ' +
+      'stroke-linejoin="round" stroke-linecap="round" filter="url(#lmglow)"/>' +
+    '<line id="cross" x1="0" x2="0" y1="' + pt + '" y2="' + (pt + ih) + '" ' +
+      'stroke="rgba(34,211,238,.45)" stroke-width="1" opacity="0"/>' +
+    '<circle id="dotA" r="3.5" fill="#67E8F9" opacity="0"/>' +
+    '<circle id="dotC" r="3" fill="#A78BFA" opacity="0"/>' +
+  '</svg>';
+
+  chartGeo = { W:W, H:H, pl:pl, pr:pr, n:n, xs:xs, yA:yA, yC:yC, s:s };
+}
+
+function wireChartHover(){
+  const wrap = $('chart-wrap');
+  const tip = $('tip');
+
+  wrap.addEventListener('mousemove', e => {
+    if(!chartGeo) return;
+    const svg = wrap.querySelector('svg');
+    if(!svg) return;
+    const r = svg.getBoundingClientRect();
+    if(!r.width) return;
+    const scale = chartGeo.W / r.width;
+    const x = (e.clientX - r.left) * scale;
+    const g = chartGeo;
+    let i = Math.round(((x - g.pl) / (g.W - g.pl - g.pr)) * (g.n - 1));
+    i = Math.max(0, Math.min(g.n - 1, i));
+
+    const px = g.xs(i);
+    const cross = svg.querySelector('#cross');
+    const dA = svg.querySelector('#dotA');
+    const dC = svg.querySelector('#dotC');
+    if(!cross) return;
+    cross.setAttribute('x1', px); cross.setAttribute('x2', px); cross.setAttribute('opacity', '1');
+    dA.setAttribute('cx', px); dA.setAttribute('cy', g.yA(g.s.availability[i])); dA.setAttribute('opacity', '1');
+    dC.setAttribute('cx', px); dC.setAttribute('cy', g.yC(g.s.cpu[i]));          dC.setAttribute('opacity', '1');
+
+    tip.style.opacity = '1';
+    tip.style.left = (px / scale) + 'px';
+    tip.style.top  = (g.yA(g.s.availability[i]) / scale) + 'px';
+    tip.innerHTML = '<b>' + esc(g.s.labels[i]) + '</b>' +
+      '<div class="tl"><em>Availability</em><span>' + g.s.availability[i].toFixed(2) + '%</span></div>' +
+      '<div class="tl"><em>Avg CPU</em><span>' + g.s.cpu[i].toFixed(0) + '%</span></div>';
+  });
+
+  wrap.addEventListener('mouseleave', () => {
+    tip.style.opacity = '0';
+    const svg = wrap.querySelector('svg');
+    if(!svg) return;
+    ['#cross', '#dotA', '#dotC'].forEach(sel => {
+      const el = svg.querySelector(sel);
+      if(el) el.setAttribute('opacity', '0');
+    });
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   BOOT
+   ═══════════════════════════════════════════════════════════════ */
+async function init(){
+  paintScope();
+  $('f-user').value = scope.user;
+
+  if(!scope.siteRaw){
+    $('gate').style.display = 'block';
+    $('workbench').style.display = 'none';
+    return;
+  }
+
+  const cur = parseSite(scope.siteRaw);
+  state.site = cur.id;
+
+  /* group the operation list so the destructive ones are not
+     sitting next to the read-only ones by accident */
+  const sel = $('f-op');
+  ['Alerting', 'Inventory', 'Read-only'].forEach(g => {
+    const grp = document.createElement('optgroup');
+    grp.label = g;
+    OPERATIONS.filter(o => o.group === g).forEach(o => {
+      const opt = document.createElement('option');
+      opt.value = o.key; opt.textContent = o.label;
+      grp.appendChild(opt);
+    });
+    sel.appendChild(grp);
+  });
+  enhanceSelect(sel);
+
+  sel.addEventListener('change', async () => {
+    state.op = OPERATIONS.filter(o => o.key === sel.value)[0] || null;
+    if(state.op && state.op.fields.indexOf('device') > -1 && !deviceList.length){
+      await loadDevices(state.site);
+    }
+    renderFields();
+  });
+
+  $('f-request').addEventListener('input', paintSheet);
+  $('f-confirm').addEventListener('input', paintSheet);
+  $('run-btn').addEventListener('click', runOperation);
+  $('refresh-btn').addEventListener('click', loadStats);
+
+  $('range-seg').querySelectorAll('button').forEach(b => {
+    b.addEventListener('click', () => {
+      $('range-seg').querySelectorAll('button').forEach(x => x.classList.remove('on'));
+      b.classList.add('on');
+      state.range = b.dataset.range;
+      loadStats();
+    });
+  });
+
+  wireChartHover();
+  addEventListener('resize', () => { clearTimeout(window.__lmrs);
+    window.__lmrs = setTimeout(drawChart, 160); });
+
+  paintSheet();
+  await loadSites();
+  await loadDevices(state.site);
+  await loadStats();
+}
+
+if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+else init();
+</script>
+
+</body>
+</html>

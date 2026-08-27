@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Site Topology | Smart NetOps Hub</title>
+<script src="activity-tracker.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="theme.css">
+<!-- Cytoscape.js (graph engine). If your network blocks CDNs, self-host these two files and update the src. -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.30.2/cytoscape.min.js"></script>
+<style>
+  .app{ max-width:1560px; margin:0 auto; padding:26px 22px 48px; }
+  .back-btn{ display:inline-flex; align-items:center; gap:7px; font-size:12.5px; color:var(--ink-2);
+             text-decoration:none; margin-bottom:14px; }
+  .back-btn:hover{ color:var(--cyan); }
+
+  .hero{ display:flex; align-items:flex-end; justify-content:space-between; gap:20px; flex-wrap:wrap; margin-bottom:18px; }
+  .hero h1{ font-size:clamp(24px,2.6vw,34px); margin:4px 0; }
+  .hero .lede{ color:var(--ink-2); font-size:13.5px; max-width:60ch; }
+
+  .layout{ display:grid; grid-template-columns:320px 1fr; gap:20px; align-items:start; }
+  @media (max-width:1080px){ .layout{ grid-template-columns:1fr; } }
+
+  .sidebar{ padding:16px; position:sticky; top:calc(var(--rail-h) + 18px); display:flex; flex-direction:column; gap:14px; }
+  .field{ display:flex; flex-direction:column; gap:6px; }
+  .field label{ font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-3); }
+  .field input, .field select{ width:100%; }
+  .row2{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+
+  .scope{ padding:12px 13px; border-radius:var(--r);
+          background:linear-gradient(150deg,rgba(34,211,238,.09),rgba(167,139,250,.05)); border:1px solid var(--edge); }
+  .scope-row{ display:flex; align-items:center; gap:8px; padding:5px 0; font-size:12px; color:var(--ink-3); }
+  .scope-row b{ margin-left:auto; font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--cyan);
+                max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+  .seg{ display:flex; gap:6px; }
+  .seg .chip{ cursor:pointer; padding:8px 12px !important; font-size:12px !important; color:var(--ink-2) !important;
+              border-color:var(--edge) !important; background:rgba(255,255,255,.04) !important; flex:1; text-align:center; }
+  .seg .chip.active{ color:#05121A !important; border-color:transparent !important;
+                     background:linear-gradient(135deg,var(--cyan),var(--violet)) !important; font-weight:600; }
+
+  .mk-fields{ display:none; flex-direction:column; gap:10px; padding-top:4px; }
+  .mk-fields.on{ display:flex; }
+
+  .btn-run{ padding:12px 14px !important; font-size:14px !important; width:100%; }
+  .status{ font-size:12px; color:var(--ink-2); min-height:18px; }
+  .status.err{ color:var(--rose); } .status.ok{ color:var(--emerald); }
+
+  .warn-http{ display:none; font-size:11px; color:var(--amber); border:1px dashed rgba(251,191,36,.4);
+              border-radius:var(--r-sm); padding:7px 9px; }
+
+  /* ── canvas + overlays ── */
+  .stage{ padding:0; overflow:hidden; position:relative; height:calc(100vh - 190px); min-height:560px; }
+  #cy{ width:100%; height:100%; display:block; }
+
+  .toolbar{ position:absolute; top:12px; left:12px; right:12px; display:flex; gap:8px; flex-wrap:wrap;
+            align-items:center; z-index:5; pointer-events:none; }
+  .toolbar > *{ pointer-events:auto; }
+  .tool-group{ display:flex; gap:6px; align-items:center; padding:6px 8px; border-radius:var(--r);
+               background:rgba(12,17,26,.72); border:1px solid var(--edge); backdrop-filter:blur(14px); }
+  .tool-group .lbl{ font-size:10px; text-transform:uppercase; letter-spacing:.08em; color:var(--ink-3); margin-right:2px; }
+  .tbtn{ padding:6px 10px !important; font-size:12px !important; }
+  .tool-group select{ padding:6px 9px !important; font-size:12px !important; width:auto; min-width:120px; }
+  .toggle{ display:flex; align-items:center; gap:6px; font-size:11.5px; color:var(--ink-2); cursor:pointer; user-select:none; }
+
+  .statbar{ position:absolute; bottom:12px; left:12px; display:flex; gap:14px; z-index:5;
+            padding:8px 14px; border-radius:var(--r); background:rgba(12,17,26,.72);
+            border:1px solid var(--edge); backdrop-filter:blur(14px); font-size:12px; }
+  .statbar .k{ font-family:'JetBrains Mono',monospace; color:#F5F8FC; font-weight:700; }
+  .statbar .l{ color:var(--ink-3); font-size:10px; text-transform:uppercase; letter-spacing:.08em; }
+
+  .legend{ position:absolute; bottom:12px; right:12px; z-index:5; padding:10px 12px; border-radius:var(--r);
+           background:rgba(12,17,26,.72); border:1px solid var(--edge); backdrop-filter:blur(14px);
+           display:grid; grid-template-columns:auto auto; gap:5px 14px; font-size:11px; color:var(--ink-2); }
+  .legend i{ display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:6px; vertical-align:middle; }
+
+  /* node detail card */
+  .detail{ position:absolute; top:64px; right:12px; width:270px; z-index:6; padding:14px 16px;
+           border-radius:var(--r-lg); background:linear-gradient(168deg,rgba(24,31,45,.97),rgba(12,17,26,.98));
+           border:1px solid var(--edge-hot); box-shadow:var(--e4); display:none; }
+  .detail.show{ display:block; animation:rise .25s var(--spring) both; }
+  .detail h4{ margin:0 0 4px; font-size:15px; }
+  .detail .sub{ font-size:11px; color:var(--ink-3); font-family:'JetBrains Mono',monospace; margin-bottom:10px; }
+  .detail dl{ margin:0; display:grid; grid-template-columns:auto 1fr; gap:6px 10px; font-size:12px; }
+  .detail dt{ color:var(--ink-3); } .detail dd{ margin:0; color:var(--ink); text-align:right;
+              font-family:'JetBrains Mono',monospace; word-break:break-all; }
+  .detail .x{ position:absolute; top:10px; right:12px; cursor:pointer; color:var(--ink-3); font-size:16px; }
+  .detail .x:hover{ color:var(--rose); }
+
+  .empty{ position:absolute; inset:0; display:grid; place-items:center; text-align:center; color:var(--ink-3);
+          font-size:13px; padding:30px; }
+  .empty .big{ font-size:34px; margin-bottom:10px; opacity:.6; }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <a href="landing page.html" class="back-btn">⬅ Back to Home</a>
+
+  <div class="hero">
+    <div>
+      <span class="eyebrow">Network Operations</span>
+      <h1 class="gradient-text">Site Topology</h1>
+      <div class="lede">Point at one device. The crawler walks CDP/LLDP across the site — SSH gear and Meraki together — and draws the map.</div>
+    </div>
+  </div>
+
+  <div class="layout">
+
+    <!-- ── CONTROLS ── -->
+    <aside class="sidebar panel reveal">
+      <div class="scope">
+        <div class="scope-row"><span>Region</span><b id="sc-region">—</b></div>
+        <div class="scope-row"><span>Country</span><b id="sc-country">—</b></div>
+        <div class="scope-row"><span>Site</span><b id="sc-site">—</b></div>
+      </div>
+
+      <div class="field">
+        <label>Seed device</label>
+        <select id="seed-pick"><option value="">Loading site devices…</option></select>
+      </div>
+      <div class="row2">
+        <div class="field"><label>Seed IP</label><input id="seed-ip" type="text" placeholder="10.0.0.1" autocomplete="off"></div>
+        <div class="field"><label>Hostname</label><input id="seed-host" type="text" placeholder="par-core-1" autocomplete="off"></div>
+      </div>
+
+      <div class="row2">
+        <div class="field"><label>Username</label><input id="cred-user" type="text" placeholder="netops" autocomplete="off"></div>
+        <div class="field"><label>Password</label><input id="cred-pass" type="password" placeholder="••••••••" autocomplete="new-password"></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>Enable secret</label><input id="cred-secret" type="password" placeholder="optional" autocomplete="new-password"></div>
+        <div class="field"><label>Platform</label>
+          <select id="opt-platform">
+            <option value="autodetect">Auto-detect</option>
+            <option value="cisco_ios">Cisco IOS</option>
+            <option value="cisco_xe">Cisco IOS-XE</option>
+            <option value="cisco_nxos">Cisco NX-OS</option>
+            <option value="arista_eos">Arista EOS</option>
+            <option value="juniper_junos">Juniper Junos</option>
+          </select>
+        </div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>Max depth</label>
+          <select id="opt-depth"><option>1</option><option selected>2</option><option>3</option><option>4</option></select>
+        </div>
+        <div class="field"><label>Exclude (comma)</label><input id="opt-exclude" type="text" placeholder="phone, AP" autocomplete="off"></div>
+      </div>
+
+      <div class="field">
+        <label>Include Meraki</label>
+        <div class="seg">
+          <button type="button" class="chip active" id="mk-off" onclick="setMeraki(false)">Off</button>
+          <button type="button" class="chip" id="mk-on" onclick="setMeraki(true)">Dashboard API</button>
+        </div>
+      </div>
+      <div class="mk-fields" id="mk-fields">
+        <div class="field"><label>Meraki API key</label><input id="mk-key" type="password" placeholder="••••••••" autocomplete="new-password"></div>
+        <div class="row2">
+          <div class="field"><label>Org</label><input id="mk-org" type="text" placeholder="Carrier-EMEA" autocomplete="off"></div>
+          <div class="field"><label>Network</label><input id="mk-net" type="text" placeholder="site network" autocomplete="off"></div>
+        </div>
+      </div>
+
+      <div class="warn-http" id="http-warn">⚠ The API endpoint is plain HTTP — credentials will travel unencrypted. Use HTTPS / a reverse proxy in production.</div>
+
+      <button class="btn primary btn-run" id="run-btn" onclick="buildTopology()">Build topology</button>
+      <button class="btn ghost tbtn" onclick="loadDemo()" style="width:100%">Load demo site</button>
+      <div class="status" id="status"></div>
+    </aside>
+
+    <!-- ── CANVAS ── -->
+    <section class="panel reveal stage">
+      <div class="toolbar">
+        <div class="tool-group">
+          <span class="lbl">Layout</span>
+          <select id="layout-pick" onchange="runLayout()">
+            <option value="breadthfirst" selected>Hierarchy</option>
+            <option value="cose">Force</option>
+            <option value="concentric">Concentric</option>
+            <option value="circle">Circle</option>
+            <option value="grid">Grid</option>
+          </select>
+          <button class="btn ghost tbtn" onclick="runLayout()">↻</button>
+          <button class="btn ghost tbtn" onclick="fitView()">Fit</button>
+        </div>
+        <div class="tool-group">
+          <label class="toggle"><input type="checkbox" id="f-undisc" checked onchange="applyFilters()"> Undiscovered</label>
+          <label class="toggle"><input type="checkbox" id="f-leaf" checked onchange="applyFilters()"> Endpoints</label>
+          <label class="toggle"><input type="checkbox" id="f-meraki" checked onchange="applyFilters()"> Meraki</label>
+        </div>
+      </div>
+
+      <div id="cy"></div>
+
+      <div class="empty" id="empty">
+        <div><div class="big">🕸️</div>Pick a seed device and build the topology,<br>or load the demo site to see it in action.</div>
+      </div>
+
+      <div class="statbar" id="statbar" style="display:none">
+        <div><span class="k" id="st-nodes">0</span> <span class="l">Nodes</span></div>
+        <div><span class="k" id="st-edges">0</span> <span class="l">Links</span></div>
+        <div><span class="k" id="st-meraki">0</span> <span class="l">Meraki</span></div>
+        <div><span class="k" id="st-undisc">0</span> <span class="l">Undiscovered</span></div>
+      </div>
+
+      <div class="legend" id="legend" style="display:none">
+        <span><i style="background:#A78BFA"></i>Router</span>
+        <span><i style="background:#22D3EE"></i>Switch</span>
+        <span><i style="background:#FBBF24"></i>Firewall</span>
+        <span><i style="background:#34D399"></i>Meraki</span>
+        <span><i style="background:#98A5B8"></i>Endpoint</span>
+        <span><i style="background:#FB7185"></i>Undiscovered</span>
+      </div>
+
+      <div class="detail" id="detail">
+        <span class="x" onclick="closeDetail()">✕</span>
+        <h4 id="d-name">—</h4>
+        <div class="sub" id="d-ip">—</div>
+        <dl>
+          <dt>Platform</dt><dd id="d-plat">—</dd>
+          <dt>Type</dt><dd id="d-type">—</dd>
+          <dt>Source</dt><dd id="d-source">—</dd>
+          <dt>Depth</dt><dd id="d-depth">—</dd>
+          <dt>Links</dt><dd id="d-links">—</dd>
+        </dl>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script defer src="theme.js"></script>
+<script>
+/* ============================================================
+   Proxy base — where your server.js is reachable from the browser.
+   Every call goes through server.js (same pattern as the other pages):
+     proxy7  ->  Site Topology API   (the FastAPI you deploy)
+     proxy2  ->  DEVICE_DISCOVERY     (site device list — already configured)
+   Set PROXY_BASE once to your proxy host and you're done.
+   ============================================================ */
+const PROXY_BASE    = "http://cussya5w.carcgl.com:8080";
+const TOPOLOGY_API  = PROXY_BASE + "/proxy7";
+const DISCOVERY_API = PROXY_BASE + "/proxy2";
+
+/* ---- vendor icons: compact SVGs -> data URIs (crisp at any zoom) ---- */
+const ICON_SVG = {
+  router:`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'><circle cx='24' cy='24' r='15' fill='none' stroke='%COL%' stroke-width='2.4'/><line x1='9' y1='24' x2='39' y2='24' stroke='%COL%' stroke-width='2'/><line x1='24' y1='9' x2='24' y2='39' stroke='%COL%' stroke-width='2'/><polyline points='14,20 9,24 14,28' fill='none' stroke='%COL%' stroke-width='1.8'/><polyline points='34,20 39,24 34,28' fill='none' stroke='%COL%' stroke-width='1.8'/></svg>`,
+  switch:`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'><rect x='5' y='15' width='38' height='18' rx='3' fill='none' stroke='%COL%' stroke-width='2.4'/><rect x='11' y='20' width='4' height='8' rx='1' fill='%COL%'/><rect x='18' y='20' width='4' height='8' rx='1' fill='%COL%'/><rect x='25' y='20' width='4' height='8' rx='1' fill='%COL%'/><rect x='32' y='20' width='4' height='8' rx='1' fill='%COL%'/></svg>`,
+  'l3-switch':`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'><rect x='5' y='12' width='38' height='24' rx='3' fill='none' stroke='%COL%' stroke-width='2.4'/><line x1='5' y1='23' x2='43' y2='23' stroke='%COL%' stroke-width='1.4'/><circle cx='12' cy='17' r='2' fill='%COL%'/><circle cx='20' cy='17' r='2' fill='%COL%'/><circle cx='28' cy='17' r='2' fill='%COL%'/><line x1='15' y1='30' x2='31' y2='30' stroke='%COL%' stroke-width='1.8'/><polyline points='27,27 31,30 27,33' fill='none' stroke='%COL%' stroke-width='1.8'/></svg>`,
+  firewall:`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'><rect x='6' y='9' width='36' height='30' rx='3' fill='none' stroke='%COL%' stroke-width='2.4'/><line x1='6' y1='19' x2='42' y2='19' stroke='%COL%' stroke-width='1.4'/><line x1='6' y1='29' x2='42' y2='29' stroke='%COL%' stroke-width='1.4'/><line x1='18' y1='9' x2='18' y2='19' stroke='%COL%' stroke-width='1.2'/><line x1='30' y1='9' x2='30' y2='19' stroke='%COL%' stroke-width='1.2'/><line x1='12' y1='19' x2='12' y2='29' stroke='%COL%' stroke-width='1.2'/><line x1='24' y1='19' x2='24' y2='29' stroke='%COL%' stroke-width='1.2'/><line x1='36' y1='19' x2='36' y2='29' stroke='%COL%' stroke-width='1.2'/></svg>`,
+  'access-point':`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'><rect x='16' y='28' width='16' height='10' rx='2' fill='none' stroke='%COL%' stroke-width='2.2'/><path d='M14 22a14 14 0 0 1 20 0' fill='none' stroke='%COL%' stroke-width='2'/><path d='M18 26a8 8 0 0 1 12 0' fill='none' stroke='%COL%' stroke-width='2'/><circle cx='24' cy='31' r='1.6' fill='%COL%'/></svg>`,
+  server:`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'><rect x='12' y='7' width='24' height='34' rx='3' fill='none' stroke='%COL%' stroke-width='2.4'/><line x1='12' y1='18' x2='36' y2='18' stroke='%COL%' stroke-width='1.4'/><line x1='12' y1='29' x2='36' y2='29' stroke='%COL%' stroke-width='1.4'/><circle cx='17' cy='12.5' r='1.5' fill='%COL%'/><circle cx='17' cy='23.5' r='1.5' fill='%COL%'/><circle cx='17' cy='34.5' r='1.5' fill='%COL%'/></svg>`,
+  camera:`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'><rect x='7' y='16' width='26' height='16' rx='3' fill='none' stroke='%COL%' stroke-width='2.2'/><path d='M33 21l8-4v14l-8-4z' fill='none' stroke='%COL%' stroke-width='2.2'/><circle cx='16' cy='24' r='4' fill='none' stroke='%COL%' stroke-width='1.8'/></svg>`,
+  phone:`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'><rect x='13' y='6' width='22' height='36' rx='4' fill='none' stroke='%COL%' stroke-width='2.2'/><rect x='17' y='11' width='14' height='18' rx='1' fill='none' stroke='%COL%' stroke-width='1.4'/><circle cx='24' cy='36' r='2' fill='%COL%'/></svg>`,
+  meraki:`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'><rect x='7' y='15' width='34' height='18' rx='4' fill='none' stroke='%COL%' stroke-width='2.4'/><circle cx='16' cy='24' r='2.4' fill='%COL%'/><circle cx='24' cy='24' r='2.4' fill='%COL%'/><circle cx='32' cy='24' r='2.4' fill='%COL%'/></svg>`,
+  undiscovered:`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'><circle cx='24' cy='24' r='15' fill='none' stroke='%COL%' stroke-width='2.2' stroke-dasharray='4 3'/><text x='24' y='31' font-size='20' text-anchor='middle' fill='%COL%' font-family='sans-serif'>?</text></svg>`,
+  unknown:`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'><rect x='9' y='13' width='30' height='22' rx='3' fill='none' stroke='%COL%' stroke-width='2.2'/></svg>`
+};
+function iconURI(type, color){
+  const raw = ICON_SVG[type] || ICON_SVG.unknown;
+  return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(raw.replaceAll("%COL%", color));
+}
+
+/* ---- scope + helpers ---- */
+function paintScope(){
+  const m = { "sc-region":localStorage.getItem("selectedRegion"),
+              "sc-country":localStorage.getItem("selectedCountry"),
+              "sc-site":localStorage.getItem("selectedSite") };
+  Object.keys(m).forEach(id => { const el=document.getElementById(id); if(el) el.textContent = m[id]||"—"; });
+}
+function siteId(){ return (localStorage.getItem("selectedSite")||"").split("|")[0].trim(); }
+function safeField(obj, keys){ for(const k of keys){ if(obj && obj[k]!=null && obj[k]!=="") return String(obj[k]); } return ""; }
+function setStatus(msg, cls){ const s=document.getElementById("status"); s.textContent=msg||""; s.className="status"+(cls?" "+cls:""); }
+function httpWarn(){ document.getElementById("http-warn").style.display =
+  (location.protocol==="https:" && /^http:\/\//i.test(TOPOLOGY_API)) ? "block":"none"; }
+
+/* ---- seed device list from the site (proxy2 DEVICE_DISCOVERY) ---- */
+async function loadSeedDevices(){
+  const sid = siteId();
+  const pick = document.getElementById("seed-pick");
+  if(!sid){ pick.innerHTML = '<option value="">Select a site on the Home page first</option>'; return; }
+  try{
+    const ctrl = new AbortController(); const t=setTimeout(()=>ctrl.abort(), 12000);
+    const res = await fetch(DISCOVERY_API, { method:"POST", mode:"cors",
+      headers:{"Content-Type":"application/json"}, signal:ctrl.signal,
+      body: JSON.stringify({ workflow:"DEVICE_DISCOVERY", query:"FETCH_DEVICES", siteid:sid }) });
+    clearTimeout(t);
+    const parsed = await res.json();
+    let dl = parsed && parsed.response && parsed.response.devList;
+    const list = Array.isArray(dl) ? dl : (dl ? [dl] : []);
+    if(!list.length){ pick.innerHTML = '<option value="">No devices returned — enter seed manually</option>'; return; }
+    const devs = list.map(d => ({
+      host: safeField(d, ["U_HOSTNAME","hostname","host","name"]) || "",
+      ip:   safeField(d, ["U_LOGIN_IP","ip","address"]) || "",
+    })).filter(d => d.host || d.ip);
+    // routers (hostname contains "SD") first — they make the best seed
+    devs.sort((a,b) => (b.host.toUpperCase().includes("SD")?1:0) - (a.host.toUpperCase().includes("SD")?1:0));
+    pick.innerHTML = '<option value="">— choose a seed —</option>';
+    devs.forEach(d => {
+      const o=document.createElement("option");
+      o.value=d.ip+"|"+d.host;
+      o.textContent=d.host + (d.ip?"  ·  "+d.ip:"") + (d.host.toUpperCase().includes("SD")?"   · router":"");
+      pick.appendChild(o);
+    });
+  }catch(e){ pick.innerHTML = '<option value="">Discovery unavailable — enter seed manually</option>'; }
+}
+function onSeedPick(){
+  const v=document.getElementById("seed-pick").value; if(!v) return;
+  const [ip,host]=v.split("|");
+  document.getElementById("seed-ip").value=ip||"";
+  document.getElementById("seed-host").value=host||"";
+}
+
+function setMeraki(on){
+  document.getElementById("mk-on").classList.toggle("active", on);
+  document.getElementById("mk-off").classList.toggle("active", !on);
+  document.getElementById("mk-fields").classList.toggle("on", on);
+}
+
+/* ---- Cytoscape ---- */
+let cy = null;
+function ensureCy(){
+  if(cy) return cy;
+  if(typeof cytoscape==="undefined"){ setStatus("Cytoscape failed to load (CDN blocked?). Self-host cytoscape.min.js.","err"); return null; }
+  cy = cytoscape({
+    container: document.getElementById("cy"),
+    wheelSensitivity: 0.2,
+    style: [
+      { selector:"node", style:{
+          "background-color":"data(vendorFill)",
+          "background-image": ele => iconURI(ele.data("type"), ele.data("vendorColor")),
+          "background-fit":"contain", "background-clip":"none",
+          "border-width":2, "border-color":"data(vendorColor)",
+          "width":46, "height":46, "shape":"round-rectangle",
+          "label":"data(label)", "font-size":10, "color":"#C7D2E0",
+          "text-valign":"bottom", "text-margin-y":6, "text-max-width":"120px",
+          "text-wrap":"ellipsis", "text-outline-width":2, "text-outline-color":"#0A0E17",
+          "font-family":"Inter, sans-serif" } },
+      { selector:"node.undiscovered", style:{ "border-style":"dashed", "opacity":0.9 } },
+      { selector:"node:selected", style:{ "border-width":3, "border-color":"#F5F8FC",
+          "overlay-color":"data(vendorColor)", "overlay-opacity":0.22, "overlay-padding":10 } },
+      { selector:"edge", style:{
+          "curve-style":"bezier", "width":"mapData(connectionCount,1,4,1.4,4.5)",
+          "line-color":"rgba(148,163,184,.35)", "target-arrow-shape":"none",
+          "label":"data(label)", "font-size":8.5, "color":"#8FA0B6",
+          "text-wrap":"wrap", "text-rotation":"autorotate", "text-margin-y":-4,
+          "text-background-color":"#0A0E17", "text-background-opacity":0.72,
+          "text-background-padding":2, "font-family":"'JetBrains Mono', monospace" } },
+      { selector:"edge:selected", style:{ "line-color":"#22D3EE", "color":"#EAF0F8" } },
+      { selector:".dim", style:{ "opacity":0.12 } },
+      { selector:".hidden", style:{ "display":"none" } },
+    ],
+  });
+  cy.on("tap","node", evt => showDetail(evt.target));
+  cy.on("tap", evt => { if(evt.target===cy) closeDetail(); });
+  return cy;
+}
+
+const LAYOUTS = {
+  breadthfirst:{ name:"breadthfirst", directed:true, spacingFactor:1.25, padding:40, animate:true, animationDuration:500 },
+  cose:{ name:"cose", animate:true, padding:40, nodeRepulsion:9000, idealEdgeLength:120, animationDuration:600 },
+  concentric:{ name:"concentric", padding:40, minNodeSpacing:40, animate:true,
+               concentric:n=>({seed:4,ssh:3,meraki:2,leaf:1}[n.data("source")]||1), levelWidth:()=>1 },
+  circle:{ name:"circle", padding:40, animate:true },
+  grid:{ name:"grid", padding:40, animate:true, avoidOverlap:true },
+};
+function runLayout(){
+  if(!cy) return;
+  const key=document.getElementById("layout-pick").value;
+  cy.layout(LAYOUTS[key]||LAYOUTS.breadthfirst).run();
+}
+function fitView(){ if(cy) cy.fit(cy.elements(":visible"), 40); }
+
+function render(result){
+  ensureCy(); if(!cy) return;
+  const els = result.elements||[];
+  document.getElementById("empty").style.display = els.length ? "none":"grid";
+  cy.elements().remove();
+  cy.add(els);
+  applyFilters();
+  runLayout();
+  setTimeout(fitView, 550);
+  // stats
+  const s=result.stats||{};
+  document.getElementById("st-nodes").textContent = s.nodes||0;
+  document.getElementById("st-edges").textContent = s.edges||0;
+  document.getElementById("st-meraki").textContent = s.meraki||0;
+  document.getElementById("st-undisc").textContent = s.undiscovered||0;
+  document.getElementById("statbar").style.display = els.length?"flex":"none";
+  document.getElementById("legend").style.display = els.length?"grid":"none";
+  const w=(result.warnings||[]);
+  setStatus(w.length ? w.join("  ·  ") : `Mapped ${s.discovered||0} device(s), ${s.edges||0} link(s).`,
+            w.some(x=>/error|fail|no devices/i.test(x)) ? "err":"ok");
+}
+
+function applyFilters(){
+  if(!cy) return;
+  const showU=document.getElementById("f-undisc").checked;
+  const showL=document.getElementById("f-leaf").checked;
+  const showM=document.getElementById("f-meraki").checked;
+  cy.batch(()=>{
+    cy.nodes().forEach(n=>{
+      let hide=false;
+      if(!showU && !n.data("discovered")) hide=true;
+      if(!showL && n.data("source")==="leaf") hide=true;
+      if(!showM && n.data("source")==="meraki") hide=true;
+      n.toggleClass("hidden", hide);
+    });
+    cy.edges().forEach(e=>{
+      e.toggleClass("hidden", e.source().hasClass("hidden") || e.target().hasClass("hidden"));
+    });
+  });
+}
+
+function showDetail(node){
+  const d=node.data();
+  document.getElementById("d-name").textContent = d.label.replace(" ⚠","");
+  document.getElementById("d-ip").textContent = d.ip || "no management IP";
+  document.getElementById("d-plat").textContent = d.platform || "—";
+  document.getElementById("d-type").textContent = d.type || "—";
+  document.getElementById("d-source").textContent = d.discovered ? d.source : "not crawled";
+  document.getElementById("d-depth").textContent = (d.depth===null||d.depth===undefined) ? "—" : d.depth;
+  document.getElementById("d-links").textContent = node.connectedEdges(":visible").length;
+  document.getElementById("detail").classList.add("show");
+}
+function closeDetail(){ document.getElementById("detail").classList.remove("show"); if(cy) cy.$(":selected").unselect(); }
+
+/* ---- build request + call API ---- */
+function buildRequest(demo){
+  const excl = document.getElementById("opt-exclude").value.split(",").map(s=>s.trim()).filter(Boolean);
+  const mkOn = document.getElementById("mk-on").classList.contains("active");
+  return {
+    site: siteId() || "SITE",
+    seed: { ip: document.getElementById("seed-ip").value.trim(),
+            hostname: document.getElementById("seed-host").value.trim() },
+    credentials: { username: document.getElementById("cred-user").value,
+                   password: document.getElementById("cred-pass").value,
+                   secret: document.getElementById("cred-secret").value },
+    options: { device_type: document.getElementById("opt-platform").value,
+               max_depth: parseInt(document.getElementById("opt-depth").value,10)||2,
+               exclude: excl, demo: !!demo },
+    meraki: { enabled: mkOn, api_key: document.getElementById("mk-key").value,
+              org: document.getElementById("mk-org").value.trim(),
+              network: document.getElementById("mk-net").value.trim() }
+  };
+}
+
+async function callAPI(body, path){
+  const btn=document.getElementById("run-btn"); btn.disabled=true;
+  setStatus("Crawling the site… this can take a minute for live gear.");
+  try{
+    const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(), 180000);
+    const res=await fetch(path||TOPOLOGY_API, { method:"POST", mode:"cors",
+      headers:{"Content-Type":"application/json"}, signal:ctrl.signal, body: JSON.stringify(body) });
+    clearTimeout(t);
+    if(!res.ok){ const txt=await res.text().catch(()=> ""); throw new Error("API "+res.status+" "+txt.slice(0,140)); }
+    const data=await res.json();
+    render(data);
+  }catch(e){
+    setStatus("Could not build topology: "+e.message, "err");
+  }finally{ btn.disabled=false; }
+}
+
+function buildTopology(){
+  const b=buildRequest(false);
+  if(!b.seed.ip && !b.seed.hostname){ setStatus("Enter a seed device IP (or pick one from the list).","err"); return; }
+  if(!b.credentials.username || !b.credentials.password){ setStatus("SSH username and password are required.","err"); return; }
+  callAPI(b);
+}
+function loadDemo(){
+  setStatus("Loading demo site…");
+  // demo works with or without a running backend: try the API's demo route, else render a local sample.
+  callAPIDemo();
+}
+async function callAPIDemo(){
+  try{
+    const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(), 8000);
+    const res=await fetch(TOPOLOGY_API, { method:"POST", mode:"cors",
+      headers:{"Content-Type":"application/json"}, signal:ctrl.signal,
+      body: JSON.stringify({ site: siteId()||"FRA-PAR-001", seed:{ip:"",hostname:""}, options:{ demo:true } }) });
+    clearTimeout(t);
+    if(res.ok){ render(await res.json()); return; }
+    throw new Error("no backend");
+  }catch(e){ render(LOCAL_DEMO); }   // offline fallback so the page always demonstrates
+}
+
+/* Minimal offline demo (used only if the backend/demo route isn't reachable). */
+const LOCAL_DEMO = { stats:{nodes:6,edges:6,meraki:2,undiscovered:1,discovered:5},
+  warnings:["Offline demo — backend not reachable; showing a built-in sample."],
+  elements:[
+    {group:"nodes",data:{id:"par-core-1",label:"par-core-1",ip:"10.0.0.1",platform:"cisco_nxos",type:"switch",source:"seed",discovered:true,depth:0,vendorColor:"#22D3EE",vendorFill:"rgba(34,211,238,.10)"},classes:"discovered"},
+    {group:"nodes",data:{id:"par-dist-1",label:"par-dist-1",ip:"10.0.1.1",platform:"cisco_iosxe",type:"l3-switch",source:"ssh",discovered:true,depth:1,vendorColor:"#22D3EE",vendorFill:"rgba(34,211,238,.10)"},classes:"discovered"},
+    {group:"nodes",data:{id:"par-fw-1",label:"par-fw-1",ip:"10.0.0.254",platform:"cisco_asa",type:"firewall",source:"ssh",discovered:true,depth:1,vendorColor:"#FBBF24",vendorFill:"rgba(251,191,36,.10)"},classes:"discovered"},
+    {group:"nodes",data:{id:"PAR-MX-1",label:"PAR-MX-1",ip:"10.0.3.1",platform:"MX85",type:"firewall",source:"meraki",discovered:true,depth:2,vendorColor:"#34D399",vendorFill:"rgba(52,211,153,.10)"},classes:"discovered meraki"},
+    {group:"nodes",data:{id:"PAR-MR-1",label:"PAR-MR-1",ip:"10.0.3.20",platform:"MR46",type:"access-point",source:"meraki",discovered:true,depth:3,vendorColor:"#34D399",vendorFill:"rgba(52,211,153,.10)"},classes:"discovered meraki"},
+    {group:"nodes",data:{id:"srv-app-01",label:"srv-app-01 ⚠",ip:"",platform:"Undiscovered",type:"server",source:"leaf",discovered:false,depth:null,vendorColor:"#FB7185",vendorFill:"rgba(251,113,133,.10)"},classes:"undiscovered leaf"},
+    {group:"edges",data:{id:"par-core-1--par-dist-1",source:"par-core-1",target:"par-dist-1",label:"Eth1/2 ↔ Te1/1/1",connectionCount:1}},
+    {group:"edges",data:{id:"par-core-1--par-fw-1",source:"par-core-1",target:"par-fw-1",label:"Eth1/9 ↔ Gi0/0",connectionCount:1}},
+    {group:"edges",data:{id:"PAR-MX-1--par-fw-1",source:"PAR-MX-1",target:"par-fw-1",label:"wan0 ↔ Gi0/1",connectionCount:1}},
+    {group:"edges",data:{id:"PAR-MR-1--PAR-MX-1",source:"PAR-MR-1",target:"PAR-MX-1",label:"wired0 ↔ lan1",connectionCount:1}},
+    {group:"edges",data:{id:"par-dist-1--srv-app-01",source:"par-dist-1",target:"srv-app-01",label:"Gi1/0/10 ↔ eth0",connectionCount:1}},
+  ]};
+
+/* ---- init ---- */
+document.addEventListener("DOMContentLoaded", ()=>{
+  paintScope(); httpWarn();
+  document.getElementById("seed-pick").addEventListener("change", onSeedPick);
+  loadSeedDevices();
+});
+</script>
+</body>
+</html>

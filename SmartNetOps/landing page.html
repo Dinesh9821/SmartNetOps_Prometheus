@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Operations Home | Smart NetOps Hub</title>
+<script src="activity-tracker.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="theme.css">
+
+<style>
+  .app{ max-width:1520px; margin:0 auto; padding:26px 22px 64px; }
+
+  /* ── HERO ── */
+  .hero{ display:flex; align-items:flex-end; justify-content:space-between;
+         gap:24px; flex-wrap:wrap; margin-bottom:24px; }
+  .hero h1{ font-size:clamp(28px,3vw,40px); margin:6px 0 6px; }
+  .hero .lede{ color:var(--ink-2); max-width:52ch; font-size:14px; }
+  .hero-stats{ display:flex; gap:10px; flex-wrap:wrap; }
+  .hstat{
+    padding:12px 16px; border-radius:var(--r); min-width:112px;
+    background:rgba(255,255,255,.04); border:1px solid var(--edge);
+    backdrop-filter:blur(18px);
+  }
+  .hstat .k{ font-family:'JetBrains Mono',monospace; font-size:20px;
+             font-weight:700; color:#F5F8FC; letter-spacing:-.02em; }
+  .hstat .l{ font-size:10.5px; text-transform:uppercase; letter-spacing:.12em;
+             color:var(--ink-3); margin-top:3px; }
+
+  /* ── LAYOUT ── */
+  .layout{ display:grid; grid-template-columns:290px 1fr; gap:22px; align-items:start; }
+
+  .sidebar{ padding:18px; position:sticky; top:calc(var(--rail-h) + 22px); }
+  .sidebar .eyebrow{ margin-bottom:12px; display:block; }
+  .dropdown{ margin-bottom:10px; }
+  .dropdown-btn{ padding:12px 13px; }
+  .dropdown-btn::after{ content:'⌄'; color:var(--ink-3); font-size:14px; line-height:1; }
+  .search-box{ display:none; margin-top:8px; }
+  .search-box input{ width:100%; padding:9px 12px !important; font-size:13px !important; }
+  .dropdown-content{ display:none; margin-top:8px; max-height:230px;
+                     overflow-y:auto; padding:6px; }
+  .dropdown-content div{ padding:9px 12px; cursor:pointer; font-size:13px; }
+
+  /* live scope readout — the sidebar's payoff */
+  .scope{
+    margin-top:18px; padding:14px; border-radius:var(--r);
+    background:linear-gradient(150deg,rgba(34,211,238,.09),rgba(167,139,250,.04));
+    border:1px solid var(--edge);
+  }
+  .scope-row{ display:flex; align-items:center; gap:9px;
+              padding:6px 0; font-size:12px; color:var(--ink-3); }
+  .scope-row b{ margin-left:auto; font-family:'JetBrains Mono',monospace;
+                font-size:11.5px; font-weight:600; color:var(--ink-3);
+                max-width:150px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .scope-row.set b{ color:var(--cyan); }
+  .scope-row .dot{ width:6px; height:6px; border-radius:50%;
+                   background:#2A3547; flex:0 0 auto; transition:all .3s var(--ease); }
+  .scope-row.set .dot{ background:var(--cyan); box-shadow:0 0 10px var(--cyan); }
+  .scope-note{ margin-top:10px; padding-top:10px; border-top:1px solid var(--edge);
+               font-size:11px; color:var(--ink-3); line-height:1.6; }
+
+  /* ── MODULE GRID ── */
+  .grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(288px,1fr)); gap:18px; }
+  .card{ padding:22px; display:flex; flex-direction:column; gap:11px; }
+  .card-top{ display:flex; align-items:flex-start; justify-content:space-between; }
+  .icon-box{
+    width:46px; height:46px; border-radius:14px;
+    display:grid; place-items:center; font-size:21px;
+    background:linear-gradient(150deg,rgba(59,130,246,.28),rgba(34,211,238,.08));
+    border:1px solid rgba(59,130,246,.32);
+    box-shadow:0 0 32px -10px rgba(59,130,246,.9), var(--inner);
+  }
+  .icon-box.purple{ background:linear-gradient(150deg,rgba(167,139,250,.3),rgba(139,92,246,.08)); border-color:rgba(167,139,250,.34); box-shadow:0 0 32px -10px rgba(167,139,250,.9), var(--inner); }
+  .icon-box.red{    background:linear-gradient(150deg,rgba(232,121,249,.3),rgba(192,38,211,.08)); border-color:rgba(232,121,249,.34); box-shadow:0 0 32px -10px rgba(232,121,249,.9), var(--inner); }
+  .icon-box.green{  background:linear-gradient(150deg,rgba(52,211,153,.3),rgba(16,185,129,.08));  border-color:rgba(52,211,153,.34);  box-shadow:0 0 32px -10px rgba(52,211,153,.9), var(--inner); }
+  .icon-box.sky{    background:linear-gradient(150deg,rgba(34,211,238,.3),rgba(6,182,212,.08));    border-color:rgba(34,211,238,.34);  box-shadow:0 0 32px -10px rgba(34,211,238,.9), var(--inner); }
+  .icon-box.teal{   background:linear-gradient(150deg,rgba(45,212,191,.3),rgba(13,148,136,.08));   border-color:rgba(45,212,191,.34);  box-shadow:0 0 32px -10px rgba(45,212,191,.9), var(--inner); }
+
+  .card .title{ font-family:'Space Grotesk',sans-serif; font-size:16px;
+                font-weight:600; color:#F5F8FC; }
+  .card .desc{ font-size:13px; line-height:1.6; flex:1; }
+  .card button{ padding:10px 14px; margin-top:4px; width:100%; }
+
+  /* locked state — honest, not decorative */
+  .card.locked{ opacity:.62; }
+  .card.locked .icon-box{ filter:grayscale(.75); box-shadow:none; }
+  .card .req{ font-family:'JetBrains Mono',monospace; font-size:10px;
+              letter-spacing:.08em; text-transform:uppercase; color:var(--ink-3); }
+  .card:not(.locked) .req{ color:var(--emerald); }
+
+  /* ── LOCK DIALOG ── */
+  #lock-overlay{
+    display:none; position:fixed; inset:0; z-index:1200;
+    background:rgba(2,4,8,.75); backdrop-filter:blur(10px);
+  }
+  #lock-popup{
+    display:none; position:fixed; z-index:1201;
+    top:50%; left:50%; transform:translate(-50%,-50%);
+    width:min(400px,92vw); padding:26px; text-align:center;
+    border-radius:var(--r-lg);
+    background:linear-gradient(168deg,rgba(24,31,45,.97),rgba(10,14,23,.98));
+    border:1px solid var(--edge-hot);
+    box-shadow:var(--e4), 0 0 90px -28px rgba(251,191,36,.6);
+    animation:rise .35s var(--spring) both;
+  }
+  #lock-popup .lk{ font-size:30px; margin-bottom:10px; }
+  #lock-popup h3{ margin-bottom:6px; }
+  #lock-popup p{ color:var(--ink-2); font-size:13px; margin:0 0 18px; }
+
+  @media (max-width:1000px){
+    .layout{ grid-template-columns:1fr; }
+    .sidebar{ position:static; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <div class="hero">
+    <div>
+      <span class="eyebrow">AI Operations Center</span>
+      <h1 class="gradient-text">Smart NetOps Hub</h1>
+      <div class="lede">Pick a scope on the left, then open a module. Dashboard is always available; the rest need a site.</div>
+    </div>
+    <div class="hero-stats">
+      <div class="hstat"><div class="k" data-count="45">0</div><div class="l">Sites</div></div>
+      <div class="hstat"><div class="k" data-count="99.98" data-suffix="%">0</div><div class="l">Uptime</div></div>
+      <div class="hstat"><div class="k" data-count="6">0</div><div class="l">Modules</div></div>
+      <div class="hstat"><div class="k" data-count="3">0</div><div class="l">Incidents</div></div>
+    </div>
+  </div>
+
+  <div class="layout">
+
+    <!-- SCOPE PICKER -->
+    <aside class="sidebar panel reveal">
+      <span class="eyebrow">Scope</span>
+
+      <div class="dropdown">
+        <button class="dropdown-btn" onclick="toggleDropdown('region')">🌐 Region</button>
+        <div class="dropdown-content" id="region"></div>
+      </div>
+
+      <div class="dropdown">
+        <button class="dropdown-btn" onclick="toggleDropdown('country')">📡 Country</button>
+        <div class="search-box" id="country-search">
+          <input type="text" placeholder="Search country…" oninput="filterList('country')">
+        </div>
+        <div class="dropdown-content" id="country"></div>
+      </div>
+
+      <div class="dropdown">
+        <button class="dropdown-btn" onclick="toggleDropdown('site')">🛠 Site ID</button>
+        <div class="search-box" id="site-search">
+          <input type="text" placeholder="Search site…" oninput="filterList('site')">
+        </div>
+        <div class="dropdown-content" id="site"></div>
+      </div>
+
+      <div class="scope">
+        <div class="scope-row" id="sc-region"><span class="dot"></span> Region <b>—</b></div>
+        <div class="scope-row" id="sc-country"><span class="dot"></span> Country <b>—</b></div>
+        <div class="scope-row" id="sc-site"><span class="dot"></span> Site <b>—</b></div>
+        <div class="scope-note" id="sc-note">Select all three to unlock every module.</div>
+      </div>
+    </aside>
+
+    <!-- MODULES -->
+    <div class="grid">
+
+      <div class="card locked reveal" data-mod="chatops">
+        <div class="card-top"><div class="icon-box">💬</div><span class="req">Needs site</span></div>
+        <div class="title">ChatOps</div>
+        <div class="desc">Run operations through conversation. Ask, act, and confirm without leaving the thread.</div>
+        <button onclick="openCard('chatops')">Open ChatOps</button>
+      </div>
+
+      <div class="card locked reveal" data-mod="netchatops">
+        <div class="card-top"><div class="icon-box purple">🛰️</div><span class="req">Needs site</span></div>
+        <div class="title">Network with Us</div>
+        <div class="desc">Chat with the AI network assistant and run commands side by side for your selected site.</div>
+        <button onclick="openCard('netchatops')">Open Network with Us</button>
+      </div>
+
+      <div class="card locked reveal" data-mod="netautomationflow">
+        <div class="card-top"><div class="icon-box red">🔗</div><span class="req">Needs site</span></div>
+        <div class="title">NetAutomation Flow</div>
+        <div class="desc">Build and run automation workflows across devices with live progress.</div>
+        <button onclick="openCard('netautomationflow')">Open NetAutomation Flow</button>
+      </div>
+
+      <div class="card reveal" data-mod="dashboard">
+        <div class="card-top"><div class="icon-box green">📊</div><span class="req">Always open</span></div>
+        <div class="title">Dashboard</div>
+        <div class="desc">Live telemetry, health, throughput, and events across every region.</div>
+        <button class="primary" onclick="openCard('dashboard')">Open Dashboard</button>
+      </div>
+
+      <div class="card locked reveal" data-mod="Network Diagram">
+        <div class="card-top"><div class="icon-box sky">🕸️</div><span class="req">Needs site</span></div>
+        <div class="title">Network Diagram</div>
+        <div class="desc">Generate a connectivity diagram for the site you have selected.</div>
+        <button onclick="openCard('Network Diagram')">Open Network Diagram</button>
+      </div>
+
+        <div class="card locked reveal" data-mod="logicmonitor">
+        <div class="card-top"><div class="icon-box steel">🎛️</div><span class="req">Needs site</span></div>
+        <div class="title">Logic Monitor Operations</div>
+        <div class="desc">Suppress alerts, add or remove sites and devices, check availability, and pull network reports against a request number.</div>
+        <button onclick="openCard('logicmonitor')">Open Logic Monitor Operations</button>
+      </div>
+
+      <div class="card locked reveal" data-mod="pathanalysisflow">
+        <div class="card-top"><div class="icon-box teal">🛰️</div><span class="req">Needs site</span></div>
+        <div class="title">Path Analysis Flow</div>
+        <div class="desc">Trace how traffic flows from any device or server to a destination, hop by hop, with per-hop latency and loss.</div>
+        <button onclick="openCard('pathanalysisflow')">Open Path Analysis Flow</button>
+      </div>
+
+      <div class="card locked reveal" data-mod="firewall">
+        <div class="card-top"><div class="icon-box teal">🔥</div><span class="req">Needs site</span></div>
+        <div class="title">Firewall</div>
+        <div class="desc">Review rules, service requests, and AI-assisted troubleshooting.</div>
+        <button onclick="openCard('firewall')">Open Firewall</button>
+      </div>
+
+      <div class="card locked reveal" data-mod="site-info-update">
+        <div class="card-top"><div class="icon-box purple">🏢</div><span class="req">Needs site</span></div>
+        <div class="title">Site-Info Update</div>
+        <div class="desc">Update the master record for the selected site — address, contacts, priority, and more.</div>
+        <button onclick="openCard('site-info-update')">Open Site-Info Update</button>
+      </div>
+
+      <div class="card locked reveal" data-mod="circuit-diversity">
+        <div class="card-top"><div class="icon-box">🔀</div><span class="req">Needs site</span></div>
+        <div class="title">Circuit Diversity</div>
+        <div class="desc">Trace two circuits from the site's routers and verify they take physically diverse paths.</div>
+        <button onclick="openCard('circuit-diversity')">Open Circuit Diversity</button>
+      </div>
+     
+      <div class="card locked reveal" data-mod="serverautomationflow">
+        <div class="card-top"><div class="icon-box sky">🖳</div><span class="req">Needs site</span></div>
+        <div class="title">Server Automation Flow</div>
+        <div class="desc">Compliance, health, patch and capacity automation across your server estate.</div>
+        <button onclick="openCard('serverautomationflow')">Open Server Automation Flow</button>
+      </div>
+
+      <div class="card locked reveal" data-mod="cloudautomationflow">
+        <div class="card-top"><div class="icon-box purple">☁️</div><span class="req">Needs site</span></div>
+        <div class="title">Cloud Automation Flow</div>
+        <div class="desc">Cost, posture and inventory automation for AWS, Azure, GCP and Alibaba Cloud.</div>
+        <button onclick="openCard('cloudautomationflow')">Open Cloud Automation Flow</button>
+      </div>
+      
+      <div class="card locked reveal" data-mod="request-incident-analysis">
+        <div class="card-top"><div class="icon-box sky">🧠</div><span class="req">Needs site</span></div>
+        <div class="title">Request/Incident AI analysis</div>
+        <div class="desc">Select Incident or Request, enter the record number, and run an AI analysis of the ticket.</div>
+        <button onclick="openCard('request-incident-analysis')">Open Request/Incident AI analysis</button>
+      </div>
+
+    <///div>
+  </div>
+</div>
+
+<!-- SCOPE REQUIRED -->
+<div id="lock-overlay" onclick="closePopup()"></div>
+<div id="lock-popup">
+  <div class="lk">🔒</div>
+  <h3>Pick a site first</h3>
+  <p>This module works against one site. Choose a region, country, and site ID, then try again.</p>
+  <button class="primary" onclick="closePopup()">Got it</button>
+</div>
+
+<script defer src="theme.js"></script>
+<script>
+/* =================== REGION → COUNTRY → SITE DATA =================== */
+const regionData = {
+  APAC: {
+    "China": ["CHN-BJS-DC-001"],
+    "Japan": ["JPN-TYO-DC-002"],
+    "Korea, Republic of": [],
+    "Taiwan": ["TWN-TPE-DC-006"],
+    "Malaysia": ["MYS-KUL-DC-008"],
+    "Singapore": ["SGP-SGP-DC-009"],
+    "Thailand": ["THA-BKK-DC-010"],
+    "Vietnam": ["VNM-HAN-DC-012"],
+    "Brunei Darussalam": ["BRN-BWN-DC-016"],
+
+    "India": ["IND-MUM-DC-018"],
+    "Australia": ["AUS-SYD-DC-026"],
+    "Guam": [],
+    "Hong Kong": [],
+    "Macau": [],
+    "New Zealand": []
+  },
+
+  EMEA: {
+    "United Kingdom": ["London-45", "Manchester-12"],
+    "Germany": ["Berlin-7", "Munich-10"],
+    "Italy": ["Rome-2", "Milan-6"],
+    "Czech Republic": [],
+    "Spain": ["ESP-MAD-DC-001"],
+    "South Africa": ["ZAF-JHB-BR-014"],
+    "Saudi Arabia": ["KSA-RYD-DC-004"],
+    "UAE": ["UAE-DXB-POP-005"],
+
+    "Austria": ["AUT-VIE-DC-001"],
+    "Belgium": ["BEL-BRU-DC-002"],
+    "Netherlands": ["NLD-AMS-DC-003"],
+    "Poland": ["POL-WAW-DC-004"],
+    "Sweden": ["SWE-STO-DC-005"],
+    "Turkey": ["TUR-IST-DC-015"],
+    "Bulgaria": [],
+    "Switzerland": [],
+    "Denmark": [],
+    "Finland": [],
+    "Greece": [],
+    "France": [],
+    "Croatia": [],
+    "Hungary": [],
+    "Ireland": [],
+    "Kuwait": [],
+    "Lithuania": [],
+    "Luxembourg": [],
+    "Latvia": [],
+    "Norway": [],
+    "Portugal": [],
+    "Romania": [],
+    "Serbia": [],
+    "Russian Federation": [],
+    "Slovenia": [],
+    "Slovakia": [],
+    "Ukraine": []
+  },
+
+  AMER: {
+    "Canada": ["CAN-TOR-DC-001"],
+    "United States": ["USA-NYC-DC-002"],
+    "United States of America": ["USA-NV-LAS-001"],
+    "Mexico": ["MEX-MEX-DC-003"],
+
+    "Argentina": ["ARG-BUE-DC-024"],
+    "Brazil": ["BRA-GRU-DC-026"]
+  }
+};
+const COUNTRY_SITES_API = "http://cussya5w.carcgl.com:8080/proxy1";
+const SITE_INFO_API = "/api/site-info";
+
+let selectedRegion = null;
+let selectedCountry = null;
+let selectedSite = null;
+let lockTimer = null;
+
+/* ---------------------------
+   fetchSitesForCountry (UPDATED)
+   --------------------------- */
+async function fetchSitesForCountry(region, country) {
+  const siteBox = document.getElementById("site");
+  if (siteBox) siteBox.innerHTML = `<div>Loading sites for ${country}...</div>`;
+
+  try {
+    console.log(`[fetchSitesForCountry] POST -> ${COUNTRY_SITES_API}`, { region, country });
+
+    const res = await fetch(COUNTRY_SITES_API, {
+      method: "POST",
+      mode: "cors",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ region, country })
+    });
+
+    console.log("[fetchSitesForCountry] status:", res.status, res.statusText);
+    const text = await res.text();
+    console.log("[fetchSitesForCountry] RAW:", text);
+
+    let data = null;
+    try { data = JSON.parse(text); } catch (e) { console.warn("JSON parse failed:", e); }
+
+    let sites = [];
+
+    // auto-detect valid formats
+    if (Array.isArray(data)) sites = data;
+    else if (Array.isArray(data?.sites)) sites = data.sites;
+    else if (Array.isArray(data?.data)) sites = data.data;
+    else if (Array.isArray(data?.result)) sites = data.result;
+    else if (data && typeof data === "object") {
+      const vals = Object.values(data).flat();
+      if (Array.isArray(vals)) sites = vals;
+    }
+
+    // normalize each site
+    const normalized = sites.map(s => {
+      if (typeof s === "string") return s;
+      if (typeof s === "object") {
+        const parts = [
+          s["U_SITE_ID"],
+          s["U_STREET_ADDRESS"],
+          s["U_CITY"],
+          s["U_STATE"],
+          s["U_COUNTRY"],
+          s["U_PINCODE"]
+        ].filter(val => val && String(val).trim() !== "");
+        return parts.length > 0 ? parts.join(" | ") : JSON.stringify(s);
+      }
+      return String(s);
+    });
+
+    if (!normalized.length) throw new Error("API returned no usable site IDs");
+
+    regionData[region][country] = normalized;
+    loadSites(region, country);
+
+    // show dropdown automatically
+    document.getElementById("site").style.display = "block";
+    document.getElementById("site-search").style.display = "block";
+
+  } catch (err) {
+    console.error("[fetchSitesForCountry] ERROR:", err);
+    siteBox.innerHTML = `<div style="color:#ffb3b3;">Error loading sites: ${err.message}</div>`;
+
+    if (regionData[region]?.[country]?.length) {
+      console.log("Fallback to local data");
+      loadSites(region, country);
+      document.getElementById("site").style.display = "block";
+      document.getElementById("site-search").style.display = "block";
+    }
+  }
+}
+
+/* ---------------------------
+   selectCountry (UPDATED)
+   --------------------------- */
+async function selectCountry(region, country) {
+  selectedCountry = country;
+  selectedSite = null;
+
+  // persist immediately so the scope survives navigation
+  localStorage.setItem("selectedRegion", region);
+  localStorage.setItem("selectedCountry", country);
+  localStorage.removeItem("selectedSite");
+  localStorage.removeItem("selectedSiteInfo");
+
+  document.querySelector("button[onclick=\"toggleDropdown('country')\"]").textContent = "📡 " + country;
+  document.querySelector("button[onclick=\"toggleDropdown('site')\"]").textContent = "🛠 Site ID";
+
+  if (window.ActivityTracker) {
+    window.ActivityTracker.trackCountrySelection(country, region);
+  }
+
+  // CLOSE the country dropdown after selecting
+  document.getElementById("country").style.display = "none";
+  document.getElementById("country-search").style.display = "none";
+
+
+  document.getElementById("site").innerHTML = `<div>Loading sites...</div>`;
+
+  // fetch sites + auto-open dropdown
+  await fetchSitesForCountry(region, country);
+
+  document.getElementById("site").style.display = "block";
+  document.getElementById("site-search").style.display = "block";
+}
+
+/* ---------------------------
+   Remaining original functions (unchanged)
+   --------------------------- */
+async function fetchSiteInfo(region, country, site) {
+  if (!region || !country || !site) return;
+  try {
+    const res = await fetch(SITE_INFO_API, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ region, country, site })
+    });
+    if (!res.ok) throw new Error(`Status ${res.status}`);
+    const data = await res.json();
+    localStorage.setItem("selectedSiteInfo", JSON.stringify(data));
+  } catch (err) { console.error("Site info fetch failed", err); }
+}
+
+function toggleDropdown(id) {
+  const box = document.getElementById(id);
+  const search = document.getElementById(id + "-search");
+  if (box.style.display === "block") {
+    box.style.display = "none"; if (search) search.style.display = "none";
+  } else {
+    closeAllDropdowns();
+    box.style.display = "block"; if (search) search.style.display = "block";
+  }
+}
+
+function closeAllDropdowns() {
+  document.querySelectorAll(".dropdown-content").forEach(b => b.style.display = "none");
+  document.querySelectorAll(".search-box").forEach(s => s.style.display = "none");
+}
+
+function loadRegions() {
+  const box = document.getElementById("region");
+  box.innerHTML = "";
+  Object.keys(regionData).forEach(r => {
+    const d = document.createElement("div");
+    d.textContent = r;
+    d.onclick = () => selectRegion(r);
+    box.appendChild(d);
+  });
+}
+
+function selectRegion(region) {
+  selectedRegion = region;
+  selectedCountry = null;
+  selectedSite = null;
+
+  // persist immediately so the scope survives navigation (not only on openCard)
+  localStorage.setItem("selectedRegion", region);
+  localStorage.removeItem("selectedCountry");
+  localStorage.removeItem("selectedSite");
+  localStorage.removeItem("selectedSiteInfo");
+
+  document.querySelector("button[onclick=\"toggleDropdown('region')\"]").textContent = "🌐 " + region;
+  document.querySelector("button[onclick=\"toggleDropdown('country')\"]").textContent = "📡 Country";
+  document.querySelector("button[onclick=\"toggleDropdown('site')\"]").textContent = "🛠 Site ID";
+
+  if (window.ActivityTracker) {
+    window.ActivityTracker.trackRegionSelection(region);
+  }
+
+  loadCountries(region);
+  closeAllDropdowns();
+}
+
+function loadCountries(region) {
+  const box = document.getElementById("country");
+  box.innerHTML = "";
+  Object.keys(regionData[region]).forEach(c => {
+    const d = document.createElement("div");
+    d.textContent = c;
+    d.onclick = () => selectCountry(region, c);
+    box.appendChild(d);
+  });
+  document.getElementById("site").innerHTML = "";
+}
+
+function loadSites(region, country) {
+  const box = document.getElementById("site");
+  box.innerHTML = "";
+  const list = regionData[region]?.[country];
+  if (!list || !list.length) {
+    box.innerHTML = `<div style="color:#ffb3b3;">No sites for ${country}</div>`;
+    return;
+  }
+  list.forEach(site => {
+    const d = document.createElement("div");
+    d.textContent = site;
+    d.onclick = () => selectSite(site);
+    box.appendChild(d);
+  });
+}
+
+function selectSite(site) {
+  selectedSite = site;
+  document.querySelector("button[onclick=\"toggleDropdown('site')\"]").textContent = "🛠 " + site;
+  fetchSiteInfo(selectedRegion, selectedCountry, site);
+
+  // persist the full scope so it survives navigation to any page
+  if (selectedRegion)  localStorage.setItem("selectedRegion", selectedRegion);
+  if (selectedCountry) localStorage.setItem("selectedCountry", selectedCountry);
+  localStorage.setItem("selectedSite", site);
+
+  if (window.ActivityTracker) {
+    window.ActivityTracker.trackSiteSelection(site, selectedRegion, selectedCountry);
+  }
+
+  closeAllDropdowns();
+}
+
+function filterList(id) {
+  const term = document.querySelector(`#${id}-search input`).value.toLowerCase();
+  document.querySelectorAll(`#${id} div`).forEach(i => {
+    i.style.display = i.textContent.toLowerCase().includes(term) ? "block" : "none";
+  });
+}
+
+function showLockPopup() {
+  document.getElementById("lock-popup").style.display = "block";
+  document.getElementById("lock-overlay").style.display = "block";
+  lockTimer = setTimeout(closePopup, 5000);
+}
+
+function closePopup() {
+  document.getElementById("lock-popup").style.display = "none";
+  document.getElementById("lock-overlay").style.display = "none";
+  if (lockTimer) clearTimeout(lockTimer);
+}
+
+function openCard(pageKey) {
+
+// Dashboard opens freely (NO restrictions)
+if (pageKey === "dashboard") {
+  if (window.ActivityTracker) {
+    window.ActivityTracker.trackModuleAccess("Dashboard");
+  }
+  window.location.href = "dashboard.html";
+  return;
+}
+
+// For other pages: selections required
+if (!selectedRegion || !selectedCountry || !selectedSite) {
+  showLockPopup();
+  //Button disabled
+  return;
+}
+
+// Save selections
+localStorage.setItem("selectedRegion", selectedRegion);
+localStorage.setItem("selectedCountry", selectedCountry);
+localStorage.setItem("selectedSite", selectedSite);
+
+const mapping = {
+  chatops: "chatops.html",
+  netchatops: "netchatops.html",
+  netautomationflow: "Netautomation Flow.html",
+  serverautomationflow: "server-automation-flow.html",
+  cloudautomationflow: "cloud-automation-flow.html",
+  pathanalysisflow: "path-analysis-flow.html",
+  dashboard: "dashboard.html",
+  logicmonitor: "logicmonitor.html",
+  network_diagram: "Network Diagram.html",
+  "circuit-diversity": "circuit-diversity.html"
+};
+
+const moduleNames = {
+  chatops: "ChatOps",
+  netchatops: "Network's Vedas",
+  netautomationflow: "NetAutomation Flow",
+  dashboard: "Dashboard",
+  logicmonitor: "Logic Monitor Operations",
+  network_diagram: "Network Diagram",
+  serverautomationflow: "Server Automation Flow",
+  cloudautomationflow: "Cloud Automation Flow",
+  pathanalysisflow: "Path Analysis Flow",
+  "circuit-diversity": "Circuit Diversity"
+};
+
+if (window.ActivityTracker) {
+  window.ActivityTracker.trackModuleAccess(moduleNames[pageKey] || pageKey);
+}
+
+const url = mapping[pageKey] || `${pageKey}.html`;
+window.location.href = url;
+}
+
+loadRegions();
+
+/* ── Restore a previously selected scope on load ──────────────────
+   The three vars reset to null on every page load, but the choice is
+   still in localStorage. Re-hydrate the button labels and in-memory
+   state WITHOUT re-calling any API, so the site persists across
+   navigation until the user picks a different one from the dropdown. */
+function restoreSelection() {
+  const savedRegion  = localStorage.getItem("selectedRegion");
+  const savedCountry = localStorage.getItem("selectedCountry");
+  const savedSite    = localStorage.getItem("selectedSite");
+
+  if (savedRegion) {
+    selectedRegion = savedRegion;
+    const rb = document.querySelector("button[onclick=\"toggleDropdown('region')\"]");
+    if (rb) rb.textContent = "🌐 " + savedRegion;
+    // rebuild the country list for this region so the dropdown still works
+    if (regionData[savedRegion]) loadCountries(savedRegion);
+  }
+  if (savedCountry) {
+    selectedCountry = savedCountry;
+    const cb = document.querySelector("button[onclick=\"toggleDropdown('country')\"]");
+    if (cb) cb.textContent = "📡 " + savedCountry;
+  }
+  if (savedSite) {
+    selectedSite = savedSite;
+    const sb = document.querySelector("button[onclick=\"toggleDropdown('site')\"]");
+    if (sb) sb.textContent = "🛠 " + savedSite;
+  }
+
+  closeAllDropdowns();
+}
+restoreSelection();
+</script>
+
+<script>
+/* ── presentation layer only: mirror the selections the app already made ──
+   Wraps the original functions instead of editing them, so the data flow,
+   the API calls, and the lock rules are untouched. */
+(function () {
+  function paint() {
+    var map = { 'sc-region': selectedRegion, 'sc-country': selectedCountry, 'sc-site': selectedSite };
+    Object.keys(map).forEach(function (id) {
+      var row = document.getElementById(id);
+      if (!row) return;
+      row.querySelector('b').textContent = map[id] || '—';
+      row.classList.toggle('set', !!map[id]);
+    });
+
+    var ready = !!(selectedRegion && selectedCountry && selectedSite);
+    document.querySelectorAll('.card[data-mod]').forEach(function (c) {
+      if (c.dataset.mod === 'dashboard') return;
+      c.classList.toggle('locked', !ready);
+      c.querySelector('.req').textContent = ready ? 'Ready' : 'Needs site';
+    });
+
+    var note = document.getElementById('sc-note');
+    if (note) {
+      note.textContent = ready
+        ? 'All modules unlocked for ' + selectedSite + '.'
+        : 'Select all three to unlock every module.';
+    }
+  }
+
+  ['selectRegion', 'selectCountry', 'selectSite'].forEach(function (fn) {
+    var original = window[fn];
+    if (typeof original !== 'function') return;
+    window[fn] = function () {
+      var out = original.apply(this, arguments);
+      Promise.resolve(out).then(paint, paint);
+      paint();
+      return out;
+    };
+  });
+
+  var originalSite = window.selectSite;
+  window.selectSite = function (site) {
+    var out = originalSite.apply(this, arguments);
+    if (window.NetOps) window.NetOps.toast('Scope set to ' + site);
+    return out;
+  };
+
+  paint();
+})();
+</script>
+
+</body>
+</html>
