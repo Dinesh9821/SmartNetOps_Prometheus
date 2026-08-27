@@ -82,7 +82,8 @@ function indexBy(result, fields) {
   return map;
 }
 
-function wanStatusFrom(up, util) {
+function wanStatusFrom(up, util, admin) {
+  if (admin === 0) return "ADMIN_DOWN";
   if (up == null) return "UNKNOWN";
   if (up === 0) return "DOWN";
   if (up === 0.5) return "DEGRADED";
@@ -138,8 +139,12 @@ function snapshotQueries(siteId) {
     wanSiteTotal: `vmanage_site_wan_links_total{${s}}`,
     wanSiteUp: `vmanage_site_wan_links_up{${s}}`,
     wanInfo: `vmanage_wan_link_info{${s}}`,
+    wanAdmin: `wan_link_admin_up{${s}}`,
+    vmanageWanAdmin: `vmanage_wan_link_admin_up{${s}}`,
     wanLatency: `vmanage_wan_link_latency_ms{${s}}`,
+    wanJitter: `vmanage_wan_link_jitter_ms{${s}}`,
     wanLoss: `vmanage_wan_link_loss_percent{${s}}`,
+    defaultRoute: `vmanage_default_route_present{${s}}`,
     merakiLatency: merakiAtSite("meraki_uplink_latency_milliseconds", siteId),
     merakiLoss: merakiAtSite("meraki_uplink_loss_percent", siteId),
     merakiUplinkStatus: merakiAtSite("meraki_uplink_status", siteId),
@@ -181,17 +186,27 @@ function snapshotQueries(siteId) {
     merakiSiteOnline: `meraki_site_devices_online{${s}}`,
     merakiClients: `meraki_switch_client_count{${s}}`,
     merakiPortErr: `meraki_switch_ports_with_errors{${s}}`,
+    merakiPortWarn: `meraki_switch_ports_with_warnings{${s}}`,
+    merakiPortsTotal: `meraki_switch_ports_total{${s}}`,
+    merakiPortsConnected: `meraki_switch_ports_connected{${s}}`,
+    merakiPoe: `meraki_switch_poe_draw_watts{${s}}`,
     merakiApUtil: `meraki_ap_channel_utilization_percent{${s}}`,
+    merakiApWifi: `meraki_ap_channel_utilization_wifi_percent{${s}}`,
+    merakiApNonWifi: `meraki_ap_channel_utilization_non_wifi_percent{${s}}`,
 
     bfdTotal: `vmanage_bfd_sessions_total{${s}}`,
     bfdUp: `vmanage_bfd_sessions_up{${s}}`,
     bfdSession: `vmanage_bfd_session_up{${s}}`,
+    bfdUptime: `vmanage_bfd_session_uptime_seconds{${s}}`,
     bfdLatency: `vmanage_bfd_session_latency_ms{${s}}`,
     bfdLoss: `vmanage_bfd_session_loss_percent{${s}}`,
     bfdJitter: `vmanage_bfd_session_jitter_ms{${s}}`,
     ompTotal: `vmanage_omp_peers_total{${s}}`,
     ompUp: `vmanage_omp_peers_up{${s}}`,
     ompState: `vmanage_omp_peer_state_info{${s}}`,
+    ompRoutesRx: `vmanage_omp_routes_received{${s}}`,
+    ompRoutesInst: `vmanage_omp_routes_installed{${s}}`,
+    ompRoutesSent: `vmanage_omp_routes_sent{${s}}`,
     controlUp: `vmanage_control_connections_up{${s}}`,
     overlayUp: `overlay_sessions_up{${s}}`,
     overlayTotal: `overlay_sessions_total{${s}}`
@@ -233,12 +248,16 @@ function buildWan(q) {
         transport: metric.transport || metric.color || null,
         status: "UNKNOWN",
         up: null,
+        admin_up: null,
         rx_bps: null,
         tx_bps: null,
         utilization: null,
         bandwidth_bps: null,
         latency_ms: null,
-        loss_percent: null
+        jitter_ms: null,
+        loss_percent: null,
+        role: metric.role || null,
+        ip: metric.ip || null
       });
     } else {
       const row = links.get(k);
@@ -262,9 +281,20 @@ function buildWan(q) {
     row.provider = s.metric.provider || row.provider;
     row.circuit = s.metric.circuit_id || row.circuit;
     row.transport = s.metric.transport || row.transport;
+    row.role = s.metric.role || row.role;
+    row.ip = s.metric.ip || row.ip;
     row.interface = s.metric.vpn_id ? `${row.interface || s.metric.link}` : row.interface;
   });
+  function applyAdmin(s) {
+    const row = ensure(Object.assign({}, s.metric, {
+      device: s.metric.device || s.metric.hostname
+    }));
+    row.admin_up = s.value;
+  }
+  samples(q.wanAdmin && q.wanAdmin.result).forEach(applyAdmin);
+  samples(q.vmanageWanAdmin && q.vmanageWanAdmin.result).forEach(applyAdmin);
   samples(q.wanLatency && q.wanLatency.result).forEach((s) => { ensure(s.metric).latency_ms = s.value; });
+  samples(q.wanJitter && q.wanJitter.result).forEach((s) => { ensure(s.metric).jitter_ms = s.value; });
   samples(q.wanLoss && q.wanLoss.result).forEach((s) => { ensure(s.metric).loss_percent = s.value; });
 
   samples(q.merakiUplinkStatus && q.merakiUplinkStatus.result).forEach((s) => {
@@ -318,12 +348,15 @@ function buildWan(q) {
   });
 
   const rows = Array.from(links.values()).map((r) => {
-    r.status = wanStatusFrom(r.up, r.utilization);
+    r.status = wanStatusFrom(r.up, r.utilization, r.admin_up);
+    r.admin = r.admin_up == null ? null : (r.admin_up === 1 ? "UP" : "DOWN");
+    r.oper = r.up == null ? null : (r.up >= 1 ? "UP" : (r.up === 0.5 ? "DEGRADED" : "DOWN"));
     r.rx = bpsPretty(r.rx_bps);
     r.tx = bpsPretty(r.tx_bps);
     r.bandwidth = bpsPretty(r.bandwidth_bps);
     r.utilization = num(r.utilization, 1);
     r.latency_ms = num(r.latency_ms, 1);
+    r.jitter_ms = num(r.jitter_ms, 1);
     r.loss_percent = num(r.loss_percent, 2);
     return r;
   });
@@ -332,6 +365,7 @@ function buildWan(q) {
   const active = rows.filter((r) => r.status === "UP").length
     || scalarFrom(q.wanSiteUp && q.wanSiteUp.result)
     || 0;
+  const adminDown = rows.filter((r) => r.status === "ADMIN_DOWN").length;
   const down = rows.filter((r) => r.status === "DOWN").length;
   const utils = rows.map((r) => r.utilization).filter((v) => v != null);
   const avgUtil = utils.length ? utils.reduce((a, b) => a + b, 0) / utils.length : null;
@@ -341,6 +375,7 @@ function buildWan(q) {
     total: Number(total) || rows.length,
     active,
     down,
+    admin_down: adminDown,
     average_utilization: num(avgUtil, 1),
     links: rows
   };
@@ -580,6 +615,24 @@ function buildInterfaces(q) {
   };
 }
 
+function buildDefaultRoutes(q) {
+  const availability = sectionFrom(q, ["defaultRoute"]);
+  const rows = samples(q.defaultRoute && q.defaultRoute.result).map((s) => ({
+    device: s.metric.hostname,
+    vpn_id: s.metric.vpn_id,
+    present: s.value === 1,
+    status: s.value === 1 ? "PRESENT" : "MISSING"
+  }));
+  const missing = rows.filter((r) => !r.present);
+  return {
+    availability: rows.length ? availability : { available: false, reason: "No Data" },
+    total: rows.length,
+    present: rows.length - missing.length,
+    missing: missing.length,
+    rows
+  };
+}
+
 function buildMeraki(q) {
   const availability = sectionFrom(q, ["merakiSiteTotal", "merakiDeviceUp", "merakiByRole"]);
   const byRole = {};
@@ -596,11 +649,62 @@ function buildMeraki(q) {
   });
   const clients = scalarFrom(q.merakiClients && q.merakiClients.result);
   const portErr = scalarFrom(q.merakiPortErr && q.merakiPortErr.result);
+  const portWarn = scalarFrom(q.merakiPortWarn && q.merakiPortWarn.result);
+  const portsTotal = scalarFrom(q.merakiPortsTotal && q.merakiPortsTotal.result);
+  const portsConnected = scalarFrom(q.merakiPortsConnected && q.merakiPortsConnected.result);
+  const poe = scalarFrom(q.merakiPoe && q.merakiPoe.result);
   const apUtil = maxFrom(q.merakiApUtil && q.merakiApUtil.result);
+  const apWifi = maxFrom(q.merakiApWifi && q.merakiApWifi.result);
+  const apNonWifi = maxFrom(q.merakiApNonWifi && q.merakiApNonWifi.result);
   const total = scalarFrom(q.merakiSiteTotal && q.merakiSiteTotal.result);
   const online = scalarFrom(q.merakiSiteOnline && q.merakiSiteOnline.result);
   const uplinks = samples(q.merakiUplinkStatus && q.merakiUplinkStatus.result);
   const uplinkUp = uplinks.filter((s) => s.value >= 1).length;
+
+  const switchKeys = ["device_name", "serial"];
+  const swTotal = indexBy(q.merakiPortsTotal && q.merakiPortsTotal.result, switchKeys);
+  const swConn = indexBy(q.merakiPortsConnected && q.merakiPortsConnected.result, switchKeys);
+  const swErr = indexBy(q.merakiPortErr && q.merakiPortErr.result, switchKeys);
+  const swWarn = indexBy(q.merakiPortWarn && q.merakiPortWarn.result, switchKeys);
+  const swPoe = indexBy(q.merakiPoe && q.merakiPoe.result, switchKeys);
+  const swCli = indexBy(q.merakiClients && q.merakiClients.result, switchKeys);
+  const switchSeen = new Set([
+    ...swTotal.keys(), ...swConn.keys(), ...swErr.keys(), ...swWarn.keys(), ...swPoe.keys()
+  ]);
+  const switches = Array.from(switchSeen).filter(Boolean).map((k) => {
+    const sample = swTotal.get(k) || swConn.get(k) || swErr.get(k) || swPoe.get(k) || swCli.get(k);
+    const m = (sample && sample.metric) || {};
+    return {
+      device: m.device_name,
+      serial: m.serial,
+      model: m.model,
+      ports_total: swTotal.get(k) ? swTotal.get(k).value : null,
+      ports_connected: swConn.get(k) ? swConn.get(k).value : null,
+      errors: swErr.get(k) ? swErr.get(k).value : null,
+      warnings: swWarn.get(k) ? swWarn.get(k).value : null,
+      poe_watts: swPoe.get(k) ? num(swPoe.get(k).value, 1) : null,
+      clients: swCli.get(k) ? swCli.get(k).value : null
+    };
+  });
+
+  const aps = samples(q.merakiApUtil && q.merakiApUtil.result).map((s) => ({
+    device: s.metric.device_name,
+    serial: s.metric.serial,
+    band: s.metric.band,
+    util_percent: num(s.value, 1),
+    wifi_percent: null,
+    non_wifi_percent: null
+  }));
+  const wifiIdx = indexBy(q.merakiApWifi && q.merakiApWifi.result, ["device_name", "band", "serial"]);
+  const nonIdx = indexBy(q.merakiApNonWifi && q.merakiApNonWifi.result, ["device_name", "band", "serial"]);
+  aps.forEach((a) => {
+    const k = [a.device, a.band, a.serial].join("|");
+    const w = wifiIdx.get(k);
+    const n = nonIdx.get(k);
+    a.wifi_percent = w ? num(w.value, 1) : null;
+    a.non_wifi_percent = n ? num(n.value, 1) : null;
+  });
+
   return {
     availability: total || Object.keys(byType).length ? availability : { available: false, reason: "No Data" },
     total: total || Object.values(byType).reduce((a, x) => a + x.total, 0),
@@ -609,7 +713,15 @@ function buildMeraki(q) {
     by_product: byType,
     clients,
     switch_port_errors: portErr,
+    switch_port_warnings: portWarn,
+    switch_ports_total: portsTotal,
+    switch_ports_connected: portsConnected,
+    poe_watts: num(poe, 1),
     ap_channel_util_max: num(apUtil, 1),
+    ap_wifi_util_max: num(apWifi, 1),
+    ap_non_wifi_util_max: num(apNonWifi, 1),
+    switches,
+    access_points: aps,
     uplinks: { total: uplinks.length, active: uplinkUp, down: uplinks.filter((s) => s.value === 0).length }
   };
 }
@@ -637,23 +749,39 @@ function buildSdwan(q) {
     proto: s.metric.proto,
     state: s.value === 1 ? "UP" : "DOWN"
   }));
-  const lat = indexBy(q.bfdLatency && q.bfdLatency.result, ["hostname", "remote_system_ip", "local_color", "remote_color"]);
-  const loss = indexBy(q.bfdLoss && q.bfdLoss.result, ["hostname", "remote_system_ip", "local_color", "remote_color"]);
-  const jit = indexBy(q.bfdJitter && q.bfdJitter.result, ["hostname", "remote_system_ip", "local_color", "remote_color"]);
+  const bfdKey = ["hostname", "remote_system_ip", "local_color", "remote_color"];
+  const lat = indexBy(q.bfdLatency && q.bfdLatency.result, bfdKey);
+  const loss = indexBy(q.bfdLoss && q.bfdLoss.result, bfdKey);
+  const jit = indexBy(q.bfdJitter && q.bfdJitter.result, bfdKey);
+  const ut = indexBy(q.bfdUptime && q.bfdUptime.result, bfdKey);
   tunnels.forEach((t) => {
     const k = [t.device, t.remote_system_ip, t.transport, t.remote_color].join("|");
-    const L = lat.get(k); const Lo = loss.get(k); const J = jit.get(k);
+    const L = lat.get(k); const Lo = loss.get(k); const J = jit.get(k); const U = ut.get(k);
     t.latency_ms = L ? num(L.value, 1) : null;
     t.loss_percent = Lo ? num(Lo.value, 2) : null;
     t.jitter_ms = J ? num(J.value, 1) : null;
+    t.uptime_seconds = U ? U.value : null;
+    t.uptime = U ? secondsPretty(U.value) : null;
   });
 
-  const ompRows = samples(q.ompState && q.ompState.result).map((s) => ({
-    device: s.metric.hostname,
-    peer: s.metric.peer,
-    peer_type: s.metric.peer_type,
-    state: s.metric.state
-  }));
+  const rxIdx = indexBy(q.ompRoutesRx && q.ompRoutesRx.result, ["hostname", "peer"]);
+  const instIdx = indexBy(q.ompRoutesInst && q.ompRoutesInst.result, ["hostname", "peer"]);
+  const sentIdx = indexBy(q.ompRoutesSent && q.ompRoutesSent.result, ["hostname", "peer"]);
+  const ompRows = samples(q.ompState && q.ompState.result).map((s) => {
+    const k = keyOf(s.metric, ["hostname", "peer"]);
+    const rx = rxIdx.get(k);
+    const inst = instIdx.get(k);
+    const sent = sentIdx.get(k);
+    return {
+      device: s.metric.hostname,
+      peer: s.metric.peer,
+      peer_type: s.metric.peer_type,
+      state: s.metric.state,
+      routes_received: rx ? rx.value : null,
+      routes_installed: inst ? inst.value : null,
+      routes_sent: sent ? sent.value : null
+    };
+  });
 
   const edges = samples(q.vmanageReach && q.vmanageReach.result)
     .filter((s) => String(s.metric.device_role || s.metric.device_type || "").toUpperCase().includes("ROUTER")
@@ -681,11 +809,13 @@ function buildSdwan(q) {
   };
 }
 
-function collectIssues(wan, ospf, bgp, devices, ifaces, meraki, sdwan) {
+function collectIssues(wan, ospf, bgp, devices, ifaces, meraki, sdwan, routes) {
   const issues = [];
   wan.links.forEach((l) => {
     const name = `${l.link || l.interface || "WAN"} on ${l.device || "device"}`;
-    if (l.status === "DOWN") {
+    if (l.status === "ADMIN_DOWN") {
+      issues.push(issue("WARNING", "wan", `${name} is administratively down`, "Port/circuit is shut; not an L1 outage"));
+    } else if (l.status === "DOWN") {
       issues.push(issue("CRITICAL", "wan", `${name} is DOWN`, "WAN circuit operationally down"));
     } else if (l.utilization != null && l.utilization >= THRESHOLDS.wanUtilCritical) {
       issues.push(issue("CRITICAL", "wan", `${name} utilization ${l.utilization}%`, `Grafana threshold ${THRESHOLDS.wanUtilCritical}%`));
@@ -725,6 +855,9 @@ function collectIssues(wan, ospf, bgp, devices, ifaces, meraki, sdwan) {
   if (meraki.switch_port_errors && meraki.switch_port_errors > 0) {
     issues.push(issue("WARNING", "meraki", `${meraki.switch_port_errors} Meraki switch ports reporting errors`, ""));
   }
+  if (meraki.switch_port_warnings && meraki.switch_port_warnings > 0) {
+    issues.push(issue("INFO", "meraki", `${meraki.switch_port_warnings} Meraki switch ports reporting warnings`, ""));
+  }
   if (sdwan.bfd.total > 0 && sdwan.bfd.up === 0) {
     issues.push(issue("CRITICAL", "sdwan", "All BFD sessions are down", ""));
   } else if (sdwan.bfd.total > 0 && sdwan.bfd.up < sdwan.bfd.total) {
@@ -733,6 +866,11 @@ function collectIssues(wan, ospf, bgp, devices, ifaces, meraki, sdwan) {
   if (sdwan.omp.total > 0 && sdwan.omp.up === 0) {
     issues.push(issue("CRITICAL", "sdwan", "All OMP peers are down", ""));
   }
+  (routes && routes.rows ? routes.rows : []).filter((r) => !r.present).forEach((r) => {
+    const vpn = r.vpn_id == null ? "" : `VPN ${r.vpn_id}`;
+    issues.push(issue("CRITICAL", "routes", `${r.device} default route missing ${vpn}`.trim(),
+      "A missing 0.0.0.0/0 can black-hole the site while interfaces still read up"));
+  });
 
   const rank = { CRITICAL: 0, WARNING: 1, INFO: 2 };
   issues.sort((a, b) => (rank[a.severity] - rank[b.severity]) || a.title.localeCompare(b.title));
@@ -782,6 +920,7 @@ async function getSiteSnapshot(siteId, client) {
       interfaces: emptySection(),
       meraki: emptySection(),
       sdwan: emptySection(),
+      routes: emptySection(),
       issues: []
     };
   }
@@ -793,7 +932,8 @@ async function getSiteSnapshot(siteId, client) {
   const interfaces = buildInterfaces(queries);
   const meraki = buildMeraki(queries);
   const sdwan = buildSdwan(queries);
-  const issues = collectIssues(wan, ospf, bgp, devices, interfaces, meraki, sdwan);
+  const routes = buildDefaultRoutes(queries);
+  const issues = collectIssues(wan, ospf, bgp, devices, interfaces, meraki, sdwan, routes);
 
   const snapshot = {
     site_id: siteId,
@@ -818,6 +958,7 @@ async function getSiteSnapshot(siteId, client) {
     interfaces,
     meraki,
     sdwan,
+    routes,
     issues,
     query_errors: Object.fromEntries(
       Object.entries(queries)
@@ -907,6 +1048,9 @@ module.exports = {
   buildBgp,
   buildDevices,
   buildInterfaces,
+  buildMeraki,
+  buildSdwan,
+  buildDefaultRoutes,
   collectIssues,
   overallFrom,
   RANGE_WINDOWS

@@ -60,14 +60,14 @@ WAN `up == 0` is CRITICAL. Meraki `0.5` (alerting) is WARNING / DEGRADED.
 | ------------------ | -------------------- | ---------------------- | ----------------- |
 | Overall health | `site_health_percent`, device/WAN/routing issues | `site_health_percent{site_id="…"}` plus derived issues | complete-observability.json “Site health” |
 | Devices KPI | `site_devices_total:all`, `site_devices_up:all`, `device_info` | `{site_id="…"}` | complete-observability + inventory-dashboard |
-| WAN KPI / table / util | `wan_link_up`, `wan_link_rx_bits_per_second`, `wan_link_tx_bits_per_second`, `wan_link_utilization_percent`, `wan_link_capacity_bits_per_second`, `vmanage_wan_link_info` | unified recording rules, site_id | wan-dashboard.json, complete-observability WAN panels |
-| WAN latency/loss | `vmanage_wan_link_latency_ms`, `vmanage_wan_link_loss_percent`; Meraki uplinks joined `and on(serial) meraki_device_up{site_id}` | site-scoped | vManage WAN exporter + Meraki uplink quality |
+| WAN KPI / table / util | `wan_link_up`, `wan_link_admin_up` / `vmanage_wan_link_admin_up`, rx/tx/util/capacity, `vmanage_wan_link_info`, jitter | `{site_id="…"}` | wan-dashboard.json; vmanage-wan-rules.yml admin state |
+| Default routes | `vmanage_default_route_present` | `{site_id="…"}` | vManage exporter (VPN default-route coverage) |
 | OSPF | `vmanage_ospf_neighbor_state_info`, `vmanage_ospf_neighbor_up`, `vmanage_ospf_neighbor_uptime_seconds`, totals | `{site_id="…"}` | sdwan-dashboard.json routing family / exporter |
 | BGP | `vmanage_bgp_neighbor_state_info`, `vmanage_bgp_neighbor_up`, `vmanage_bgp_prefixes_received` | `{site_id="…"}` | sdwan-dashboard.json BGP state table |
 | Devices table | `device_info`, `meraki_device_up`, `meraki_device_status_info`, `meraki_device_memory_used_percent`, `meraki_device_cpu_load5`, `vmanage_device_reachable`, `vmanage_device_uptime_seconds` | `{site_id="…"}` | inventory + site-carrier-* device panels |
 | Interfaces | `vmanage_interface_oper_up` + rx/tx/errors/drops/speed | `{site_id="…"}` | sdwan-dashboard interface traffic/errors |
-| Meraki | `meraki_site_devices_total/online`, `meraki_site_devices_by_role`, `meraki_switch_client_count`, `meraki_switch_ports_with_errors`, `meraki_ap_channel_utilization_percent`, uplink status | `{site_id="…"}` | site-carrier-* Site Observability |
-| SD-WAN | `vmanage_bfd_session_*`, `vmanage_omp_*`, `vmanage_control_connections_up`, `overlay_sessions_*` | `{site_id="…"}` | sdwan-dashboard.json BFD/OMP/control |
+| Meraki | site device counts, switch ports total/connected/errors/warnings, PoE, client count, AP util / Wi‑Fi / non‑Wi‑Fi | `{site_id="…"}` | site-carrier-* Site Observability |
+| SD-WAN | BFD session up/latency/loss/jitter/**uptime**, OMP state + routes received/installed/sent, control connections | `{site_id="…"}` | sdwan-dashboard.json BFD/OMP/control |
 
 ## Missing metrics (not invented)
 

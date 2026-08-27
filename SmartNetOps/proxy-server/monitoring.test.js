@@ -11,6 +11,9 @@ const {
   buildBgp,
   buildDevices,
   buildInterfaces,
+  buildMeraki,
+  buildSdwan,
+  buildDefaultRoutes,
   collectIssues,
   overallFrom,
   getSiteSnapshot,
@@ -120,6 +123,79 @@ function testWanFailureAndUtilThresholds() {
   assert.strictEqual(THRESHOLDS.wanUtilHigh, 80);
   assert.strictEqual(THRESHOLDS.wanUtilWarning, 60);
   assert.strictEqual(THRESHOLDS.wanUtilCritical, 95);
+}
+
+function testAdminDownVsOperDown() {
+  const q = {
+    wanUp: ok([
+      vec({ device: "r1", link: "WAN1" }, 0),
+      vec({ device: "r1", link: "WAN2" }, 0)
+    ]),
+    vmanageWanAdmin: ok([
+      vec({ hostname: "r1", device: "r1", link: "WAN1" }, 0),
+      vec({ hostname: "r1", device: "r1", link: "WAN2" }, 1)
+    ])
+  };
+  const wan = buildWan(q);
+  assert.strictEqual(wan.links.find((l) => l.link === "WAN1").status, "ADMIN_DOWN");
+  assert.strictEqual(wan.links.find((l) => l.link === "WAN2").status, "DOWN");
+  const issues = collectIssues(
+    wan, { rows: [] }, { rows: [], peers: 0, established: 0 },
+    { rows: [] }, { rows: [] }, { switch_port_errors: 0 },
+    { bfd: { total: 0, up: 0 }, omp: { total: 0, up: 0 } },
+    { rows: [] }
+  );
+  assert.ok(issues.some((i) => i.severity === "WARNING" && /administratively/.test(i.title)));
+  assert.ok(issues.some((i) => i.severity === "CRITICAL" && /WAN2/.test(i.title)));
+}
+
+function testDefaultRouteAndOmpAndMeraki() {
+  const routes = buildDefaultRoutes({
+    defaultRoute: ok([
+      vec({ hostname: "r1", vpn_id: "0" }, 0),
+      vec({ hostname: "r1", vpn_id: "1" }, 1)
+    ])
+  });
+  assert.strictEqual(routes.missing, 1);
+  assert.strictEqual(routes.present, 1);
+
+  const sdwan = buildSdwan({
+    bfdSession: ok([vec({ hostname: "r1", remote_system_ip: "2.2.2.2", remote_site_id: "10", local_color: "biz-internet", remote_color: "lte", proto: "ipsec" }, 1)]),
+    bfdUptime: ok([vec({ hostname: "r1", remote_system_ip: "2.2.2.2", local_color: "biz-internet", remote_color: "lte" }, 3600)]),
+    bfdJitter: ok([vec({ hostname: "r1", remote_system_ip: "2.2.2.2", local_color: "biz-internet", remote_color: "lte" }, 4)]),
+    ompState: ok([vec({ hostname: "r1", peer: "1.1.1.1", peer_type: "vsmart", state: "up" }, 1)]),
+    ompRoutesRx: ok([vec({ hostname: "r1", peer: "1.1.1.1" }, 120)]),
+    ompRoutesInst: ok([vec({ hostname: "r1", peer: "1.1.1.1" }, 100)]),
+    ompRoutesSent: ok([vec({ hostname: "r1", peer: "1.1.1.1" }, 12)]),
+    vmanageReach: ok([vec({ hostname: "r1-RTR", device_role: "ROUTER" }, 1)])
+  });
+  assert.strictEqual(sdwan.tunnels[0].jitter_ms, 4);
+  assert.ok(sdwan.tunnels[0].uptime);
+  assert.strictEqual(sdwan.omp.rows[0].routes_received, 120);
+  assert.strictEqual(sdwan.omp.rows[0].routes_installed, 100);
+
+  const meraki = buildMeraki({
+    merakiDeviceUp: ok([vec({ device_name: "AP1", serial: "Q2XX", product_type: "wireless" }, 1)]),
+    merakiPortsTotal: ok([vec({ device_name: "SW1", serial: "Q2SW", model: "MS225" }, 48)]),
+    merakiPortsConnected: ok([vec({ device_name: "SW1", serial: "Q2SW", model: "MS225" }, 40)]),
+    merakiPortErr: ok([vec({ device_name: "SW1", serial: "Q2SW" }, 2)]),
+    merakiPoe: ok([vec({ device_name: "SW1", serial: "Q2SW" }, 31.5)]),
+    merakiApUtil: ok([vec({ device_name: "AP1", serial: "Q2XX", band: "5" }, 22)]),
+    merakiApNonWifi: ok([vec({ device_name: "AP1", serial: "Q2XX", band: "5" }, 8)])
+  });
+  assert.strictEqual(meraki.switches[0].ports_connected, 40);
+  assert.strictEqual(meraki.switches[0].errors, 2);
+  assert.strictEqual(meraki.access_points[0].non_wifi_percent, 8);
+
+  const issues = collectIssues(
+    { links: [], total: 0, active: 0 },
+    { rows: [] }, { rows: [], peers: 0, established: 0 },
+    { rows: [] }, { rows: [] }, meraki,
+    { bfd: { total: 0, up: 0 }, omp: { total: 0, up: 0 } },
+    routes
+  );
+  assert.ok(issues.some((i) => i.section === "routes" && i.severity === "CRITICAL"));
+  assert.ok(issues.some((i) => i.section === "meraki" && /errors/.test(i.title)));
 }
 
 function testBgpAndOspfFailure() {
@@ -254,6 +330,8 @@ async function run() {
   testEscape();
   testHealthySite();
   testWanFailureAndUtilThresholds();
+  testAdminDownVsOperDown();
+  testDefaultRouteAndOmpAndMeraki();
   testBgpAndOspfFailure();
   testDeviceDown();
   testNoTelemetryUnknown();

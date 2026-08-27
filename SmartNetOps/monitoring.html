@@ -164,6 +164,11 @@
     <div class="tbl-wrap" id="wanTable"></div>
   </section>
 
+  <section class="card" id="sec-routes">
+    <header><h3>Default routes</h3><span class="section-note" id="routeKpi"></span></header>
+    <div class="tbl-wrap" id="routeTable"></div>
+  </section>
+
   <div class="grid-2">
     <section class="card" id="sec-ospf">
       <header><h3>OSPF</h3><span class="section-note" id="ospfKpi"></span></header>
@@ -229,8 +234,9 @@
   function pill(v) {
     var t = String(v || "UNKNOWN").toUpperCase();
     var cls = "pill pill-UNKNOWN";
-    if (/UP|FULL|ESTABLISHED|HEALTHY/.test(t)) cls = "pill pill-UP";
-    else if (/DOWN|CRITICAL|IDLE/.test(t)) cls = "pill pill-DOWN";
+    if (/ADMIN/.test(t)) cls = "pill pill-DEGRADED";
+    else if (/UP|FULL|ESTABLISHED|HEALTHY|PRESENT/.test(t)) cls = "pill pill-UP";
+    else if (/DOWN|CRITICAL|IDLE|MISSING/.test(t)) cls = "pill pill-DOWN";
     else if (/DEGRADED|WARN|INIT|EXSTART|EXCHANGE|LOADING/.test(t)) cls = "pill pill-DEGRADED";
     return '<span class="' + cls + '">' + esc(t) + "</span>";
   }
@@ -262,7 +268,7 @@
       document.getElementById("kpis").innerHTML = [1,2,3,4,5].map(function () {
         return '<div class="kpi card"><div class="skel"></div><div class="skel"></div></div>';
       }).join("");
-      ["wanBars","wanTable","ospfTable","bgpTable","devTable","hostTable","ifTable","sdwanBody","merakiBody","issues"].forEach(function (id) {
+      ["wanBars","wanTable","routeTable","ospfTable","bgpTable","devTable","hostTable","ifTable","sdwanBody","merakiBody","issues"].forEach(function (id) {
         document.getElementById(id).innerHTML = '<div class="skel"></div><div class="skel"></div>';
       });
     }
@@ -300,11 +306,13 @@
     var b = data.bgp || {};
     var h = data.hosts || {};
     var iff = data.interfaces || {};
+    var rt = data.routes || {};
     document.getElementById("kpis").innerHTML =
       kpiCard("Devices", dash(d.total), (d.online || 0) + " online · " + (d.offline || 0) + " offline", availText(d)) +
-      kpiCard("WAN", dash(w.total), (w.active || 0) + " active · " + (w.down || 0) + " down · avg " + dash(w.average_utilization) + "%", availText(w)) +
+      kpiCard("WAN", dash(w.total), (w.active || 0) + " active · " + (w.down || 0) + " down · " + (w.admin_down || 0) + " admin down · avg " + dash(w.average_utilization) + "%", availText(w)) +
       kpiCard("OSPF", dash(o.neighbors), (o.established || 0) + " established · " + (o.down || 0) + " down", availText(o)) +
       kpiCard("BGP", dash(b.peers), (b.established || 0) + " established · " + (b.down || 0) + " down", availText(b)) +
+      kpiCard("Default routes", dash(rt.present) + " / " + dash(rt.total), (rt.missing || 0) + " missing", availText(rt)) +
       kpiCard("Interfaces", dash(iff.total), (iff.up || 0) + " up · " + (iff.down || 0) + " down", availText(iff)) +
       kpiCard("Hosts", "—", "ICMP host metrics not in telemetry", availText(h));
 
@@ -317,7 +325,8 @@
     document.querySelectorAll(".issue").forEach(function (el) {
       el.addEventListener("click", function () {
         var map = { wan: "sec-wan", ospf: "sec-ospf", bgp: "sec-bgp", devices: "sec-devices",
-                    interfaces: "sec-interfaces", meraki: "sec-meraki", sdwan: "sec-sdwan", hosts: "sec-hosts" };
+                    interfaces: "sec-interfaces", meraki: "sec-meraki", sdwan: "sec-sdwan",
+                    hosts: "sec-hosts", routes: "sec-routes" };
         var t = document.getElementById(map[el.dataset.sec] || "sec-issues");
         if (t) t.scrollIntoView({ behavior: "smooth", block: "start" });
       });
@@ -336,14 +345,25 @@
     }).join("") : empty(availText(w) === "Available" ? "No WAN links returned." : availText(w));
 
     document.getElementById("wanTable").innerHTML = links.length ? table(
-      ["WAN Link", "Provider", "Interface", "Status", "RX", "TX", "Latency", "Packet Loss"],
+      ["WAN Link", "Provider", "Interface", "Admin", "Oper", "Status", "RX", "TX", "Latency", "Jitter", "Packet Loss"],
       links.map(function (l) {
         return "<tr><td>" + esc(l.link) + "</td><td>" + esc(dash(l.provider)) + "</td><td>" +
-          esc(dash(l.interface)) + "</td><td>" + pill(l.status) + "</td><td>" + esc(dash(l.rx)) +
+          esc(dash(l.interface)) + "</td><td>" + pill(l.admin || "UNKNOWN") + "</td><td>" +
+          pill(l.oper || "UNKNOWN") + "</td><td>" + pill(l.status) + "</td><td>" + esc(dash(l.rx)) +
           "</td><td>" + esc(dash(l.tx)) + "</td><td>" + esc(dash(l.latency_ms)) +
-          "</td><td>" + esc(dash(l.loss_percent)) + "</td></tr>";
+          "</td><td>" + esc(dash(l.jitter_ms)) + "</td><td>" + esc(dash(l.loss_percent)) + "</td></tr>";
       }).join("")
     ) : empty(availText(w));
+
+    document.getElementById("routeKpi").textContent = rt.availability && rt.availability.available
+      ? ((rt.missing || 0) + " missing") : availText(rt);
+    document.getElementById("routeTable").innerHTML = (rt.rows && rt.rows.length) ? table(
+      ["Device", "VPN", "Default route"],
+      rt.rows.map(function (r) {
+        return "<tr><td>" + esc(r.device) + "</td><td>" + esc(dash(r.vpn_id)) + "</td><td>" +
+          pill(r.status) + "</td></tr>";
+      }).join("")
+    ) : empty(availText(rt));
 
     document.getElementById("ospfKpi").textContent = o.availability && o.availability.available
       ? (o.established + " / " + o.neighbors + " established") : availText(o);
@@ -412,13 +432,26 @@
       "</div>";
     var tunnels = s.tunnels || [];
     if (tunnels.length) {
-      html += '<div class="tbl-wrap" style="margin-top:12px">' + table(
-        ["Device", "Remote", "Remote site", "Transport", "State", "Latency", "Loss", "Jitter"],
+      html += '<div class="eyebrow" style="margin:14px 0 8px">BFD tunnels</div><div class="tbl-wrap">' + table(
+        ["Device", "Remote", "Remote site", "Transport", "State", "Latency", "Loss", "Jitter", "Uptime"],
         tunnels.slice(0, 80).map(function (t) {
           return "<tr><td>" + esc(t.device) + "</td><td>" + esc(dash(t.remote_system_ip)) +
             "</td><td>" + esc(dash(t.remote_site_id)) + "</td><td>" + esc(dash(t.transport)) +
             "</td><td>" + pill(t.state) + "</td><td>" + esc(dash(t.latency_ms)) +
-            "</td><td>" + esc(dash(t.loss_percent)) + "</td><td>" + esc(dash(t.jitter_ms)) + "</td></tr>";
+            "</td><td>" + esc(dash(t.loss_percent)) + "</td><td>" + esc(dash(t.jitter_ms)) +
+            "</td><td>" + esc(dash(t.uptime)) + "</td></tr>";
+        }).join("")
+      ) + "</div>";
+    }
+    var ompRows = (s.omp && s.omp.rows) || [];
+    if (ompRows.length) {
+      html += '<div class="eyebrow" style="margin:14px 0 8px">OMP peers</div><div class="tbl-wrap">' + table(
+        ["Device", "Peer", "Type", "State", "Rx", "Installed", "Sent"],
+        ompRows.map(function (r) {
+          return "<tr><td>" + esc(r.device) + "</td><td>" + esc(dash(r.peer)) + "</td><td>" +
+            esc(dash(r.peer_type)) + "</td><td>" + pill(r.state) + "</td><td>" +
+            esc(dash(r.routes_received)) + "</td><td>" + esc(dash(r.routes_installed)) +
+            "</td><td>" + esc(dash(r.routes_sent)) + "</td></tr>";
         }).join("")
       ) + "</div>";
     }
@@ -447,9 +480,35 @@
       mstat("MX", pair("appliance", "MX")) +
       mstat("Clients", dash(m.clients)) +
       mstat("Uplinks", m.uplinks ? (m.uplinks.active + " / " + m.uplinks.total) : "—") +
+      mstat("Ports", (dash(m.switch_ports_connected) + " / " + dash(m.switch_ports_total))) +
       mstat("Port errors", dash(m.switch_port_errors)) +
+      mstat("Port warnings", dash(m.switch_port_warnings)) +
+      mstat("PoE", m.poe_watts == null ? "—" : m.poe_watts + " W") +
       mstat("Peak AP util", m.ap_channel_util_max == null ? "—" : m.ap_channel_util_max + "%") +
+      mstat("Wi‑Fi util", m.ap_wifi_util_max == null ? "—" : m.ap_wifi_util_max + "%") +
+      mstat("Non‑Wi‑Fi", m.ap_non_wifi_util_max == null ? "—" : m.ap_non_wifi_util_max + "%") +
       "</div>";
+    if (m.switches && m.switches.length) {
+      html += '<div class="eyebrow" style="margin:14px 0 8px">Switches</div><div class="tbl-wrap">' + table(
+        ["Switch", "Model", "Ports up", "Errors", "Warnings", "PoE W", "Clients"],
+        m.switches.map(function (s) {
+          return "<tr><td>" + esc(s.device) + "</td><td>" + esc(dash(s.model)) + "</td><td>" +
+            esc(dash(s.ports_connected) + " / " + dash(s.ports_total)) + "</td><td>" +
+            esc(dash(s.errors)) + "</td><td>" + esc(dash(s.warnings)) + "</td><td>" +
+            esc(dash(s.poe_watts)) + "</td><td>" + esc(dash(s.clients)) + "</td></tr>";
+        }).join("")
+      ) + "</div>";
+    }
+    if (m.access_points && m.access_points.length) {
+      html += '<div class="eyebrow" style="margin:14px 0 8px">AP channel interference</div><div class="tbl-wrap">' + table(
+        ["AP", "Band", "Util %", "Wi‑Fi %", "Non‑Wi‑Fi %"],
+        m.access_points.map(function (a) {
+          return "<tr><td>" + esc(a.device) + "</td><td>" + esc(dash(a.band)) + "</td><td>" +
+            esc(dash(a.util_percent)) + "</td><td>" + esc(dash(a.wifi_percent)) + "</td><td>" +
+            esc(dash(a.non_wifi_percent)) + "</td></tr>";
+        }).join("")
+      ) + "</div>";
+    }
     document.getElementById("merakiBody").innerHTML = html;
   }
 
