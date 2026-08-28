@@ -462,7 +462,10 @@ html[data-theme="light"] .cmdbar{
   background:rgba(255,255,255,.86);
   box-shadow:0 1px 0 rgba(15,23,42,.06), 0 10px 40px -24px rgba(15,23,42,.2);
 }
-html[data-theme="light"] .cmdbar-brand{ color:var(--ink); }
+html[data-theme="light"] .cmd-stat,
+html[data-theme="light"] .cmd-trigger,
+html[data-theme="light"] kbd{ color:var(--ink-2); }
+html[data-theme="light"] .cmd-theme{ color:var(--ink); background:rgba(15,23,42,.04); }
 html[data-theme="light"] .crumbs a:hover{ color:var(--ink) !important; }
 html[data-theme="light"] .palette-scrim{ background:rgba(241,245,249,.72); }
 html[data-theme="light"] .palette{
@@ -501,7 +504,12 @@ html[data-theme="light"] button:hover, html[data-theme="light"] .btn:hover{
 html[data-theme="light"] .crumbs a:hover{ color:var(--ink) !important; }
 html[data-theme="light"] .user-msg{ color:#0F172A !important; }
 .login-theme{
-  position:fixed; top:16px; right:16px; z-index:50;
+  position:fixed !important;
+  top:16px !important;
+  right:16px !important;
+  left:auto !important;
+  bottom:auto !important;
+  z-index:1200;
   width:36px; height:36px; font-size:16px;
 }
 
