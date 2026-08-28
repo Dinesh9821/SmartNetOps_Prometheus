@@ -153,10 +153,11 @@
     <header><h3>WAN Link Utilization</h3><span class="section-note" id="wanAvail"></span></header>
     <div class="bars" id="wanBars"></div>
     <div class="charts" style="margin-top:16px">
-      <div class="chart-box"><div class="eyebrow">Inbound vs outbound</div><canvas id="chartWan" width="640" height="140"></canvas></div>
-      <div class="chart-box"><div class="eyebrow">Latency</div><canvas id="chartLat" width="640" height="140"></canvas></div>
-      <div class="chart-box"><div class="eyebrow">Packet loss / drops</div><canvas id="chartLoss" width="640" height="140"></canvas></div>
-      <div class="chart-box"><div class="eyebrow">Device availability</div><canvas id="chartDev" width="640" height="140"></canvas></div>
+      <div class="chart-box"><div class="eyebrow">Live utilization</div><canvas id="chartUtil" width="640" height="160"></canvas></div>
+      <div class="chart-box"><div class="eyebrow">Inbound vs outbound</div><canvas id="chartWan" width="640" height="160"></canvas></div>
+      <div class="chart-box"><div class="eyebrow">Latency</div><canvas id="chartLat" width="640" height="160"></canvas></div>
+      <div class="chart-box"><div class="eyebrow">Packet loss / drops</div><canvas id="chartLoss" width="640" height="160"></canvas></div>
+      <div class="chart-box"><div class="eyebrow">Device availability</div><canvas id="chartDev" width="640" height="160"></canvas></div>
     </div>
     <div class="section-note" id="chartWindow" style="margin-top:10px"></div>
   </section>
@@ -242,9 +243,34 @@
       .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   }
   function dash(v) { return v == null || v === "" ? "—" : v; }
+  function clockHm(input) {
+    if (input == null || input === "") return "";
+    var d = typeof input === "number" ? new Date(input < 1e12 ? input * 1000 : input) : new Date(input);
+    if (isNaN(d.getTime())) return "";
+    var h = d.getHours() % 12;
+    if (h === 0) h = 12;
+    return h + ":" + String(d.getMinutes()).padStart(2, "0");
+  }
+
+  function niceTimeTicks(tMin, tMax) {
+    var span = Math.max(1, tMax - tMin);
+    var step = 300;
+    if (span <= 15 * 60) step = 60;
+    else if (span <= 40 * 60) step = 120;
+    else if (span <= 2.5 * 3600) step = 300;
+    else if (span <= 8 * 3600) step = 900;
+    else if (span <= 20 * 3600) step = 1800;
+    else if (span <= 48 * 3600) step = 3600;
+    else step = 4 * 3600;
+    var start = Math.ceil(tMin / step) * step;
+    var ticks = [];
+    for (var t = start; t <= tMax + 1; t += step) ticks.push(t);
+    if (!ticks.length) ticks = [tMin, tMax];
+    return ticks;
+  }
   function formatStamp(input) {
     if (input == null || input === "") return "—";
-    var d = typeof input === "number" ? new Date(input * 1000) : new Date(input);
+    var d = typeof input === "number" ? new Date(input < 1e12 ? input * 1000 : input) : new Date(input);
     if (isNaN(d.getTime())) return "—";
     var pad = function (n) { return String(n).padStart(2, "0"); };
     return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()) +
@@ -543,7 +569,7 @@
     var w = canvas.width, h = canvas.height;
     ctx.clearRect(0, 0, w, h);
     ctx.strokeStyle = "rgba(148,163,184,.18)";
-    ctx.beginPath(); ctx.moveTo(32, 8); ctx.lineTo(32, h - 28); ctx.lineTo(w - 8, h - 28); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(32, 8); ctx.lineTo(32, h - 32); ctx.lineTo(w - 8, h - 32); ctx.stroke();
     var series = (seriesList || []).filter(function (s) { return s && s.values && s.values.length; });
     if (!series.length) {
       ctx.fillStyle = "#5D6B80";
@@ -570,8 +596,14 @@
       ctx.lineWidth = 1.6;
       ctx.beginPath();
       s.values.forEach(function (p, idx) {
-        var x = 32 + (idx / Math.max(s.values.length - 1, 1)) * (w - 44);
-        var y = 8 + (1 - (p[1] - min) / (max - min)) * (h - 36);
+        var t = Number(p[0]);
+        var x;
+        if (tMin != null && tMax != null && tMax !== tMin && Number.isFinite(t)) {
+          x = 32 + ((t - tMin) / (tMax - tMin)) * (w - 44);
+        } else {
+          x = 32 + (idx / Math.max(s.values.length - 1, 1)) * (w - 44);
+        }
+        var y = 8 + (1 - (p[1] - min) / (max - min)) * (h - 40);
         if (idx === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
       });
       ctx.stroke();
@@ -579,11 +611,14 @@
     if (tMin != null && tMax != null) {
       ctx.fillStyle = "#5D6B80";
       ctx.font = "10px JetBrains Mono,monospace";
+      ctx.textBaseline = "top";
+      niceTimeTicks(tMin, tMax).forEach(function (t) {
+        var x = tMax === tMin ? 32 : 32 + ((t - tMin) / (tMax - tMin)) * (w - 44);
+        ctx.textAlign = "center";
+        ctx.fillText(clockHm(t), x, h - 24);
+      });
       ctx.textAlign = "left";
-      ctx.fillText(formatStamp(tMin), 32, h - 8);
-      ctx.textAlign = "right";
-      ctx.fillText(formatStamp(tMax), w - 8, h - 8);
-      ctx.textAlign = "left";
+      ctx.textBaseline = "alphabetic";
     }
   }
 
@@ -606,6 +641,7 @@
 
   function renderSeries(data) {
     var c = data.charts || {};
+    drawChart(document.getElementById("chartUtil"), flattenCharts(c.wan_util).length ? flattenCharts(c.wan_util) : sumSeries(c.wan_util), ["#22D3EE"]);
     drawChart(document.getElementById("chartWan"), sumSeries(c.wan_rx).concat(sumSeries(c.wan_tx)), ["#22D3EE", "#A78BFA"]);
     drawChart(document.getElementById("chartLat"), flattenCharts(c.latency), ["#FBBF24"]);
     drawChart(document.getElementById("chartLoss"),

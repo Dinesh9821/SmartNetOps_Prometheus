@@ -57,9 +57,38 @@
   }
 
   /* ── streaming area chart ─────────────────────────────────── */
+  function clockHm(ts) {
+    var ms = Number(ts);
+    if (!Number.isFinite(ms)) return '';
+    if (ms < 1e12) ms *= 1000;
+    var d = new Date(ms);
+    if (isNaN(d.getTime())) return '';
+    var h = d.getHours() % 12;
+    if (h === 0) h = 12;
+    var m = String(d.getMinutes()).padStart(2, '0');
+    return h + ':' + m;
+  }
+
+  function niceTimeTicks(tMin, tMax) {
+    var span = Math.max(1, tMax - tMin);
+    var step = 300;
+    if (span <= 15 * 60) step = 60;
+    else if (span <= 40 * 60) step = 120;
+    else if (span <= 2.5 * 3600) step = 300;
+    else if (span <= 8 * 3600) step = 900;
+    else if (span <= 20 * 3600) step = 1800;
+    else if (span <= 48 * 3600) step = 3600;
+    else step = 4 * 3600;
+    var start = Math.ceil(tMin / step) * step;
+    var ticks = [];
+    for (var t = start; t <= tMax + 1; t += step) ticks.push(t);
+    if (!ticks.length) ticks = [tMin, tMax];
+    return ticks;
+  }
+
   function Stream(el, series, opts) {
     opts = opts || {};
-    var W = 760, H = 210, PAD = 26;
+    var W = 760, H = 210, PAD_L = 36, PAD_T = 18, PAD_R = 12, PAD_B = 18;
     var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
     svg.setAttribute('preserveAspectRatio', 'none');
@@ -76,11 +105,17 @@
     el.innerHTML = '';
     el.appendChild(svg);
 
-    // horizontal rules + axis labels
+    var times = (opts.times || []).map(Number).filter(function (t) { return Number.isFinite(t); });
+    var tMin = times.length ? times[0] : null;
+    var tMax = times.length ? times[times.length - 1] : null;
+    if (tMin != null && tMax != null && tMax < tMin) {
+      var tmp = tMin; tMin = tMax; tMax = tmp;
+    }
+
     var grid = '';
     for (var g = 0; g <= 4; g++) {
-      var y = PAD + (g / 4) * (H - PAD * 2);
-      grid += '<line x1="0" y1="' + y + '" x2="' + W + '" y2="' + y + '" stroke="rgba(148,163,184,.09)" stroke-width="1"/>' +
+      var y = PAD_T + (g / 4) * (H - PAD_T - PAD_B);
+      grid += '<line x1="' + PAD_L + '" y1="' + y + '" x2="' + W + '" y2="' + y + '" stroke="rgba(148,163,184,.09)" stroke-width="1"/>' +
               '<text x="2" y="' + (y - 4) + '" fill="#5D6B80" font-size="9" font-family="JetBrains Mono">' +
                 (100 - g * 25) + '%</text>';
     }
@@ -88,14 +123,22 @@
 
     var plot = svg.querySelector('.plot');
 
+    function xAtIndex(k, n) {
+      if (n <= 1) return PAD_L;
+      if (times.length >= n && tMin != null && tMax !== tMin) {
+        return PAD_L + ((times[k] - tMin) / (tMax - tMin)) * (W - PAD_L - PAD_R);
+      }
+      return PAD_L + (k / (n - 1)) * (W - PAD_L - PAD_R);
+    }
+
     function draw() {
       var out = '';
       series.forEach(function (s, i) {
         var d = s.data, n = d.length;
+        if (n < 2) return;
         var pts = d.map(function (v, k) {
-          return [(k / (n - 1)) * W, PAD + (1 - v / 100) * (H - PAD * 2)];
+          return [xAtIndex(k, n), PAD_T + (1 - v / 100) * (H - PAD_T - PAD_B)];
         });
-        // Catmull-Rom → cubic bezier for a smooth, non-jagged curve
         var path = 'M' + pts[0][0] + ' ' + pts[0][1];
         for (var k = 0; k < pts.length - 1; k++) {
           var p0 = pts[k ? k - 1 : 0], p1 = pts[k], p2 = pts[k + 1], p3 = pts[k + 2] || p2;
@@ -103,7 +146,7 @@
                   ' ' + (p2[0] - (p3[0] - p1[0]) / 6).toFixed(1) + ' ' + (p2[1] - (p3[1] - p1[1]) / 6).toFixed(1) +
                   ' ' + p2[0].toFixed(1) + ' ' + p2[1].toFixed(1);
         }
-        out += '<path d="' + path + ' L' + W + ' ' + H + ' L0 ' + H + ' Z" fill="url(#sf' + i + ')"/>' +
+        out += '<path d="' + path + ' L' + W + ' ' + H + ' L' + PAD_L + ' ' + H + ' Z" fill="url(#sf' + i + ')"/>' +
                '<path d="' + path + '" fill="none" stroke="' + s.color + '" stroke-width="2" ' +
                      'stroke-linecap="round" vector-effect="non-scaling-stroke" ' +
                      'style="filter:drop-shadow(0 0 7px ' + s.color + '99)"/>' +
@@ -114,6 +157,22 @@
     }
 
     draw();
+
+    var axis = document.createElement('div');
+    axis.setAttribute('data-time-axis', '1');
+    axis.style.cssText = 'position:relative;height:18px;margin:' + (PAD_B ? '0' : '0') + ' 12px 0 36px';
+    if (tMin != null && tMax != null) {
+      niceTimeTicks(tMin, tMax).forEach(function (t) {
+        var span = document.createElement('span');
+        span.textContent = clockHm(t);
+        var pct = tMax === tMin ? 0 : ((t - tMin) / (tMax - tMin)) * 100;
+        span.style.cssText = 'position:absolute;top:2px;left:' + pct + '%;transform:translateX(-50%);' +
+          'font-family:JetBrains Mono,monospace;font-size:10px;color:#5D6B80;white-space:nowrap';
+        axis.appendChild(span);
+      });
+    }
+    el.appendChild(axis);
+
     if (!REDUCED && !opts.static) {
       setInterval(function () {
         series.forEach(function (s) {

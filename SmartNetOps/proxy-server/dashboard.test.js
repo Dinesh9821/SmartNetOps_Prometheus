@@ -110,6 +110,8 @@ async function testGetDashboardMock() {
   assert.ok(global.kpis.devices.available);
   assert.ok(global.last_updated);
   assert.ok(global.scraped_at);
+  assert.ok(global.throughput);
+  assert.ok(Array.isArray(global.throughput.times));
   const site = await getDashboard("MY-1800", client);
   assert.strictEqual(site.scope, "site");
   assert.strictEqual(site.site_id, "MY-1800");

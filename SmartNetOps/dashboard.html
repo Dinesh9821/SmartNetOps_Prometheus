@@ -212,8 +212,8 @@
       <div class="card reveal">
         <header>
           <div class="hd">
-            <h3>Throughput</h3>
-            <span class="muted" id="throughput-muted">Ingress and egress, % of provisioned capacity</span>
+            <h3>Live utilization</h3>
+            <span class="muted" id="throughput-muted">Live utilization · time on the axis</span>
           </div>
           <div style="display:flex;gap:12px;font-size:11px;color:var(--ink-2)">
             <span><span class="led" style="background:#22D3EE;color:rgba(34,211,238,.5)"></span> Ingress</span>
@@ -690,7 +690,7 @@
     var win = data.window || {};
     var tpMuted = document.getElementById("throughput-muted");
     if (tpMuted) {
-      tpMuted.textContent = "Ingress / egress · " + formatStamp(win.throughput_start) + " → " + formatStamp(win.throughput_end);
+      tpMuted.textContent = "Live utilization";
     }
     var gMuted = document.getElementById("gauges-muted");
     if (gMuted) gMuted.textContent = "As of " + scraped;
@@ -738,7 +738,7 @@
         new V.Stream(document.getElementById("stream"), [
           { name: "Ingress", color: C.cyan, data: padSeries(tp.ingress), min: 0, max: 100, vol: 0 },
           { name: "Egress", color: C.violet, data: padSeries(tp.egress), min: 0, max: 100, vol: 0 }
-        ], { static: true });
+        ], { static: true, times: tp.times || [] });
       }
       if (document.getElementById("heatmap")) V.heatmap(document.getElementById("heatmap"), data.heatmap);
       if (document.getElementById("topology")) V.topology(document.getElementById("topology"), data.topology);

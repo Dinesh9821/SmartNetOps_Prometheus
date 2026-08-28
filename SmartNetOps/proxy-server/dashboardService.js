@@ -335,10 +335,18 @@ async function getDashboard(siteId, client) {
   const egressPct = scaleToPct(series.tx);
   let throughputIngress = ingressPct;
   let throughputEgress = egressPct;
+  let throughputSrc = series.rx.length ? series.rx : series.tx;
   if (!ingressPct.length && series.util.length) {
     throughputIngress = series.util.map((p) => num(p[1], 2));
     throughputEgress = series.util.map((p) => num(p[1] * 0.75, 2));
+    throughputSrc = series.util;
   }
+  const tpSlice = Math.min(
+    60,
+    throughputSrc.length || 60,
+    throughputIngress.length || 60,
+    throughputEgress.length || 60
+  );
 
   const qvals = Object.values(q);
   const allFailed = qvals.length && qvals.every((v) => !v.ok);
@@ -378,8 +386,9 @@ async function getDashboard(siteId, client) {
     events,
     insights,
     throughput: {
-      ingress: throughputIngress.slice(-48),
-      egress: throughputEgress.slice(-48)
+      times: throughputSrc.slice(-tpSlice).map((p) => p[0]),
+      ingress: throughputIngress.slice(-tpSlice),
+      egress: throughputEgress.slice(-tpSlice)
     },
     sparks: {
       devices: series.devices.map((p) => p[1]).slice(-24),

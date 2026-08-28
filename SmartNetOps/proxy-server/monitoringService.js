@@ -1067,6 +1067,7 @@ async function getSiteSeries(siteId, rangeKey, client) {
   const charts = {
     wan_rx: `wan_link_rx_bits_per_second{${s}}`,
     wan_tx: `wan_link_tx_bits_per_second{${s}}`,
+    wan_util: `avg(wan_link_utilization_percent{${s}})`,
     latency_rec: `avg(wan_link_latency_milliseconds{${s}})`,
     latency_vmanage: `avg(vmanage_wan_link_latency_ms{${s}})`,
     latency_bfd: `avg(vmanage_bfd_session_latency_ms{${s}})`,
