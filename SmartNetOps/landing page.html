@@ -268,7 +268,14 @@
         <button onclick="openCard('request-incident-analysis')">Open Request/Incident AI analysis</button>
       </div>
 
-    <///div>
+      <div class="card reveal" data-mod="admin" id="admin-card" style="display:none;">
+        <div class="card-top"><div class="icon-box green">⚿</div><span class="req">Admin</span></div>
+        <div class="title">Admin Console</div>
+        <div class="desc">Usage, operators, and modeled ROI by module — Monitoring ~$620K, NetAutomation ~$480K, and the rest of the hub.</div>
+        <button class="primary" onclick="openCard('admin')">Open Admin Console</button>
+      </div>
+
+    </div>
   </div>
 </div>
 
@@ -699,7 +706,6 @@ function closePopup() {
 
 function openCard(pageKey) {
 
-// Dashboard opens freely (NO restrictions)
 if (pageKey === "dashboard") {
   if (window.ActivityTracker) {
     window.ActivityTracker.trackModuleAccess("Dashboard");
@@ -708,14 +714,18 @@ if (pageKey === "dashboard") {
   return;
 }
 
-// For other pages: selections required
-if (!selectedRegion || !selectedCountry || !selectedSite) {
-  showLockPopup();
-  //Button disabled
+if (pageKey === "admin") {
+  if (window.ActivityTracker) window.ActivityTracker.trackModuleAccess("Admin Console");
+  window.location.href = "admin.html";
   return;
 }
 
-// Save selections
+// For other pages: selections required
+if (!selectedRegion || !selectedCountry || !selectedSite) {
+  showLockPopup();
+  return;
+}
+
 localStorage.setItem("selectedRegion", selectedRegion);
 localStorage.setItem("selectedCountry", selectedCountry);
 localStorage.setItem("selectedSite", selectedSite);
@@ -730,22 +740,30 @@ const mapping = {
   dashboard: "dashboard.html",
   monitoring: "monitoring.html",
   logicmonitor: "logicmonitor.html",
+  "Network Diagram": "Network Diagram.html",
   network_diagram: "Network Diagram.html",
-  "circuit-diversity": "circuit-diversity.html"
+  "circuit-diversity": "circuit-diversity.html",
+  firewall: "firewall.html",
+  "site-info-update": "site-info-update.html",
+  "request-incident-analysis": "request-incident-analysis.html"
 };
 
 const moduleNames = {
   chatops: "ChatOps",
-  netchatops: "Network's Vedas",
+  netchatops: "Network with Us",
   netautomationflow: "NetAutomation Flow",
   dashboard: "Dashboard",
   monitoring: "Monitoring",
   logicmonitor: "Logic Monitor Operations",
+  "Network Diagram": "Network Diagram",
   network_diagram: "Network Diagram",
   serverautomationflow: "Server Automation Flow",
   cloudautomationflow: "Cloud Automation Flow",
   pathanalysisflow: "Path Analysis Flow",
-  "circuit-diversity": "Circuit Diversity"
+  "circuit-diversity": "Circuit Diversity",
+  firewall: "Firewall",
+  "site-info-update": "Site-Info Update",
+  "request-incident-analysis": "Request / Incident AI"
 };
 
 if (window.ActivityTracker) {
@@ -792,6 +810,12 @@ function restoreSelection() {
   closeAllDropdowns();
 }
 restoreSelection();
+try {
+  if (localStorage.getItem("currentUser") === "Admin" && localStorage.getItem("isAdmin") === "true") {
+    var ac = document.getElementById("admin-card");
+    if (ac) ac.style.display = "";
+  }
+} catch (e) {}
 </script>
 
 <script>

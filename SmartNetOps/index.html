@@ -136,7 +136,7 @@
       <span class="peek show-pass" onclick="togglePassword()">👁</span>
     </div>
 
-    <button class="login-btn" onclick="login1()">Sign in</button>
+    <button class="login-btn" onclick="login()">Sign in</button>
 
     <div class="error" id="error-msg">Invalid username or password</div>
 
@@ -150,13 +150,17 @@
 
 <script defer src="theme.js"></script>
 <script>
-  // ── original auth logic, unchanged ────────────────────────────
   const userRecords = JSON.parse(localStorage.getItem("userRecords") || "{}");
-  const ADMIN_PASSWORD = "Admin@123";
+  const ADMIN_PASS_KEY = "adminPassword";
+  const DEFAULT_ADMIN_PASS = "Admin@123";
 
   function togglePassword() {
     const pass = document.getElementById("password");
     pass.type = pass.type === "password" ? "text" : "password";
+  }
+
+  function adminPassword() {
+    return localStorage.getItem(ADMIN_PASS_KEY) || DEFAULT_ADMIN_PASS;
   }
 
   function validateUsername(username) {
@@ -169,34 +173,23 @@
     return { valid: lengthValid, lengthValid };
   }
 
-  function login1(){
-    const user = document.getElementById("username").value.trim();
-    const pass = document.getElementById("password").value.trim();
-    const error = document.getElementById("error-msg");
-
-    if (user === "Admin" && pass === 'Admin@123') {
-      localStorage.setItem("currentUser", user);
-      localStorage.setItem("isAdmin", "true");
-      if (window.ActivityTracker) window.ActivityTracker.trackLogin(user, true);
-      document.querySelector(".login-btn").style.transform = "scale(0.95)";
-      error.style.display = "none";
-      setTimeout(() => window.location.href = "admin.html", 300);
-    } else {
-      localStorage.setItem("currentUser", user);
-      localStorage.setItem("isAdmin", "false");
-      if (window.ActivityTracker) window.ActivityTracker.trackLogin(user, false);
-      document.querySelector(".login-btn").style.transform = "scale(0.95)";
-      error.style.display = "none";
-      setTimeout(() => { window.location.href = "landing page.html"; }, 400);
-    }
-  }
-
   function login() {
     const user = document.getElementById("username").value.trim();
     const pass = document.getElementById("password").value.trim();
     const error = document.getElementById("error-msg");
 
-    if (user === "Admin" && pass === 'Admin@123') {
+    if (!user || !pass) {
+      error.style.display = "block";
+      error.textContent = "Enter username and password";
+      return;
+    }
+
+    if (user === "Admin") {
+      if (pass !== adminPassword()) {
+        error.style.display = "block";
+        error.textContent = "Invalid username or password";
+        return;
+      }
       localStorage.setItem("currentUser", user);
       localStorage.setItem("isAdmin", "true");
       if (window.ActivityTracker) window.ActivityTracker.trackLogin(user, true);
@@ -204,41 +197,41 @@
       error.style.display = "none";
       setTimeout(() => window.location.href = "admin.html", 300);
       return;
-    } else {
-      const userCheck = validateUsername(user);
-      if (!userCheck.valid) {
-        error.style.display = "block";
-        error.textContent = "Username must be 3–20 characters";
-        return;
-      }
-
-      const passCheck = validatePassword(pass);
-      if (!passCheck.valid) {
-        error.style.display = "block";
-        error.textContent = "Password must be 6–20 characters";
-        return;
-      }
-
-      if (userRecords[user]) {
-        if (userRecords[user] !== pass) {
-          error.style.display = "block";
-          error.textContent = "Incorrect password";
-          return;
-        }
-      } else {
-        userRecords[user] = pass;
-        localStorage.setItem("userRecords", JSON.stringify(userRecords));
-      }
-
-      localStorage.setItem("currentUser", user);
-      localStorage.setItem("username", user);
-      localStorage.setItem("isAdmin", "false");
-      if (window.ActivityTracker) window.ActivityTracker.trackLogin(user, false);
-
-      document.querySelector(".login-btn").style.transform = "scale(0.95)";
-      error.style.display = "none";
-      setTimeout(() => { window.location.href = "landing page.html"; }, 400);
     }
+
+    const userCheck = validateUsername(user);
+    if (!userCheck.valid) {
+      error.style.display = "block";
+      error.textContent = "Username must be 3–20 characters";
+      return;
+    }
+
+    const passCheck = validatePassword(pass);
+    if (!passCheck.valid) {
+      error.style.display = "block";
+      error.textContent = "Password must be 6–20 characters";
+      return;
+    }
+
+    if (userRecords[user]) {
+      if (userRecords[user] !== pass) {
+        error.style.display = "block";
+        error.textContent = "Incorrect password";
+        return;
+      }
+    } else {
+      userRecords[user] = pass;
+      localStorage.setItem("userRecords", JSON.stringify(userRecords));
+    }
+
+    localStorage.setItem("currentUser", user);
+    localStorage.setItem("username", user);
+    localStorage.setItem("isAdmin", "false");
+    if (window.ActivityTracker) window.ActivityTracker.trackLogin(user, false);
+
+    document.querySelector(".login-btn").style.transform = "scale(0.95)";
+    error.style.display = "none";
+    setTimeout(() => { window.location.href = "landing page.html"; }, 400);
   }
 
   document.addEventListener("keydown", function(event) {

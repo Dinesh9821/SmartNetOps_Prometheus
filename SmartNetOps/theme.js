@@ -6,6 +6,12 @@
 (function () {
   'use strict';
 
+  try {
+    var bootTheme = localStorage.getItem('netops-theme') || 'dark';
+    if (bootTheme !== 'light' && bootTheme !== 'dark') bootTheme = 'dark';
+    document.documentElement.setAttribute('data-theme', bootTheme);
+  } catch (e) {}
+
   var REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   /* Every destination in the app. Single source of truth for
@@ -23,12 +29,26 @@
     { id: 'server-automation-flow.html', icon: '▤', name: 'Server Automation Flow',   hint: 'Workflows',   crumb: 'Server Automation Flow' },
     { id: 'cloud-automation-flow.html',  icon: '◌', name: 'Cloud Automation Flow',    hint: 'Workflows',   crumb: 'Cloud Automation Flow' },
     { id: 'path-analysis-flow.html',     icon: '⟿', name: 'Path Analysis Flow',       hint: 'Diagnostics', crumb: 'Path Analysis Flow' },
+    { id: 'circuit-diversity.html',      icon: '🔀', name: 'Circuit Diversity',        hint: 'Diagnostics', crumb: 'Circuit Diversity' },
+    { id: 'request-incident-analysis.html', icon: '🧠', name: 'Request / Incident AI', hint: 'Assistant', crumb: 'Ticket AI' },
     { id: 'admin.html',              icon: '⚿', name: 'Admin Console',      hint: 'Admin',    crumb: 'Admin' }
   ];
 
+  function isAdminSession() {
+    try {
+      return localStorage.getItem('currentUser') === 'Admin' && localStorage.getItem('isAdmin') === 'true';
+    } catch (e) { return false; }
+  }
+
   var ACTIONS = [
+    { icon: '⌂', name: 'Admin Console', hint: 'Admin', admin: true, run: function () { go('admin.html'); } },
+    { icon: '◐', name: 'Toggle light / dark theme', hint: 'Display', run: function () { toggleTheme(); } },
     { icon: '⎋', name: 'Sign out', hint: 'Session', run: function () {
-        try { localStorage.removeItem('currentUser'); localStorage.removeItem('isAdmin'); } catch (e) {}
+        try {
+          if (window.ActivityTracker && ActivityTracker.trackLogout) ActivityTracker.trackLogout();
+          localStorage.removeItem('currentUser');
+          localStorage.removeItem('isAdmin');
+        } catch (e) {}
         go('index.html');
       } },
     { icon: '⌫', name: 'Clear site selection', hint: 'Session', run: function () {
@@ -97,10 +117,23 @@
       '<span class="cmd-stat"><span class="led" id="shLed"></span><span id="shLink">Online</span></span>' +
       '<span class="cmdbar-div"></span>' +
       '<span class="cmd-stat" id="shClock">--:--:--</span>' +
+      '<button type="button" class="cmd-theme" id="shTheme" title="Toggle theme" aria-label="Toggle light and dark theme">◐</button>' +
       '<div class="cmd-trigger" id="shCmd">Search<kbd>⌘K</kbd></div>';
 
     document.body.insertBefore(bar, document.body.firstChild);
     document.body.classList.add('shell');
+    if (isAdminSession()) {
+      var siteEl = document.getElementById('shSite');
+      if (siteEl) {
+        var badge = document.createElement('button');
+        badge.type = 'button';
+        badge.className = 'cmd-theme';
+        badge.title = 'Admin Console';
+        badge.textContent = '⚿';
+        badge.addEventListener('click', function () { go('admin.html'); });
+        siteEl.parentNode.insertBefore(badge, document.getElementById('shTheme'));
+      }
+    }
 
     // breadcrumb links animate out like everything else
     bar.querySelectorAll('a').forEach(function (a) {
@@ -139,6 +172,30 @@
     setInterval(tick, 1000);
 
     document.getElementById('shCmd').addEventListener('click', openPalette);
+    var themeBtn = document.getElementById('shTheme');
+    if (themeBtn) {
+      paintThemeButton(themeBtn);
+      themeBtn.addEventListener('click', function () { toggleTheme(); });
+    }
+  }
+
+  function currentTheme() {
+    return document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+  }
+
+  function paintThemeButton(btn) {
+    if (!btn) btn = document.getElementById('shTheme');
+    if (!btn) return;
+    btn.textContent = currentTheme() === 'light' ? '☾' : '☀';
+    btn.title = currentTheme() === 'light' ? 'Switch to dark theme' : 'Switch to light theme';
+  }
+
+  function toggleTheme() {
+    var next = currentTheme() === 'light' ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', next);
+    try { localStorage.setItem('netops-theme', next); } catch (e) {}
+    paintThemeButton();
+    toast(next === 'light' ? 'Light theme on' : 'Dark theme on');
   }
 
   /* ── command palette ──────────────────────────────────────── */
@@ -172,10 +229,13 @@
 
   function candidates(q) {
     q = (q || '').toLowerCase().trim();
-    var all = ROUTES.map(function (r) {
+    var admin = isAdminSession();
+    var all = ROUTES.filter(function (r) {
+      return r.id !== 'admin.html' || admin;
+    }).map(function (r) {
       return { icon: r.icon, name: r.name, hint: r.hint,
                run: function () { go(r.id); } };
-    }).concat(ACTIONS);
+    }).concat(ACTIONS.filter(function (a) { return !a.admin || admin; }));
     if (!q) return all;
     return all.filter(function (i) {
       return (i.name + ' ' + i.hint).toLowerCase().indexOf(q) > -1;
@@ -316,16 +376,30 @@
     });
   }
 
+  function loginThemeToggle() {
+    if (!document.body || !document.body.hasAttribute('data-no-shell')) return;
+    if (document.getElementById('shTheme')) return;
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'cmd-theme login-theme';
+    b.id = 'shTheme';
+    b.setAttribute('aria-label', 'Toggle light and dark theme');
+    paintThemeButton(b);
+    b.addEventListener('click', function () { toggleTheme(); });
+    document.body.appendChild(b);
+  }
+
   function init() {
     try { ambience(); }   catch (e) {}
     try { commandBar(); } catch (e) {}
+    try { loginThemeToggle(); } catch (e) {}
     try { keys(); }       catch (e) {}
     try { polish(); }     catch (e) {}
     try { counters(); }   catch (e) {}
   }
 
   // exposed so pages can use them
-  window.NetOps = { toast: toast, go: go, palette: openPalette, counters: counters };
+  window.NetOps = { toast: toast, go: go, palette: openPalette, counters: counters, toggleTheme: toggleTheme };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);

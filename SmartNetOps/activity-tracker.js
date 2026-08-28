@@ -2,21 +2,18 @@
   'use strict';
 
   const STORAGE_KEY = 'netops_activity_logs';
-  const MAX_LOGS = 1000;
+  const MAX_LOGS = 2000;
 
   function safeParse(value, fallback) {
     try { return JSON.parse(value); } catch { return fallback; }
   }
 
   function getLogs() {
-  console.log(STORAGE_KEY);
-
-    return safeParse(localStorage.getItem(STORAGE_KEY), []);
+    const logs = safeParse(localStorage.getItem(STORAGE_KEY), []);
+    return Array.isArray(logs) ? logs : [];
   }
 
   function setLogs(logs) {
-  console.log(STORAGE_KEY);
-  console.log(logs);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(logs.slice(-MAX_LOGS)));
   }
 
@@ -34,15 +31,11 @@
 
   function addLog(entry) {
     const logs = getLogs();
-    if(logs){
-    console.log(logs);
     logs.push({
       timestamp: nowIso(),
       ...entry,
     });
     setLogs(logs);
-    }
-
   }
 
   function trackLogin(username, isAdmin = false) {
@@ -74,8 +67,19 @@
   }
 
   function trackPageView() {
+    const file = decodeURIComponent((location.pathname.split('/').pop() || ''));
+    if (!file || file === 'index.html') return;
     const user = localStorage.getItem('currentUser') || 'Unknown';
-    addLog({ type: 'page_view', username: user, page: location.pathname });
+    addLog({ type: 'page_view', username: user, page: location.pathname, ...getSelections() });
+  }
+
+  function trackLogout() {
+    addLog({
+      type: 'logout',
+      username: localStorage.getItem('currentUser') || 'Unknown',
+      page: location.pathname,
+      ...getSelections(),
+    });
   }
 
   function clearLogs() {
@@ -84,6 +88,7 @@
 
   window.ActivityTracker = {
     trackLogin,
+    trackLogout,
     trackRegionSelection,
     trackCountrySelection,
     trackSiteSelection,
@@ -97,5 +102,3 @@
 
   window.addEventListener('load', trackPageView);
 })();
-
-
