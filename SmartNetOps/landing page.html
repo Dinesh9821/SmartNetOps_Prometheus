@@ -125,10 +125,10 @@
       <div class="lede">Pick a scope on the left, then open a module. Dashboard is always available; the rest need a site.</div>
     </div>
     <div class="hero-stats">
-      <div class="hstat"><div class="k" data-count="45">0</div><div class="l">Sites</div></div>
-      <div class="hstat"><div class="k" data-count="99.98" data-suffix="%">0</div><div class="l">Uptime</div></div>
-      <div class="hstat"><div class="k" data-count="6">0</div><div class="l">Modules</div></div>
-      <div class="hstat"><div class="k" data-count="3">0</div><div class="l">Incidents</div></div>
+      <div class="hstat"><div class="k" id="stat-sites">—</div><div class="l">Sites</div></div>
+      <div class="hstat"><div class="k" id="stat-uptime">—</div><div class="l">Uptime</div></div>
+      <div class="hstat"><div class="k" id="stat-devices">—</div><div class="l">Devices</div></div>
+      <div class="hstat"><div class="k" id="stat-incidents">—</div><div class="l">Incidents</div></div>
     </div>
   </div>
 
@@ -743,6 +743,48 @@ restoreSelection();
   };
 
   paint();
+})();
+
+(function () {
+  function proxyOrigin() {
+    try {
+      if (location.protocol === "http:" || location.protocol === "https:") {
+        if (location.port === "8080") return "";
+        return location.protocol + "//" + location.hostname + ":8080";
+      }
+    } catch (e) {}
+    return "http://cussya5w.carcgl.com:8080";
+  }
+
+  function setStat(id, rec, suffix) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    if (!rec || !rec.available || rec.value == null) {
+      el.textContent = "—";
+      return;
+    }
+    el.textContent = rec.value + (suffix || "");
+  }
+
+  async function loadLandingStats() {
+    try {
+      var res = await fetch(proxyOrigin() + "/api/landing", { headers: { Accept: "application/json" } });
+      var data = await res.json().catch(function () { return null; });
+      var s = (data && data.stats) || {};
+      setStat("stat-sites", s.sites);
+      setStat("stat-uptime", s.uptime, s.uptime && s.uptime.available ? "%" : "");
+      setStat("stat-devices", s.devices);
+      setStat("stat-incidents", s.incidents);
+    } catch (err) {
+      ["stat-sites", "stat-uptime", "stat-devices", "stat-incidents"].forEach(function (id) {
+        var el = document.getElementById(id);
+        if (el) el.textContent = "—";
+      });
+    }
+  }
+
+  loadLandingStats();
+  setInterval(loadLandingStats, 60000);
 })();
 </script>
 

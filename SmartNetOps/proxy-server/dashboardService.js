@@ -400,8 +400,77 @@ async function getDashboard(siteId, client) {
   };
 }
 
+function landingQueries() {
+  return {
+    sites: "count(count by (site_id) (device_info))",
+    health: "avg(site_health_percent)",
+    devicesTotal: "sum(site_devices_total:all)",
+    devicesInfo: "count(device_info)",
+    devicesUp: "sum(site_devices_up:all)",
+    alerts: "count(ALERTS{alertstate=\"firing\"})",
+    wanDown: "count(wan_link_up == 0)",
+    deviceDown: "count(device_info == 0)"
+  };
+}
+
+function buildLandingStats(q) {
+  const sites = firstScalar(q, ["sites"]);
+  let devices = firstScalar(q, ["devicesTotal"]);
+  if (devices == null) devices = firstScalar(q, ["devicesInfo"]);
+  let health = firstAvg(q, ["health"]);
+  const up = firstScalar(q, ["devicesUp"]);
+  if (health == null && devices && devices > 0 && up != null) {
+    health = 100 * up / devices;
+  }
+  let incidents = firstScalar(q, ["alerts"]);
+  if (incidents == null) {
+    const wanDown = firstScalar(q, ["wanDown"]) || 0;
+    const deviceDown = firstScalar(q, ["deviceDown"]) || 0;
+    const any = (q.wanDown && q.wanDown.ok) || (q.deviceDown && q.deviceDown.ok);
+    incidents = any ? wanDown + deviceDown : null;
+  }
+  return {
+    sites: { value: sites != null ? Math.round(sites) : null, available: sites != null },
+    uptime: { value: num(health, 2), unit: "%", available: health != null },
+    devices: { value: devices != null ? Math.round(devices) : null, available: devices != null },
+    incidents: { value: incidents != null ? Math.round(incidents) : null, available: incidents != null }
+  };
+}
+
+async function getLandingStats(client) {
+  const prom = client || new PrometheusClient();
+  let q;
+  try {
+    q = await prom.queryMany(landingQueries(), 6);
+  } catch (err) {
+    return {
+      prometheus_unavailable: true,
+      error: "Monitoring data temporarily unavailable",
+      last_updated: new Date().toISOString(),
+      stats: {
+        sites: { available: false },
+        uptime: { available: false },
+        devices: { available: false },
+        incidents: { available: false }
+      }
+    };
+  }
+  const stats = buildLandingStats(q);
+  const qvals = Object.values(q);
+  const allFailed = qvals.length && qvals.every((v) => !v.ok);
+  return {
+    prometheus_unavailable: !!allFailed,
+    last_updated: new Date().toISOString(),
+    scraped_at: isoFromUnix(latestTsFromResults(q)),
+    stats
+  };
+}
+
 module.exports = {
   getDashboard,
+  getLandingStats,
+  landingQueries,
+  buildLandingStats,
   instantQueries,
   buildKpis,
   buildTopology,

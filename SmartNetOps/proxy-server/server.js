@@ -211,7 +211,7 @@ app.get("/api/monitoring/:siteId/series", handleMonitoringSeries);
 app.get("/api/monitoring/:siteId", handleMonitoringSnapshot);
 app.get("/api/monitoring", handleMonitoringSnapshot);
 
-const { getDashboard } = require("./dashboardService");
+const { getDashboard, getLandingStats } = require("./dashboardService");
 
 async function handleDashboard(req, res) {
   const raw = req.params.siteId || req.query.site_id || "";
@@ -244,6 +244,24 @@ async function handleDashboard(req, res) {
 
 app.get("/api/dashboard/:siteId", handleDashboard);
 app.get("/api/dashboard", handleDashboard);
+
+async function handleLanding(req, res) {
+  try {
+    const data = await getLandingStats();
+    if (data.prometheus_unavailable) {
+      return res.status(503).json(data);
+    }
+    return res.json(data);
+  } catch (err) {
+    return res.status(503).json({
+      error: "Monitoring data temporarily unavailable",
+      prometheus_unavailable: true,
+      detail: String(err.message || err)
+    });
+  }
+}
+
+app.get("/api/landing", handleLanding);
 
 app.use(express.static(path.join(__dirname, "..")));
 

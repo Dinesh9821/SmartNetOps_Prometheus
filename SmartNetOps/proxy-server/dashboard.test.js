@@ -8,7 +8,10 @@ const {
   buildEvents,
   buildHeatmap,
   scaleToPct,
-  getDashboard
+  getDashboard,
+  landingQueries,
+  buildLandingStats,
+  getLandingStats
 } = require("./dashboardService");
 
 function vec(metric, value) {
@@ -119,6 +122,45 @@ async function testGetDashboardMock() {
   assert.ok(bad.error);
 }
 
+function testLandingStats() {
+  const q = landingQueries();
+  assert.ok(q.sites.includes("site_id"));
+  assert.ok(q.health.includes("site_health_percent"));
+  assert.ok(!q.sites.includes("site_id="));
+  const stats = buildLandingStats({
+    sites: ok([vec({}, 18)]),
+    health: ok([vec({}, 99.4)]),
+    devicesTotal: ok([vec({}, 42)]),
+    devicesInfo: ok([]),
+    devicesUp: ok([vec({}, 41)]),
+    alerts: ok([vec({}, 2)]),
+    wanDown: ok([vec({}, 1)]),
+    deviceDown: ok([vec({}, 1)])
+  });
+  assert.strictEqual(stats.sites.value, 18);
+  assert.strictEqual(stats.uptime.value, 99.4);
+  assert.strictEqual(stats.devices.value, 42);
+  assert.strictEqual(stats.incidents.value, 2);
+}
+
+async function testGetLandingMock() {
+  const client = {
+    queryMany: async (named) => {
+      const out = {};
+      Object.keys(named).forEach((k) => { out[k] = { ok: true, result: [] }; });
+      out.sites = ok([vec({}, 7)]);
+      out.health = ok([vec({}, 100)]);
+      out.devicesInfo = ok([vec({}, 7)]);
+      out.alerts = ok([vec({}, 0)]);
+      return out;
+    }
+  };
+  const data = await getLandingStats(client);
+  assert.ok(data.stats.sites.available);
+  assert.strictEqual(data.stats.sites.value, 7);
+  assert.strictEqual(data.stats.incidents.value, 0);
+}
+
 async function testPromFailover() {
   const { PrometheusClient } = require("./prometheusClient");
   const calls = [];
@@ -146,7 +188,8 @@ function run() {
   testTopologyAndEvents();
   testHeatmapAndScale();
   testLatestTs();
-  return testGetDashboardMock().then(testPromFailover);
+  testLandingStats();
+  return testGetDashboardMock().then(testPromFailover).then(testGetLandingMock);
 }
 
 run().then(() => {
