@@ -326,6 +326,38 @@
   // API endpoints
   const COUNTRY_SITES_API = "http://localhost:8080/proxy1";
   const SITE_INFO_API = "/api/site-info";
+  const SITE_LIST_CACHE_KEY = "smartnetops.siteListCache";
+  const SITE_INFO_CACHE_KEY = "smartnetops.siteInfoCache";
+
+  function siteListKey(region, country) {
+    return String(region || "") + "|" + String(country || "");
+  }
+  function readJsonStore(key) {
+    try { return JSON.parse(localStorage.getItem(key) || "{}") || {}; }
+    catch (e) { return {}; }
+  }
+  function writeJsonStore(key, value) {
+    try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) {}
+  }
+  function getCachedSites(region, country) {
+    const list = readJsonStore(SITE_LIST_CACHE_KEY)[siteListKey(region, country)];
+    return Array.isArray(list) && list.length ? list : null;
+  }
+  function setCachedSites(region, country, sites) {
+    if (!region || !country || !Array.isArray(sites) || !sites.length) return;
+    const map = readJsonStore(SITE_LIST_CACHE_KEY);
+    map[siteListKey(region, country)] = sites;
+    writeJsonStore(SITE_LIST_CACHE_KEY, map);
+    if (!regionData[region]) regionData[region] = {};
+    regionData[region][country] = sites;
+  }
+  function applyCachedSites(region, country) {
+    const cached = getCachedSites(region, country);
+    if (!cached) return false;
+    if (!regionData[region]) regionData[region] = {};
+    regionData[region][country] = cached;
+    return true;
+  }
 
   const regionData = {
   APAC: {
@@ -458,6 +490,11 @@
      --------------------------- */
   async function fetchSitesForCountry(region, country) {
     const sitePanel = document.getElementById("sitePanel");
+    if (applyCachedSites(region, country)) {
+      loadSites(region, country);
+      if (sitePanel) sitePanel.style.display = "block";
+      return;
+    }
     if (sitePanel) {
       sitePanel.innerHTML = '<div class="search-group"><input type="text" id="siteSearch" placeholder="Search Site" oninput="filterDropdown(\'site\')"></div><div class="dropdown-item">Loading sites for ' + country + '...</div>';
     }
@@ -500,8 +537,7 @@
 
       if (!normalized.length) throw new Error("API returned no usable site IDs");
 
-      // Update regionData with fetched sites
-      regionData[region][country] = normalized;
+      setCachedSites(region, country, normalized);
       loadSites(region, country);
 
       // show dropdown automatically
@@ -516,7 +552,7 @@
       }
 
       // Fallback to local data if available
-      if (regionData[region]?.[country]?.length) {
+      if (applyCachedSites(region, country) || regionData[region]?.[country]?.length) {
         console.log("Fallback to local data");
         loadSites(region, country);
         if (sitePanel) {
@@ -532,6 +568,11 @@
   async function fetchSiteInfo(region, country, site) {
     if (!region || !country || !site) return;
     try {
+      const cached = readJsonStore(SITE_INFO_CACHE_KEY)[site];
+      if (cached) {
+        localStorage.setItem("selectedSiteInfo", JSON.stringify(cached));
+        return;
+      }
       const res = await fetch(SITE_INFO_API, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -539,6 +580,9 @@
       });
       if (!res.ok) throw new Error(`Status ${res.status}`);
       const data = await res.json();
+      const map = readJsonStore(SITE_INFO_CACHE_KEY);
+      map[site] = data;
+      writeJsonStore(SITE_INFO_CACHE_KEY, map);
       localStorage.setItem("selectedSiteInfo", JSON.stringify(data));
     } catch (err) { 
       console.error("Site info fetch failed", err); 

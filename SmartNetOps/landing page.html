@@ -355,19 +355,94 @@ const regionData = {
 };
 const COUNTRY_SITES_API = "http://cussya5w.carcgl.com:8080/proxy1";
 const SITE_INFO_API = "/api/site-info";
+const SITE_LIST_CACHE_KEY = "smartnetops.siteListCache";
+const SITE_INFO_CACHE_KEY = "smartnetops.siteInfoCache";
 
 let selectedRegion = null;
 let selectedCountry = null;
 let selectedSite = null;
 let lockTimer = null;
+const pendingSiteLists = {};
+
+function siteListKey(region, country) {
+  return String(region || "") + "|" + String(country || "");
+}
+
+function readJsonStore(key) {
+  try { return JSON.parse(localStorage.getItem(key) || "{}") || {}; }
+  catch (e) { return {}; }
+}
+
+function writeJsonStore(key, value) {
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) {}
+}
+
+function getCachedSites(region, country) {
+  const list = readJsonStore(SITE_LIST_CACHE_KEY)[siteListKey(region, country)];
+  return Array.isArray(list) && list.length ? list : null;
+}
+
+function setCachedSites(region, country, sites) {
+  if (!region || !country || !Array.isArray(sites) || !sites.length) return;
+  const map = readJsonStore(SITE_LIST_CACHE_KEY);
+  map[siteListKey(region, country)] = sites;
+  writeJsonStore(SITE_LIST_CACHE_KEY, map);
+  if (!regionData[region]) regionData[region] = {};
+  regionData[region][country] = sites;
+}
+
+function applyCachedSites(region, country) {
+  const cached = getCachedSites(region, country);
+  if (!cached) return false;
+  if (!regionData[region]) regionData[region] = {};
+  regionData[region][country] = cached;
+  return true;
+}
+
+function getCachedSiteInfo(site) {
+  if (!site) return null;
+  const rec = readJsonStore(SITE_INFO_CACHE_KEY)[site];
+  return rec || null;
+}
+
+function setCachedSiteInfo(site, data) {
+  if (!site || data == null) return;
+  const map = readJsonStore(SITE_INFO_CACHE_KEY);
+  map[site] = data;
+  writeJsonStore(SITE_INFO_CACHE_KEY, map);
+}
+
+function openSiteDropdown() {
+  const siteBox = document.getElementById("site");
+  const search = document.getElementById("site-search");
+  if (siteBox) siteBox.style.display = "block";
+  if (search) search.style.display = "block";
+}
 
 /* ---------------------------
    fetchSitesForCountry (UPDATED)
    --------------------------- */
 async function fetchSitesForCountry(region, country) {
   const siteBox = document.getElementById("site");
+  if (applyCachedSites(region, country)) {
+    loadSites(region, country);
+    openSiteDropdown();
+    return;
+  }
+
+  const key = siteListKey(region, country);
+  if (pendingSiteLists[key]) {
+    await pendingSiteLists[key];
+    if (applyCachedSites(region, country)) {
+      loadSites(region, country);
+      openSiteDropdown();
+    }
+    return;
+  }
+
   if (siteBox) siteBox.innerHTML = `<div>Loading sites for ${country}...</div>`;
 
+  pendingSiteLists[key] = (async function () {
   try {
     console.log(`[fetchSitesForCountry] POST -> ${COUNTRY_SITES_API}`, { region, country });
 
@@ -416,23 +491,28 @@ async function fetchSitesForCountry(region, country) {
 
     if (!normalized.length) throw new Error("API returned no usable site IDs");
 
-    regionData[region][country] = normalized;
+    setCachedSites(region, country, normalized);
     loadSites(region, country);
 
     // show dropdown automatically
-    document.getElementById("site").style.display = "block";
-    document.getElementById("site-search").style.display = "block";
+    openSiteDropdown();
 
   } catch (err) {
     console.error("[fetchSitesForCountry] ERROR:", err);
-    siteBox.innerHTML = `<div style="color:#ffb3b3;">Error loading sites: ${err.message}</div>`;
+    if (siteBox) siteBox.innerHTML = `<div style="color:#ffb3b3;">Error loading sites: ${err.message}</div>`;
 
-    if (regionData[region]?.[country]?.length) {
+    if (applyCachedSites(region, country) || regionData[region]?.[country]?.length) {
       console.log("Fallback to local data");
       loadSites(region, country);
-      document.getElementById("site").style.display = "block";
-      document.getElementById("site-search").style.display = "block";
+      openSiteDropdown();
     }
+  }
+  })();
+
+  try {
+    await pendingSiteLists[key];
+  } finally {
+    delete pendingSiteLists[key];
   }
 }
 
@@ -460,6 +540,11 @@ async function selectCountry(region, country) {
   document.getElementById("country").style.display = "none";
   document.getElementById("country-search").style.display = "none";
 
+  if (applyCachedSites(region, country)) {
+    loadSites(region, country);
+    openSiteDropdown();
+    return;
+  }
 
   document.getElementById("site").innerHTML = `<div>Loading sites...</div>`;
 
@@ -475,6 +560,11 @@ async function selectCountry(region, country) {
    --------------------------- */
 async function fetchSiteInfo(region, country, site) {
   if (!region || !country || !site) return;
+  const cached = getCachedSiteInfo(site);
+  if (cached) {
+    localStorage.setItem("selectedSiteInfo", JSON.stringify(cached));
+    return;
+  }
   try {
     const res = await fetch(SITE_INFO_API, {
       method: "POST",
@@ -483,6 +573,7 @@ async function fetchSiteInfo(region, country, site) {
     });
     if (!res.ok) throw new Error(`Status ${res.status}`);
     const data = await res.json();
+    setCachedSiteInfo(site, data);
     localStorage.setItem("selectedSiteInfo", JSON.stringify(data));
   } catch (err) { console.error("Site info fetch failed", err); }
 }
@@ -494,6 +585,11 @@ function toggleDropdown(id) {
     box.style.display = "none"; if (search) search.style.display = "none";
   } else {
     closeAllDropdowns();
+    if (id === "site" && selectedRegion && selectedCountry) {
+      if (applyCachedSites(selectedRegion, selectedCountry) || regionData[selectedRegion]?.[selectedCountry]?.length) {
+        loadSites(selectedRegion, selectedCountry);
+      }
+    }
     box.style.display = "block"; if (search) search.style.display = "block";
   }
 }
@@ -683,6 +779,9 @@ function restoreSelection() {
     selectedCountry = savedCountry;
     const cb = document.querySelector("button[onclick=\"toggleDropdown('country')\"]");
     if (cb) cb.textContent = "📡 " + savedCountry;
+    if (savedRegion && applyCachedSites(savedRegion, savedCountry)) {
+      loadSites(savedRegion, savedCountry);
+    }
   }
   if (savedSite) {
     selectedSite = savedSite;
