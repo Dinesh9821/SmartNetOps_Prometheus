@@ -41,7 +41,6 @@
   }
 
   var ACTIONS = [
-    { icon: '⌂', name: 'Admin Console', hint: 'Admin', admin: true, run: function () { go('admin.html'); } },
     { icon: '◐', name: 'Toggle light / dark theme', hint: 'Display', run: function () { toggleTheme(); } },
     { icon: '⎋', name: 'Sign out', hint: 'Session', run: function () {
         try {
