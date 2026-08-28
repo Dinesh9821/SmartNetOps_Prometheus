@@ -166,6 +166,11 @@
         <span class="eyebrow">Live telemetry</span>
         <h1 class="title gradient-text">Dashboard</h1>
         <div class="subtitle" id="dash-subtitle">Fleet health, throughput, and events from Prometheus — global or site scoped.</div>
+        <div class="ctx" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:10px;">
+          <span class="chip">Last updated <b id="dash-updated">—</b></span>
+          <span class="chip">Scraped <b id="dash-scraped">—</b></span>
+          <span class="chip">Next refresh <b id="dash-next">60s</b></span>
+        </div>
       </div>
       <div class="toolbar">
         <button onclick="NetOps.palette()">⌘K Search</button>
@@ -208,7 +213,7 @@
         <header>
           <div class="hd">
             <h3>Throughput</h3>
-            <span class="muted">Ingress and egress, % of provisioned capacity</span>
+            <span class="muted" id="throughput-muted">Ingress and egress, % of provisioned capacity</span>
           </div>
           <div style="display:flex;gap:12px;font-size:11px;color:var(--ink-2)">
             <span><span class="led" style="background:#22D3EE;color:rgba(34,211,238,.5)"></span> Ingress</span>
@@ -220,7 +225,7 @@
 
       <div class="card reveal">
         <header><div class="hd"><h3>Service levels</h3>
-          <span class="muted">Rolling 24h</span></div></header>
+          <span class="muted" id="gauges-muted">Rolling 24h</span></div></header>
         <div class="gauges">
           <div id="g-health"></div>
           <div id="g-latency"></div>
@@ -264,7 +269,7 @@
 
       <div class="card reveal">
         <header><div class="hd"><h3>Events</h3>
-          <span class="muted">Newest first</span></div></header>
+          <span class="muted" id="events-muted">Newest first</span></div></header>
         <div id="events"></div>
       </div>
     </section>
@@ -273,7 +278,7 @@
     <section class="row-3">
       <div class="card reveal">
         <header><div class="hd"><h3>Load pattern</h3>
-          <span class="muted">Past 7 days by hour</span></div></header>
+          <span class="muted" id="heatmap-muted">Past 7 days by hour</span></div></header>
         <div id="heatmap"></div>
       </div>
 
@@ -287,7 +292,7 @@
 
       <div class="card reveal">
         <header><div class="hd"><h3>Recent activity</h3>
-          <span class="muted">System log</span></div></header>
+          <span class="muted" id="activity-muted">System log</span></div></header>
         <div id="activityList" class="activity-list"></div>
       </div>
     </section>
@@ -623,6 +628,15 @@
       .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   }
 
+  function formatStamp(input) {
+    if (input == null || input === "") return "—";
+    var d = typeof input === "number" ? new Date(input * 1000) : new Date(input);
+    if (isNaN(d.getTime())) return "—";
+    var pad = function (n) { return String(n).padStart(2, "0"); };
+    return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()) +
+      " " + pad(d.getHours()) + ":" + pad(d.getMinutes()) + ":" + pad(d.getSeconds());
+  }
+
   function padSeries(arr) {
     if (!arr || !arr.length) return [0, 0];
     if (arr.length === 1) return [arr[0], arr[0]];
@@ -662,9 +676,30 @@
     var sub = document.getElementById("dash-subtitle");
     var note = document.getElementById("dash-note");
     var scopeLabel = data.scope === "site" ? ("Site " + (data.site_id || "")) : "Global fleet";
+    var updated = formatStamp(data.last_updated);
+    var scraped = formatStamp(data.scraped_at || data.last_updated);
     if (sub) {
-      sub.textContent = scopeLabel + " · Prometheus snapshot " + (data.last_updated || "").replace("T", " ").replace("Z", " UTC");
+      sub.textContent = scopeLabel + " · last updated " + updated;
     }
+    var uChip = document.getElementById("dash-updated");
+    var sChip = document.getElementById("dash-scraped");
+    var nChip = document.getElementById("dash-next");
+    if (uChip) uChip.textContent = updated;
+    if (sChip) sChip.textContent = scraped;
+    if (nChip) nChip.textContent = "60s";
+    var win = data.window || {};
+    var tpMuted = document.getElementById("throughput-muted");
+    if (tpMuted) {
+      tpMuted.textContent = "Ingress / egress · " + formatStamp(win.throughput_start) + " → " + formatStamp(win.throughput_end);
+    }
+    var gMuted = document.getElementById("gauges-muted");
+    if (gMuted) gMuted.textContent = "As of " + scraped;
+    var eMuted = document.getElementById("events-muted");
+    if (eMuted) eMuted.textContent = "As of " + scraped;
+    var hMuted = document.getElementById("heatmap-muted");
+    if (hMuted) hMuted.textContent = "Hourly · " + formatStamp(win.heatmap_start) + " → " + formatStamp(win.heatmap_end);
+    var aMuted = document.getElementById("activity-muted");
+    if (aMuted) aMuted.textContent = "As of " + updated;
     if (note) {
       note.textContent = data.prometheus_unavailable
         ? "Prometheus is unavailable. Site pickers still use your live APIs."
@@ -708,7 +743,7 @@
       if (document.getElementById("heatmap")) V.heatmap(document.getElementById("heatmap"), data.heatmap);
       if (document.getElementById("topology")) V.topology(document.getElementById("topology"), data.topology);
       var liveEvents = (data.events || []).map(function (e) {
-        return { s: e.s, t: esc(e.t), m: esc(e.m), ago: "now" };
+        return { s: e.s, t: esc(e.t), m: esc(e.m), ago: formatStamp(e.ts || data.scraped_at || data.last_updated) };
       });
       if (document.getElementById("events")) V.stream(document.getElementById("events"), liveEvents);
     }
@@ -743,7 +778,8 @@
     if (actBox) {
       var evs = data.events || [];
       actBox.innerHTML = evs.length ? evs.map(function (e) {
-        return "<p>• " + esc(e.t) + " <span style=\"display:block;color:rgba(255,255,255,0.6);font-size:12px;margin-top:4px;\">" + esc(e.m) + "</span></p>";
+        return "<p>• " + esc(e.t) + " <span style=\"display:block;color:rgba(255,255,255,0.6);font-size:12px;margin-top:4px;\">" +
+          esc(e.m) + " · " + esc(formatStamp(e.ts || data.last_updated)) + "</span></p>";
       }).join("") : "<p>• No Prometheus events in this scope</p>";
     }
   }

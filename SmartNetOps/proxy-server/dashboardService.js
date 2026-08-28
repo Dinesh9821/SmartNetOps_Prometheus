@@ -5,7 +5,9 @@ const {
   samples,
   scalarFrom,
   avgFrom,
-  maxFrom
+  maxFrom,
+  latestTsFromResults,
+  isoFromUnix
 } = require("./prometheusClient");
 const { extractSiteId, validateSiteId, escapeLabel } = require("./monitoringService");
 
@@ -133,28 +135,32 @@ function buildEvents(q, kpis) {
     events.push({
       s: String(s.metric.severity || "").toLowerCase() === "warning" ? "warn" : "crit",
       t: name,
-      m: [site, s.metric.instance, s.metric.device].filter(Boolean).join(" · ") || "Prometheus ALERTS"
+      m: [site, s.metric.instance, s.metric.device].filter(Boolean).join(" · ") || "Prometheus ALERTS",
+      ts: isoFromUnix(s.ts)
     });
   });
   samples(q.wanUp && q.wanUp.result).filter((s) => s.value === 0).slice(0, 8).forEach((s) => {
     events.push({
       s: "crit",
       t: "WAN link down",
-      m: [s.metric.site_id, s.metric.device, s.metric.link].filter(Boolean).join(" · ")
+      m: [s.metric.site_id, s.metric.device, s.metric.link].filter(Boolean).join(" · "),
+      ts: isoFromUnix(s.ts)
     });
   });
   samples(q.deviceInfo && q.deviceInfo.result).filter((s) => s.value === 0).slice(0, 8).forEach((s) => {
     events.push({
       s: "crit",
       t: "Device down",
-      m: [s.metric.site_id, s.metric.device, s.metric.source].filter(Boolean).join(" · ")
+      m: [s.metric.site_id, s.metric.device, s.metric.source].filter(Boolean).join(" · "),
+      ts: isoFromUnix(s.ts)
     });
   });
   samples(q.deviceInfo && q.deviceInfo.result).filter((s) => s.value > 0 && s.value < 1).slice(0, 6).forEach((s) => {
     events.push({
       s: "warn",
       t: "Device alerting",
-      m: [s.metric.site_id, s.metric.device].filter(Boolean).join(" · ")
+      m: [s.metric.site_id, s.metric.device].filter(Boolean).join(" · "),
+      ts: isoFromUnix(s.ts)
     });
   });
   if (kpis.latency.available && kpis.latency.value > 80) {
@@ -292,7 +298,8 @@ async function getDashboard(siteId, client) {
       site_id: sid || null,
       prometheus_unavailable: true,
       error: "Monitoring data temporarily unavailable",
-      last_updated: new Date().toISOString()
+      last_updated: new Date().toISOString(),
+      scraped_at: null
     };
   }
 
@@ -335,11 +342,25 @@ async function getDashboard(siteId, client) {
 
   const qvals = Object.values(q);
   const allFailed = qvals.length && qvals.every((v) => !v.ok);
+  const lastUpdated = new Date().toISOString();
+  const scrapedAt = isoFromUnix(latestTsFromResults(q)) || lastUpdated;
+  events.forEach((e) => {
+    if (!e.ts) e.ts = lastUpdated;
+  });
 
   return {
     scope: sid ? "site" : "global",
     site_id: sid || null,
-    last_updated: new Date().toISOString(),
+    last_updated: lastUpdated,
+    scraped_at: scrapedAt,
+    window: {
+      throughput_start: isoFromUnix(now - 3600),
+      throughput_end: isoFromUnix(now),
+      spark_start: isoFromUnix(now - 86400),
+      spark_end: isoFromUnix(now),
+      heatmap_start: isoFromUnix(now - 7 * 86400),
+      heatmap_end: isoFromUnix(now)
+    },
     prometheus_unavailable: !!allFailed,
     kpis,
     resources,

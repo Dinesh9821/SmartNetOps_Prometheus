@@ -5,7 +5,9 @@ const {
   samples,
   scalarFrom,
   maxFrom,
-  avgFrom
+  avgFrom,
+  latestTsFromResults,
+  isoFromUnix
 } = require("./prometheusClient");
 
 // Grafana WAN dashboard (wan-dashboard.json Peak Utilisation):
@@ -964,6 +966,7 @@ async function getSiteSnapshot(siteId, client) {
       site_id: siteId,
       overall_status: "UNKNOWN",
       last_updated: new Date().toISOString(),
+      scraped_at: null,
       prometheus_unavailable: true,
       error: "Monitoring data temporarily unavailable",
       devices: emptySection(),
@@ -995,9 +998,12 @@ async function getSiteSnapshot(siteId, client) {
   const routes = buildDefaultRoutes(queries);
   const issues = collectIssues(wan, ospf, bgp, devices, interfaces, meraki, sdwan, routes);
 
+  const lastUpdated = new Date().toISOString();
+  const scrapedAt = isoFromUnix(latestTsFromResults(queries)) || lastUpdated;
   const snapshot = {
     site_id: siteId,
-    last_updated: new Date().toISOString(),
+    last_updated: lastUpdated,
+    scraped_at: scrapedAt,
     prometheus_unavailable: false,
     thresholds: THRESHOLDS,
     devices,
@@ -1107,6 +1113,9 @@ async function getSiteSeries(siteId, rangeKey, client) {
     range: RANGE_WINDOWS[rangeKey] ? rangeKey : "1h",
     start,
     end,
+    start_iso: isoFromUnix(start),
+    end_iso: isoFromUnix(end),
+    last_updated: new Date().toISOString(),
     step,
     charts: out
   };

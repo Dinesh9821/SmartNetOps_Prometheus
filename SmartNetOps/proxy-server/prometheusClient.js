@@ -199,6 +199,29 @@ function avgFrom(result) {
   return list.reduce((acc, s) => acc + s.value, 0) / list.length;
 }
 
+function latestTsFromResults(named) {
+  let max = null;
+  Object.values(named || {}).forEach((entry) => {
+    const result = entry && entry.result;
+    (result || []).forEach((s) => {
+      if (s.value && s.value[0] != null) {
+        const t = Number(s.value[0]);
+        if (Number.isFinite(t) && (max == null || t > max)) max = t;
+      }
+      (s.values || []).forEach((pair) => {
+        const t = Number(pair && pair[0]);
+        if (Number.isFinite(t) && (max == null || t > max)) max = t;
+      });
+    });
+  });
+  return max;
+}
+
+function isoFromUnix(ts) {
+  if (ts == null || !Number.isFinite(Number(ts))) return null;
+  return new Date(Number(ts) * 1000).toISOString();
+}
+
 module.exports = {
   PrometheusClient,
   PrometheusError,
@@ -207,6 +230,8 @@ module.exports = {
   scalarFrom,
   maxFrom,
   avgFrom,
+  latestTsFromResults,
+  isoFromUnix,
   DEFAULT_BASE,
   defaultCandidateBases
 };

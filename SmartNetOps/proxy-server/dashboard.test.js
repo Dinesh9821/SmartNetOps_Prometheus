@@ -70,6 +70,7 @@ function testTopologyAndEvents() {
   const kpis = { latency: { available: true, value: 90 }, uptime: { available: true, value: 80 } };
   const events = buildEvents(q, kpis);
   assert.ok(events.some((e) => e.t === "WanDown" || e.t === "WAN link down"));
+  assert.ok(events.some((e) => e.ts));
 }
 
 function testHeatmapAndScale() {
@@ -80,6 +81,16 @@ function testHeatmapAndScale() {
   assert.strictEqual(hm[0].length, 24);
   const scaled = scaleToPct([[1, 50], [2, 100]]);
   assert.strictEqual(scaled[1], 100);
+}
+
+function testLatestTs() {
+  const { latestTsFromResults, isoFromUnix } = require("./prometheusClient");
+  const ts = latestTsFromResults({
+    a: { result: [{ metric: {}, value: [1700000000, "1"] }] },
+    b: { result: [{ metric: {}, values: [[1700000100, "2"]] }] }
+  });
+  assert.strictEqual(ts, 1700000100);
+  assert.ok(isoFromUnix(ts).startsWith("2023-"));
 }
 
 async function testGetDashboardMock() {
@@ -97,6 +108,8 @@ async function testGetDashboardMock() {
   const global = await getDashboard("", client);
   assert.strictEqual(global.scope, "global");
   assert.ok(global.kpis.devices.available);
+  assert.ok(global.last_updated);
+  assert.ok(global.scraped_at);
   const site = await getDashboard("MY-1800", client);
   assert.strictEqual(site.scope, "site");
   assert.strictEqual(site.site_id, "MY-1800");
@@ -130,6 +143,7 @@ function run() {
   testKpis();
   testTopologyAndEvents();
   testHeatmapAndScale();
+  testLatestTs();
   return testGetDashboardMock().then(testPromFailover);
 }
 

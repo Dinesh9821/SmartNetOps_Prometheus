@@ -109,6 +109,7 @@
         <span class="chip">Country <b id="ctxCountry">—</b></span>
         <span class="chip">Site ID <b id="ctxSite">—</b></span>
         <span class="chip">Last updated <b id="ctxUpdated">—</b></span>
+        <span class="chip">Scraped <b id="ctxScraped">—</b></span>
         <span class="chip">Monitoring <b id="ctxMon">—</b></span>
       </div>
     </div>
@@ -157,6 +158,7 @@
       <div class="chart-box"><div class="eyebrow">Packet loss / drops</div><canvas id="chartLoss" width="640" height="140"></canvas></div>
       <div class="chart-box"><div class="eyebrow">Device availability</div><canvas id="chartDev" width="640" height="140"></canvas></div>
     </div>
+    <div class="section-note" id="chartWindow" style="margin-top:10px"></div>
   </section>
 
   <section class="card" id="sec-wan-table">
@@ -240,6 +242,14 @@
       .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   }
   function dash(v) { return v == null || v === "" ? "—" : v; }
+  function formatStamp(input) {
+    if (input == null || input === "") return "—";
+    var d = typeof input === "number" ? new Date(input * 1000) : new Date(input);
+    if (isNaN(d.getTime())) return "—";
+    var pad = function (n) { return String(n).padStart(2, "0"); };
+    return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()) +
+      " " + pad(d.getHours()) + ":" + pad(d.getMinutes()) + ":" + pad(d.getSeconds());
+  }
   function pill(v) {
     var t = String(v || "UNKNOWN").toUpperCase();
     var cls = "pill pill-UNKNOWN";
@@ -292,20 +302,21 @@
     var status = data.overall_status || "UNKNOWN";
     document.getElementById("overallStatus").textContent = status;
     document.getElementById("overallStatus").className = "status st-" + status;
-    document.getElementById("ctxUpdated").textContent = data.last_updated
-      ? new Date(data.last_updated).toLocaleTimeString() : "—";
+    document.getElementById("ctxUpdated").textContent = formatStamp(data.last_updated);
+    var scrapedEl = document.getElementById("ctxScraped");
+    if (scrapedEl) scrapedEl.textContent = formatStamp(data.scraped_at || data.last_updated);
     document.getElementById("ctxMon").textContent = data.prometheus_unavailable ? "Unavailable" : "Live";
 
     var alert = document.getElementById("pageAlert");
     alert.innerHTML = "";
     if (data.prometheus_unavailable) {
       alert.innerHTML = '<div class="banner-err">Monitoring data temporarily unavailable</div>';
-      document.getElementById("healthDetail").textContent = "Prometheus did not respond.";
+      document.getElementById("healthDetail").textContent = "Prometheus did not respond. Query time " + formatStamp(data.last_updated);
     } else if (status === "UNKNOWN" && !(data.issues && data.issues.length)) {
       alert.innerHTML = '<div class="banner-err">No telemetry data available for this site</div>';
-      document.getElementById("healthDetail").textContent = "No Prometheus series matched this Site ID.";
+      document.getElementById("healthDetail").textContent = "No Prometheus series matched this Site ID. Query time " + formatStamp(data.last_updated);
     } else {
-      document.getElementById("healthDetail").textContent = "Monitoring data loaded";
+      document.getElementById("healthDetail").textContent = "Monitoring data loaded · as of " + formatStamp(data.scraped_at || data.last_updated);
       if (window.NetOps) window.NetOps.toast("Monitoring data loaded");
     }
 
@@ -328,8 +339,10 @@
     var issues = data.issues || [];
     document.getElementById("issueCount").textContent = issues.length ? issues.length + " open" : "None";
     document.getElementById("issues").innerHTML = issues.length ? issues.map(function (i) {
+      var when = formatStamp(i.ts || data.scraped_at || data.last_updated);
       return '<div class="issue" data-sec="' + esc(i.section) + '"><span class="sev sev-' + esc(i.severity) + '">' +
-        esc(i.severity) + '</span><div><div>' + esc(i.title) + '</div><div class="section-note">' + esc(i.detail) + "</div></div></div>";
+        esc(i.severity) + '</span><div><div>' + esc(i.title) + '</div><div class="section-note">' + esc(i.detail) +
+        " · " + esc(when) + "</div></div></div>";
     }).join("") : empty("No active issues for this site.");
     document.querySelectorAll(".issue").forEach(function (el) {
       el.addEventListener("click", function () {
@@ -530,7 +543,7 @@
     var w = canvas.width, h = canvas.height;
     ctx.clearRect(0, 0, w, h);
     ctx.strokeStyle = "rgba(148,163,184,.18)";
-    ctx.beginPath(); ctx.moveTo(32, 8); ctx.lineTo(32, h - 22); ctx.lineTo(w - 8, h - 22); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(32, 8); ctx.lineTo(32, h - 28); ctx.lineTo(w - 8, h - 28); ctx.stroke();
     var series = (seriesList || []).filter(function (s) { return s && s.values && s.values.length; });
     if (!series.length) {
       ctx.fillStyle = "#5D6B80";
@@ -543,17 +556,35 @@
     var min = Math.min.apply(null, all.concat(0));
     var max = Math.max.apply(null, all.concat(1));
     if (max === min) max = min + 1;
+    var tMin = null, tMax = null;
+    series.forEach(function (s) {
+      s.values.forEach(function (p) {
+        var t = Number(p[0]);
+        if (!Number.isFinite(t)) return;
+        if (tMin == null || t < tMin) tMin = t;
+        if (tMax == null || t > tMax) tMax = t;
+      });
+    });
     series.forEach(function (s, i) {
       ctx.strokeStyle = colors[i % colors.length];
       ctx.lineWidth = 1.6;
       ctx.beginPath();
       s.values.forEach(function (p, idx) {
         var x = 32 + (idx / Math.max(s.values.length - 1, 1)) * (w - 44);
-        var y = 8 + (1 - (p[1] - min) / (max - min)) * (h - 30);
+        var y = 8 + (1 - (p[1] - min) / (max - min)) * (h - 36);
         if (idx === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
       });
       ctx.stroke();
     });
+    if (tMin != null && tMax != null) {
+      ctx.fillStyle = "#5D6B80";
+      ctx.font = "10px JetBrains Mono,monospace";
+      ctx.textAlign = "left";
+      ctx.fillText(formatStamp(tMin), 32, h - 8);
+      ctx.textAlign = "right";
+      ctx.fillText(formatStamp(tMax), w - 8, h - 8);
+      ctx.textAlign = "left";
+    }
   }
 
   function flattenCharts(chart) {
@@ -581,6 +612,12 @@
       flattenCharts(c.loss).length ? flattenCharts(c.loss) : flattenCharts(c.drops),
       ["#FB7185"]);
     drawChart(document.getElementById("chartDev"), flattenCharts(c.devices_up).concat(flattenCharts(c.devices_total)), ["#34D399", "#5D6B80"]);
+    var win = document.getElementById("chartWindow");
+    if (win) {
+      win.textContent = "Chart window " + formatStamp(data.start_iso || data.start) +
+        " → " + formatStamp(data.end_iso || data.end) +
+        " · refreshed " + formatStamp(data.last_updated);
+    }
   }
 
   async function loadAll(forceLoadUi) {
