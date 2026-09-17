@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Monitoring | Smart NetOps Hub</title>
+<script src="activity-tracker.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="theme.css">
+<style>
+  .page{ max-width:1620px; margin:0 auto; padding:22px 20px 72px; display:grid; gap:16px; }
+
+  .top-row{ display:flex; align-items:flex-end; justify-content:space-between; gap:18px; flex-wrap:wrap; }
+  .title{ font-size:clamp(24px,2.4vw,32px); margin:5px 0 4px; }
+  .subtitle{ color:var(--ink-2); font-size:13.5px; }
+  .toolbar{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .toolbar select, .toolbar button{ padding:8px 13px; }
+
+  .ctx{ display:flex; flex-wrap:wrap; gap:10px; margin-top:10px; }
+  .chip{ padding:6px 10px; border-radius:999px; border:1px solid var(--edge);
+         background:rgba(255,255,255,.04); font-size:12px; color:var(--ink-2); }
+  .chip b{ color:var(--ink); font-family:'JetBrains Mono',monospace; font-weight:600; }
+
+  .health-banner{
+    padding:18px 20px; display:flex; align-items:center; justify-content:space-between;
+    gap:16px; flex-wrap:wrap;
+  }
+  .health-banner .status{
+    font-family:'JetBrains Mono',monospace; font-size:28px; font-weight:700; letter-spacing:.04em;
+  }
+  .st-HEALTHY{ color:var(--emerald); }
+  .st-WARNING{ color:var(--amber); }
+  .st-CRITICAL{ color:var(--rose); }
+  .st-UNKNOWN{ color:var(--ink-3); }
+
+  .kpis{ display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; }
+  .kpi{ padding:14px 16px; }
+  .kpi h3{ font-size:11px !important; text-transform:uppercase; letter-spacing:.12em;
+           color:var(--ink-3) !important; margin:0 0 6px; }
+  .kpi .big{ font-size:26px; font-weight:700; }
+  .kpi .foot{ font-size:12px; color:var(--ink-2); margin-top:4px; }
+  .kpi .avail{ font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; margin-top:8px; color:var(--ink-3); }
+
+  .card{ padding:16px 18px; }
+  .card > header{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:12px; }
+  .card > header h3{ margin:0; }
+  .section-note{ font-size:12px; color:var(--ink-3); }
+
+  .grid-2{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  .issues{ display:flex; flex-direction:column; gap:8px; max-height:280px; overflow:auto; }
+  .issue{ display:flex; gap:10px; padding:10px 12px; border-radius:var(--r-sm);
+          border:1px solid var(--edge); cursor:pointer; background:rgba(4,6,10,.35); }
+  .issue:hover{ border-color:var(--edge-hot); }
+  .sev{ font-family:'JetBrains Mono',monospace; font-size:10px; font-weight:700;
+        letter-spacing:.08em; padding:3px 7px; border-radius:6px; height:fit-content; }
+  .sev-CRITICAL{ color:#FDA4AF; background:rgba(251,113,133,.14); }
+  .sev-WARNING{ color:#FDE68A; background:rgba(251,191,36,.14); }
+  .sev-INFO{ color:#A5F3FC; background:rgba(34,211,238,.12); }
+
+  .bars{ display:flex; flex-direction:column; gap:10px; }
+  .bar-row .lab{ display:flex; justify-content:space-between; font-size:12.5px; margin-bottom:5px; color:var(--ink-2); }
+  .bar-row .lab b{ font-family:'JetBrains Mono',monospace; color:var(--ink); }
+  .meter{ height:8px; border-radius:99px; background:rgba(148,163,184,.12); overflow:hidden; }
+  .meter > i{ display:block; height:100%; width:0; border-radius:99px;
+              background:linear-gradient(90deg,var(--cyan),var(--indigo)); transition:width .4s var(--ease); }
+  .meter.warn > i{ background:linear-gradient(90deg,var(--amber),#F97316); }
+  .meter.crit > i{ background:linear-gradient(90deg,var(--rose),#E11D48); }
+
+  .charts{ display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:12px; }
+  .chart-box{ padding:8px 0 0; }
+  .chart-box canvas{ width:100%; height:140px; display:block; }
+
+  .tbl-wrap{ max-height:340px; overflow:auto; }
+  table{ min-width:640px; }
+  .pill{ display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:700;
+         font-family:'JetBrains Mono',monospace; letter-spacing:.04em; }
+  .pill-UP,.pill-FULL,.pill-ESTABLISHED,.pill-healthy{ color:var(--emerald); background:rgba(52,211,153,.12); }
+  .pill-DOWN,.pill-problem,.pill-CRITICAL{ color:var(--rose); background:rgba(251,113,133,.12); }
+  .pill-DEGRADED,.pill-WARNING,.pill-INIT,.pill-EXSTART,.pill-EXCHANGE{ color:var(--amber); background:rgba(251,191,36,.12); }
+  .pill-UNKNOWN{ color:var(--ink-3); background:rgba(148,163,184,.1); }
+
+  .empty{ padding:18px; text-align:center; color:var(--ink-3); font-size:13px; }
+  .banner-err{
+    padding:14px 16px; border-radius:var(--r); border:1px solid rgba(251,113,133,.35);
+    background:rgba(251,113,133,.08); color:#FDA4AF;
+  }
+  .skel{ height:14px; border-radius:6px; background:linear-gradient(90deg,rgba(255,255,255,.04),rgba(255,255,255,.1),rgba(255,255,255,.04));
+         background-size:200% 100%; animation:shimmer 1.2s linear infinite; margin:8px 0; }
+  @keyframes shimmer{ to{ background-position:-200% 0; } }
+
+  .meraki-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:10px; }
+  .mstat{ padding:12px; border:1px solid var(--edge); border-radius:var(--r-sm); background:rgba(4,6,10,.3); }
+  .mstat .k{ font-size:11px; color:var(--ink-3); text-transform:uppercase; letter-spacing:.1em; }
+  .mstat .v{ font-family:'JetBrains Mono',monospace; font-size:20px; margin-top:4px; }
+
+  @media (max-width:1050px){ .grid-2{ grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="top-row">
+    <div>
+      <span class="eyebrow">Site telemetry</span>
+      <h1 class="title gradient-text">Network Monitoring</h1>
+      <div class="subtitle" id="siteLine">Site: —</div>
+      <div class="ctx">
+        <span class="chip">Region <b id="ctxRegion">—</b></span>
+        <span class="chip">Country <b id="ctxCountry">—</b></span>
+        <span class="chip">Site ID <b id="ctxSite">—</b></span>
+        <span class="chip">Last updated <b id="ctxUpdated">—</b></span>
+        <span class="chip">Monitoring <b id="ctxMon">—</b></span>
+      </div>
+    </div>
+    <div class="toolbar">
+      <select id="refreshSel" aria-label="Refresh interval">
+        <option value="15000">15 sec</option>
+        <option value="30000">30 sec</option>
+        <option value="60000" selected>60 sec</option>
+        <option value="300000">5 min</option>
+      </select>
+      <select id="rangeSel" aria-label="Chart range">
+        <option value="15m">Last 15 minutes</option>
+        <option value="1h" selected>Last 1 hour</option>
+        <option value="6h">Last 6 hours</option>
+        <option value="24h">Last 24 hours</option>
+      </select>
+      <button type="button" onclick="location.href='landing page.html'">Change site</button>
+      <button type="button" class="primary" id="btnRefresh">Refresh</button>
+    </div>
+  </div>
+
+  <div id="pageAlert"></div>
+
+  <section class="health-banner card" id="healthBanner">
+    <div>
+      <div class="eyebrow">Overall site health</div>
+      <div class="status st-UNKNOWN" id="overallStatus">LOADING</div>
+      <div class="subtitle" id="healthDetail">Loading monitoring data…</div>
+    </div>
+    <div class="subtitle" id="loadHint"></div>
+  </section>
+
+  <section class="kpis" id="kpis"></section>
+
+  <section class="card" id="sec-issues">
+    <header><h3>Active Issues</h3><span class="section-note" id="issueCount"></span></header>
+    <div class="issues" id="issues"></div>
+  </section>
+
+  <section class="card" id="sec-wan">
+    <header><h3>WAN Link Utilization</h3><span class="section-note" id="wanAvail"></span></header>
+    <div class="bars" id="wanBars"></div>
+    <div class="charts" style="margin-top:16px">
+      <div class="chart-box"><div class="eyebrow">Inbound vs outbound</div><canvas id="chartWan" width="640" height="140"></canvas></div>
+      <div class="chart-box"><div class="eyebrow">Latency</div><canvas id="chartLat" width="640" height="140"></canvas></div>
+      <div class="chart-box"><div class="eyebrow">Packet loss</div><canvas id="chartLoss" width="640" height="140"></canvas></div>
+      <div class="chart-box"><div class="eyebrow">Device availability</div><canvas id="chartDev" width="640" height="140"></canvas></div>
+    </div>
+  </section>
+
+  <section class="card" id="sec-wan-table">
+    <header><h3>WAN Link Status</h3></header>
+    <div class="tbl-wrap" id="wanTable"></div>
+  </section>
+
+  <div class="grid-2">
+    <section class="card" id="sec-ospf">
+      <header><h3>OSPF</h3><span class="section-note" id="ospfKpi"></span></header>
+      <div class="tbl-wrap" id="ospfTable"></div>
+    </section>
+    <section class="card" id="sec-bgp">
+      <header><h3>BGP</h3><span class="section-note" id="bgpKpi"></span></header>
+      <div class="tbl-wrap" id="bgpTable"></div>
+    </section>
+  </div>
+
+  <div class="grid-2">
+    <section class="card" id="sec-devices">
+      <header><h3>Device Status</h3><span class="section-note" id="devKpi"></span></header>
+      <div class="tbl-wrap" id="devTable"></div>
+    </section>
+    <section class="card" id="sec-hosts">
+      <header><h3>Host Status</h3><span class="section-note" id="hostKpi"></span></header>
+      <div class="tbl-wrap" id="hostTable"></div>
+    </section>
+  </div>
+
+  <div class="grid-2">
+    <section class="card" id="sec-interfaces">
+      <header><h3>Interface Health</h3><span class="section-note" id="ifKpi"></span></header>
+      <div class="tbl-wrap" id="ifTable"></div>
+    </section>
+    <section class="card" id="sec-sdwan">
+      <header><h3>SD-WAN Health</h3><span class="section-note" id="sdwanKpi"></span></header>
+      <div id="sdwanBody"></div>
+    </section>
+  </div>
+
+  <section class="card" id="sec-meraki">
+    <header><h3>Meraki Health</h3><span class="section-note" id="merakiKpi"></span></header>
+    <div id="merakiBody"></div>
+  </section>
+</div>
+
+<script defer src="theme.js"></script>
+<script>
+(function () {
+  var MONITOR_API = "http://cussya5w.carcgl.com:8080/api/monitoring";
+  var token = 0;
+  var timer = null;
+  var lastSite = null;
+  var loading = false;
+
+  function extractSiteId(raw) {
+    if (!raw) return "";
+    return String(raw).split("|")[0].trim();
+  }
+
+  function siteId() { return extractSiteId(localStorage.getItem("selectedSite")); }
+  function region() { return localStorage.getItem("selectedRegion") || ""; }
+  function country() { return localStorage.getItem("selectedCountry") || ""; }
+
+  function esc(s) {
+    return String(s == null ? "" : s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+  function dash(v) { return v == null || v === "" ? "—" : v; }
+  function pill(v) {
+    var t = String(v || "UNKNOWN").toUpperCase();
+    var cls = "pill pill-UNKNOWN";
+    if (/UP|FULL|ESTABLISHED|HEALTHY/.test(t)) cls = "pill pill-UP";
+    else if (/DOWN|CRITICAL|IDLE/.test(t)) cls = "pill pill-DOWN";
+    else if (/DEGRADED|WARN|INIT|EXSTART|EXCHANGE|LOADING/.test(t)) cls = "pill pill-DEGRADED";
+    return '<span class="' + cls + '">' + esc(t) + "</span>";
+  }
+  function availText(section) {
+    if (!section || !section.availability) return "No Data";
+    return section.availability.available ? "Available" : (section.availability.reason || "No Data");
+  }
+  function empty(msg) { return '<div class="empty">' + esc(msg) + "</div>"; }
+  function table(headers, rowsHtml) {
+    return '<table><thead><tr>' + headers.map(function (h) { return "<th>" + esc(h) + "</th>"; }).join("") +
+      "</tr></thead><tbody>" + rowsHtml + "</tbody></table>";
+  }
+
+  function paintScope() {
+    var sid = siteId() || "—";
+    document.getElementById("siteLine").textContent = "Site: " + sid;
+    document.getElementById("ctxRegion").textContent = region() || "—";
+    document.getElementById("ctxCountry").textContent = country() || "—";
+    document.getElementById("ctxSite").textContent = sid;
+  }
+
+  function setLoading(on) {
+    loading = on;
+    document.getElementById("loadHint").textContent = on ? "Loading monitoring data…" : "";
+    if (on) {
+      document.getElementById("overallStatus").textContent = "LOADING";
+      document.getElementById("overallStatus").className = "status st-UNKNOWN";
+      document.getElementById("healthDetail").textContent = "Loading monitoring data…";
+      document.getElementById("kpis").innerHTML = [1,2,3,4,5].map(function () {
+        return '<div class="kpi card"><div class="skel"></div><div class="skel"></div></div>';
+      }).join("");
+      ["wanBars","wanTable","ospfTable","bgpTable","devTable","hostTable","ifTable","sdwanBody","merakiBody","issues"].forEach(function (id) {
+        document.getElementById(id).innerHTML = '<div class="skel"></div><div class="skel"></div>';
+      });
+    }
+  }
+
+  function kpiCard(title, big, foot, avail) {
+    return '<div class="kpi card"><h3>' + esc(title) + '</h3><div class="big">' + esc(big) +
+      '</div><div class="foot">' + (foot || "") + '</div><div class="avail">' + esc(avail || "") + "</div></div>";
+  }
+
+  function renderSnapshot(data) {
+    var status = data.overall_status || "UNKNOWN";
+    document.getElementById("overallStatus").textContent = status;
+    document.getElementById("overallStatus").className = "status st-" + status;
+    document.getElementById("ctxUpdated").textContent = data.last_updated
+      ? new Date(data.last_updated).toLocaleTimeString() : "—";
+    document.getElementById("ctxMon").textContent = data.prometheus_unavailable ? "Unavailable" : "Live";
+
+    var alert = document.getElementById("pageAlert");
+    alert.innerHTML = "";
+    if (data.prometheus_unavailable) {
+      alert.innerHTML = '<div class="banner-err">Monitoring data temporarily unavailable</div>';
+      document.getElementById("healthDetail").textContent = "Prometheus did not respond.";
+    } else if (status === "UNKNOWN" && !(data.issues && data.issues.length)) {
+      alert.innerHTML = '<div class="banner-err">No telemetry data available for this site</div>';
+      document.getElementById("healthDetail").textContent = "No Prometheus series matched this Site ID.";
+    } else {
+      document.getElementById("healthDetail").textContent = "Monitoring data loaded";
+      if (window.NetOps) window.NetOps.toast("Monitoring data loaded");
+    }
+
+    var d = data.devices || {};
+    var w = data.wan || {};
+    var o = data.ospf || {};
+    var b = data.bgp || {};
+    var h = data.hosts || {};
+    var iff = data.interfaces || {};
+    document.getElementById("kpis").innerHTML =
+      kpiCard("Devices", dash(d.total), (d.online || 0) + " online · " + (d.offline || 0) + " offline", availText(d)) +
+      kpiCard("WAN", dash(w.total), (w.active || 0) + " active · " + (w.down || 0) + " down · avg " + dash(w.average_utilization) + "%", availText(w)) +
+      kpiCard("OSPF", dash(o.neighbors), (o.established || 0) + " established · " + (o.down || 0) + " down", availText(o)) +
+      kpiCard("BGP", dash(b.peers), (b.established || 0) + " established · " + (b.down || 0) + " down", availText(b)) +
+      kpiCard("Interfaces", dash(iff.total), (iff.up || 0) + " up · " + (iff.down || 0) + " down", availText(iff)) +
+      kpiCard("Hosts", "—", "ICMP host metrics not in telemetry", availText(h));
+
+    var issues = data.issues || [];
+    document.getElementById("issueCount").textContent = issues.length ? issues.length + " open" : "None";
+    document.getElementById("issues").innerHTML = issues.length ? issues.map(function (i) {
+      return '<div class="issue" data-sec="' + esc(i.section) + '"><span class="sev sev-' + esc(i.severity) + '">' +
+        esc(i.severity) + '</span><div><div>' + esc(i.title) + '</div><div class="section-note">' + esc(i.detail) + "</div></div></div>";
+    }).join("") : empty("No active issues for this site.");
+    document.querySelectorAll(".issue").forEach(function (el) {
+      el.addEventListener("click", function () {
+        var map = { wan: "sec-wan", ospf: "sec-ospf", bgp: "sec-bgp", devices: "sec-devices",
+                    interfaces: "sec-interfaces", meraki: "sec-meraki", sdwan: "sec-sdwan", hosts: "sec-hosts" };
+        var t = document.getElementById(map[el.dataset.sec] || "sec-issues");
+        if (t) t.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    });
+
+    document.getElementById("wanAvail").textContent = availText(w);
+    var links = w.links || [];
+    document.getElementById("wanBars").innerHTML = links.length ? links.map(function (l) {
+      var u = l.utilization;
+      var cls = "meter";
+      if (u != null && u >= 95) cls += " crit";
+      else if (u != null && u >= 80) cls += " warn";
+      return '<div class="bar-row"><div class="lab"><span>' + esc(l.link || l.interface || "link") +
+        " · " + esc(l.device || "") + "</span><b>" + (u == null ? "—" : u + "%") +
+        "</b></div><div class=\"" + cls + "\"><i style=\"width:" + (u || 0) + '%"></i></div></div>';
+    }).join("") : empty(availText(w) === "Available" ? "No WAN links returned." : availText(w));
+
+    document.getElementById("wanTable").innerHTML = links.length ? table(
+      ["WAN Link", "Provider", "Interface", "Status", "RX", "TX", "Latency", "Packet Loss"],
+      links.map(function (l) {
+        return "<tr><td>" + esc(l.link) + "</td><td>" + esc(dash(l.provider)) + "</td><td>" +
+          esc(dash(l.interface)) + "</td><td>" + pill(l.status) + "</td><td>" + esc(dash(l.rx)) +
+          "</td><td>" + esc(dash(l.tx)) + "</td><td>" + esc(dash(l.latency_ms)) +
+          "</td><td>" + esc(dash(l.loss_percent)) + "</td></tr>";
+      }).join("")
+    ) : empty(availText(w));
+
+    document.getElementById("ospfKpi").textContent = o.availability && o.availability.available
+      ? (o.established + " / " + o.neighbors + " established") : availText(o);
+    document.getElementById("ospfTable").innerHTML = (o.rows && o.rows.length) ? table(
+      ["Device", "Interface", "Neighbor", "Area", "State", "Uptime"],
+      o.rows.map(function (r) {
+        return "<tr><td>" + esc(r.device) + "</td><td>" + esc(dash(r.interface)) + "</td><td>" +
+          esc(r.neighbor) + "</td><td>" + esc(dash(r.area)) + "</td><td>" + pill(r.state) +
+          "</td><td>" + esc(dash(r.uptime)) + "</td></tr>";
+      }).join("")
+    ) : empty(availText(o));
+
+    document.getElementById("bgpKpi").textContent = b.availability && b.availability.available
+      ? (b.established + " / " + b.peers + " established") : availText(b);
+    document.getElementById("bgpTable").innerHTML = (b.rows && b.rows.length) ? table(
+      ["Device", "Peer", "ASN", "State", "Prefixes", "Uptime"],
+      b.rows.map(function (r) {
+        return "<tr><td>" + esc(r.device) + "</td><td>" + esc(r.peer) + "</td><td>" + esc(dash(r.asn)) +
+          "</td><td>" + pill(r.state) + "</td><td>" + esc(dash(r.prefixes)) + "</td><td>" +
+          esc(dash(r.uptime)) + "</td></tr>";
+      }).join("")
+    ) : empty(availText(b));
+
+    document.getElementById("devKpi").textContent = availText(d);
+    document.getElementById("devTable").innerHTML = (d.rows && d.rows.length) ? table(
+      ["Device", "Type", "IP / ident", "Status", "CPU", "Memory", "Uptime"],
+      d.rows.map(function (r) {
+        return "<tr><td>" + esc(r.device) + "</td><td>" + esc(dash(r.type)) + "</td><td>" +
+          esc(dash(r.ip)) + "</td><td>" + pill(r.status) + "</td><td>" + esc(dash(r.cpu)) +
+          "</td><td>" + esc(dash(r.memory)) + "</td><td>" + esc(dash(r.uptime)) + "</td></tr>";
+      }).join("")
+    ) : empty(availText(d));
+
+    document.getElementById("hostKpi").textContent = availText(h);
+    document.getElementById("hostTable").innerHTML = empty(h.availability && h.availability.reason
+      ? h.availability.reason
+      : "No dedicated host/ICMP Prometheus metrics.");
+
+    document.getElementById("ifKpi").textContent = iff.availability && iff.availability.available
+      ? (iff.up + " up · " + iff.down + " down · errors " + (iff.errors || 0)) : availText(iff);
+    document.getElementById("ifTable").innerHTML = (iff.rows && iff.rows.length) ? table(
+      ["Device", "Interface", "Description", "Status", "RX", "TX", "Errors", "Discards"],
+      iff.rows.map(function (r) {
+        return "<tr><td>" + esc(r.device) + "</td><td>" + esc(r.interface) + "</td><td>" +
+          esc(dash(r.description)) + "</td><td>" + pill(r.status) + "</td><td>" + esc(dash(r.rx)) +
+          "</td><td>" + esc(dash(r.tx)) + "</td><td>" + esc(dash(r.errors)) + "</td><td>" +
+          esc(dash(r.discards)) + "</td></tr>";
+      }).join("")
+    ) : empty(availText(iff));
+
+    renderSdwan(data.sdwan || {});
+    renderMeraki(data.meraki || {});
+  }
+
+  function renderSdwan(s) {
+    document.getElementById("sdwanKpi").textContent = availText(s);
+    if (!s.availability || !s.availability.available) {
+      document.getElementById("sdwanBody").innerHTML = empty(availText(s));
+      return;
+    }
+    var html = '<div class="meraki-grid">' +
+      mstat("WAN Edges", dash(s.wan_edges)) +
+      mstat("BFD up", (s.bfd && s.bfd.up) + " / " + (s.bfd && s.bfd.total)) +
+      mstat("OMP up", (s.omp && s.omp.up) + " / " + (s.omp && s.omp.total)) +
+      mstat("Control up", dash(s.control_connections_up)) +
+      "</div>";
+    var tunnels = s.tunnels || [];
+    if (tunnels.length) {
+      html += '<div class="tbl-wrap" style="margin-top:12px">' + table(
+        ["Device", "Remote", "Remote site", "Transport", "State", "Latency", "Loss", "Jitter"],
+        tunnels.slice(0, 80).map(function (t) {
+          return "<tr><td>" + esc(t.device) + "</td><td>" + esc(dash(t.remote_system_ip)) +
+            "</td><td>" + esc(dash(t.remote_site_id)) + "</td><td>" + esc(dash(t.transport)) +
+            "</td><td>" + pill(t.state) + "</td><td>" + esc(dash(t.latency_ms)) +
+            "</td><td>" + esc(dash(t.loss_percent)) + "</td><td>" + esc(dash(t.jitter_ms)) + "</td></tr>";
+        }).join("")
+      ) + "</div>";
+    }
+    document.getElementById("sdwanBody").innerHTML = html;
+  }
+
+  function mstat(k, v) {
+    return '<div class="mstat"><div class="k">' + esc(k) + '</div><div class="v">' + esc(v) + "</div></div>";
+  }
+
+  function renderMeraki(m) {
+    document.getElementById("merakiKpi").textContent = availText(m);
+    if (!m.availability || !m.availability.available) {
+      document.getElementById("merakiBody").innerHTML = empty(availText(m));
+      return;
+    }
+    var by = m.by_product || {};
+    function pair(type, label) {
+      var x = by[type];
+      return x ? (x.up + " / " + x.total) : "—";
+    }
+    var html = '<div class="meraki-grid">' +
+      mstat("Devices", (m.online || 0) + " / " + (m.total || 0)) +
+      mstat("APs", pair("wireless", "APs")) +
+      mstat("Switches", pair("switch", "Switches")) +
+      mstat("MX", pair("appliance", "MX")) +
+      mstat("Clients", dash(m.clients)) +
+      mstat("Uplinks", m.uplinks ? (m.uplinks.active + " / " + m.uplinks.total) : "—") +
+      mstat("Port errors", dash(m.switch_port_errors)) +
+      mstat("Peak AP util", m.ap_channel_util_max == null ? "—" : m.ap_channel_util_max + "%") +
+      "</div>";
+    document.getElementById("merakiBody").innerHTML = html;
+  }
+
+  function drawChart(canvas, seriesList, colors) {
+    if (!canvas) return;
+    var ctx = canvas.getContext("2d");
+    var w = canvas.width, h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
+    ctx.strokeStyle = "rgba(148,163,184,.18)";
+    ctx.beginPath(); ctx.moveTo(32, 8); ctx.lineTo(32, h - 22); ctx.lineTo(w - 8, h - 22); ctx.stroke();
+    var series = (seriesList || []).filter(function (s) { return s && s.values && s.values.length; });
+    if (!series.length) {
+      ctx.fillStyle = "#5D6B80";
+      ctx.font = "12px Inter,sans-serif";
+      ctx.fillText("No time-series for this site / range", 40, h / 2);
+      return;
+    }
+    var all = [];
+    series.forEach(function (s) { s.values.forEach(function (p) { all.push(p[1]); }); });
+    var min = Math.min.apply(null, all.concat(0));
+    var max = Math.max.apply(null, all.concat(1));
+    if (max === min) max = min + 1;
+    series.forEach(function (s, i) {
+      ctx.strokeStyle = colors[i % colors.length];
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      s.values.forEach(function (p, idx) {
+        var x = 32 + (idx / Math.max(s.values.length - 1, 1)) * (w - 44);
+        var y = 8 + (1 - (p[1] - min) / (max - min)) * (h - 30);
+        if (idx === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+    });
+  }
+
+  function flattenCharts(chart) {
+    if (!chart || !chart.series) return [];
+    return chart.series;
+  }
+
+  function sumSeries(chart) {
+    if (!chart || !chart.series || !chart.series.length) return [];
+    var buckets = {};
+    chart.series.forEach(function (s) {
+      (s.values || []).forEach(function (p) {
+        buckets[p[0]] = (buckets[p[0]] || 0) + (Number(p[1]) || 0);
+      });
+    });
+    var values = Object.keys(buckets).sort().map(function (t) { return [Number(t), buckets[t]]; });
+    return [{ values: values }];
+  }
+
+  function renderSeries(data) {
+    var c = data.charts || {};
+    drawChart(document.getElementById("chartWan"), sumSeries(c.wan_rx).concat(sumSeries(c.wan_tx)), ["#22D3EE", "#A78BFA"]);
+    drawChart(document.getElementById("chartLat"), flattenCharts(c.latency), ["#FBBF24"]);
+    drawChart(document.getElementById("chartLoss"), flattenCharts(c.loss), ["#FB7185"]);
+    drawChart(document.getElementById("chartDev"), flattenCharts(c.devices_up).concat(flattenCharts(c.devices_total)), ["#34D399", "#5D6B80"]);
+  }
+
+  async function loadAll(forceLoadUi) {
+    var sid = siteId();
+    paintScope();
+    if (!sid) {
+      document.getElementById("pageAlert").innerHTML = '<div class="banner-err">Invalid or unknown Site ID</div>';
+      document.getElementById("overallStatus").textContent = "UNKNOWN";
+      document.getElementById("healthDetail").textContent = "Select a site on Operations Home.";
+      return;
+    }
+    var my = ++token;
+    if (forceLoadUi || lastSite !== sid) setLoading(true);
+    lastSite = sid;
+    try {
+      var snapRes = await fetch(MONITOR_API + "/" + encodeURIComponent(sid), { headers: { Accept: "application/json" } });
+      var snap = await snapRes.json();
+      if (my !== token) return;
+      if (snapRes.status === 400) {
+        setLoading(false);
+        document.getElementById("pageAlert").innerHTML = '<div class="banner-err">Invalid or unknown Site ID</div>';
+        document.getElementById("overallStatus").textContent = "UNKNOWN";
+        document.getElementById("healthDetail").textContent = snap.error || "Invalid or unknown Site ID";
+        return;
+      }
+      renderSnapshot(snap);
+      setLoading(false);
+      var range = document.getElementById("rangeSel").value;
+      var serRes = await fetch(MONITOR_API + "/" + encodeURIComponent(sid) + "/series?range=" + encodeURIComponent(range), {
+        headers: { Accept: "application/json" }
+      });
+      var ser = await serRes.json();
+      if (my !== token) return;
+      renderSeries(ser);
+    } catch (err) {
+      if (my !== token) return;
+      setLoading(false);
+      document.getElementById("pageAlert").innerHTML = '<div class="banner-err">Monitoring data temporarily unavailable</div>';
+      document.getElementById("overallStatus").textContent = "UNKNOWN";
+      document.getElementById("overallStatus").className = "status st-UNKNOWN";
+      document.getElementById("healthDetail").textContent = String(err.message || err);
+    }
+  }
+
+  function armTimer() {
+    if (timer) clearInterval(timer);
+    var ms = Number(document.getElementById("refreshSel").value) || 60000;
+    timer = setInterval(function () { loadAll(false); }, ms);
+  }
+
+  document.getElementById("btnRefresh").addEventListener("click", function () { loadAll(true); });
+  document.getElementById("refreshSel").addEventListener("change", function () { armTimer(); loadAll(false); });
+  document.getElementById("rangeSel").addEventListener("change", function () { loadAll(false); });
+  window.addEventListener("storage", function (e) {
+    if (e.key === "selectedSite") loadAll(true);
+  });
+  setInterval(function () {
+    var sid = siteId();
+    if (sid && lastSite && sid !== lastSite) loadAll(true);
+  }, 2000);
+
+  if (window.ActivityTracker) window.ActivityTracker.trackModuleAccess("Monitoring");
+  paintScope();
+  loadAll(true);
+  armTimer();
+})();
+</script>
+</body>
+</html>

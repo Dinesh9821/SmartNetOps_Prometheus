@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cloud | Smart NetOps Hub</title>
+<script src="activity-tracker.js"></script>
+<link rel="stylesheet" href="theme.css">
+<script src="theme.js"></script>
+<style>
+  .page{display:grid;grid-template-columns:272px minmax(0,1fr);gap:16px;width:100%;max-width:none;margin:0;padding:16px 16px 24px;align-items:start;min-height:calc(100vh - var(--rail-h))}
+  .sidebar{padding:16px;position:sticky;top:calc(var(--rail-h) + 16px);align-self:start}
+  .sidebar .eyebrow{display:block;margin:0 0 10px}
+  .back-btn{display:flex;align-items:center;gap:8px;padding:10px 12px;margin-bottom:14px;width:100%}
+  .dropdown-btn{padding:11px 12px;margin-bottom:7px;font-size:12.5px !important}
+  .dropdown-btn:disabled{opacity:.48;cursor:not-allowed;transform:none !important;box-shadow:none !important}
+  .dropdown-panel{display:none;margin:0 0 8px;padding:6px;max-height:220px;overflow-y:auto}
+  .search-group{padding:2px 2px 6px}
+  .search-group input{width:100%;padding:8px 10px !important;font-size:12.5px !important}
+  .dropdown-item{padding:8px 11px;cursor:pointer;font-size:12.5px}
+  .content{background:none !important;border:0 !important;box-shadow:none !important;backdrop-filter:none !important;padding:0 !important;display:grid;gap:14px}
+  .content::before,.content::after{display:none !important}
+  .hero h1{margin:6px 0 5px}.hero p{color:var(--ink-2);margin:0}
+  .row-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+  .row-2{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:14px}
+  .card{padding:16px 18px}
+  .card h3{margin:0 0 4px;font-size:13px}
+  .why{font-size:11px;color:var(--ink-3);margin:0 0 10px;line-height:1.45}
+  .muted{color:var(--ink-2);font-size:12px}
+  .viz-svg{width:148px;height:148px;display:block;margin:0 auto}
+  .viz-spark{width:100%;height:86px;display:block}
+  .viz-center{fill:var(--ink);font:700 22px 'JetBrains Mono',monospace}
+  .viz-center-sm{font-size:18px}
+  .viz-unit{fill:var(--ink-3);font:10px 'JetBrains Mono',monospace;letter-spacing:.08em}
+  .viz-cap{text-align:center;font-size:11px;color:var(--ink-2);margin-top:6px}
+  .viz-legend{display:flex;flex-direction:column;gap:6px;margin-top:10px;font-size:12px;color:var(--ink-2)}
+  .viz-legend i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px}
+  .stat{font:700 28px 'JetBrains Mono',monospace;color:var(--violet)}
+  .dots{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:8px}
+  .dots span{height:28px;border-radius:8px;display:grid;place-items:center;font:700 10px 'JetBrains Mono',monospace;
+             background:rgba(167,139,250,.16);border:1px solid rgba(167,139,250,.35);color:var(--violet)}
+  @media(max-width:1100px){.page{grid-template-columns:1fr}.sidebar{position:static}.row-3,.row-2{grid-template-columns:1fr}}
+</style>
+</head>
+<body data-scope-domain="Cloud">
+<div class="page">
+  <aside class="sidebar panel" aria-label="Sidebar">
+    <a href="dashboard.html" class="back-btn">← Back to Dashboard</a>
+    <span class="eyebrow">View</span>
+    <button id="globalBtn" class="dropdown-btn" onclick="selectMode('global')">🌎 Global</button>
+    <button id="siteBtn" class="dropdown-btn" onclick="toggleSiteSpecific()">📍 Site specific</button>
+    <div id="siteSpecificPanel" style="display:none;margin-top:14px;">
+      <span class="eyebrow">Scope</span>
+      <button id="regionBtn" class="dropdown-btn" onclick="togglePanel('regionPanel')">🌐 Region</button>
+      <div id="regionPanel" class="dropdown-panel">
+        <div class="search-group"><input type="text" id="regionSearch" placeholder="Search region" oninput="filterDropdown('region')"></div>
+      </div>
+      <button id="countryBtn" class="dropdown-btn" onclick="togglePanel('countryPanel')" disabled>📡 Country</button>
+      <div id="countryPanel" class="dropdown-panel">
+        <div class="search-group"><input type="text" id="countrySearch" placeholder="Search country" oninput="filterDropdown('country')"></div>
+      </div>
+      <button id="siteBtnSelect" class="dropdown-btn" onclick="togglePanel('sitePanel')" disabled>🛠 Site ID</button>
+      <div id="sitePanel" class="dropdown-panel">
+        <div class="search-group"><input type="text" id="siteSearch" placeholder="Search site" oninput="filterDropdown('site')"></div>
+      </div>
+    </div>
+  </aside>
+  <main class="content">
+    <div class="hero">
+      <span class="eyebrow" id="scopeEyebrow">Global view / Cloud</span>
+      <h1 class="gradient-text">Cloud Operations</h1>
+      <p id="scopeSub">Whole-globe cloud information.</p>
+    </div>
+
+    <section class="row-3">
+      <div class="card panel">
+        <h3>Cloud health</h3>
+        <p class="why">A donut is a score: 99.2% of the cloud control plane is healthy.</p>
+        <div id="v-health"></div>
+      </div>
+      <div class="card panel">
+        <h3>Services available</h3>
+        <p class="why">A pie is for mix: 42 live vs 2 under review, not a single percentage.</p>
+        <div id="v-svc"></div>
+      </div>
+      <div class="card panel">
+        <h3>Security posture</h3>
+        <p class="why">Policy alignment is another score, so it uses the same donut as health.</p>
+        <div id="v-sec"></div>
+      </div>
+    </section>
+
+    <section class="row-2">
+      <div class="card panel">
+        <h3>Monthly spend</h3>
+        <p class="why">Spend moves over time, so an area graph carries $18.4K better than a static card.</p>
+        <div class="stat">$18.4K</div>
+        <div id="v-spend"></div>
+        <div class="muted">Trailing 12 samples · compute + storage</div>
+      </div>
+      <div class="card panel">
+        <h3>Active regions</h3>
+        <p class="why">Eight tiles are a map of presence, not a chart that pretends 8 is a percentage.</p>
+        <div class="stat">8</div>
+        <div class="dots">
+          <span>IAD</span><span>ORD</span><span>SJC</span><span>DUB</span>
+          <span>FRA</span><span>SIN</span><span>SYD</span><span>GRU</span>
+        </div>
+        <div class="muted" style="margin-top:10px">Production and DR footprints</div>
+      </div>
+    </section>
+
+    <section class="row-3">
+      <div class="card panel">
+        <h3>API latency</h3>
+        <p class="why">Latency is a time series — the sparkline is the 145 ms p95, not a donut.</p>
+        <div class="stat">145 ms</div>
+        <div id="v-lat"></div>
+      </div>
+      <div class="card panel">
+        <h3>Error rate</h3>
+        <p class="why">A 0.12% error rate is too small for a pie; the graph shows it staying flat.</p>
+        <div class="stat" style="color:var(--emerald)">0.12%</div>
+        <div id="v-err"></div>
+      </div>
+      <div class="card panel">
+        <h3>Autoscale events</h3>
+        <p class="why">Daily bars count events (7 / day). Height is volume, not health.</p>
+        <div class="stat" style="color:var(--cyan)">7 / day</div>
+        <div id="v-scale"></div>
+      </div>
+    </section>
+
+    <section class="row-3">
+      <div class="card panel">
+        <h3>Pipeline success</h3>
+        <p class="why">Release success is a ratio, so a donut matches 98.7% cleanly.</p>
+        <div id="v-pipe"></div>
+      </div>
+      <div class="card panel" style="grid-column:span 2">
+        <h3>Request volume</h3>
+        <p class="why">A wide area graph fills the remaining space with traffic shape around the APIs.</p>
+        <div id="v-vol"></div>
+        <div class="muted">Synthetic until live cloud telemetry is wired</div>
+      </div>
+    </section>
+  </main>
+</div>
+<script src="scope-sidebar.js"></script>
+<script src="ops-viz.js"></script>
+<script>
+  var V = window.OpsViz, C = V.colors;
+  V.donut(document.getElementById("v-health"), 99.2, C.violet, "Control-plane health", "%");
+  V.pie(document.getElementById("v-svc"), [
+    { value: 42, color: C.emerald, label: "Available" },
+    { value: 2, color: C.amber, label: "Under review" }
+  ]);
+  V.donut(document.getElementById("v-sec"), 96, C.teal, "IAM + policy alignment", "%");
+  V.spark(document.getElementById("v-spend"), V.walk(12, 16.2, 1.8, 14, 19.5), C.violet);
+  V.spark(document.getElementById("v-lat"), V.walk(24, 145, 22, 110, 190), C.cyan);
+  V.spark(document.getElementById("v-err"), V.walk(24, 0.12, 0.04, 0.06, 0.2), C.emerald);
+  V.bars(document.getElementById("v-scale"), [4, 6, 9, 7, 5, 8, 7], C.cyan);
+  V.donut(document.getElementById("v-pipe"), 98.7, C.emerald, "Release automation", "%");
+  V.spark(document.getElementById("v-vol"), V.walk(36, 42, 10, 22, 70), C.blue);
+</script>
+</body>
+</html>

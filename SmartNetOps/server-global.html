@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Server | Smart NetOps Hub</title>
+<script src="activity-tracker.js"></script>
+<link rel="stylesheet" href="theme.css">
+<script src="theme.js"></script>
+<style>
+  .page{display:grid;grid-template-columns:272px minmax(0,1fr);gap:16px;width:100%;max-width:none;margin:0;padding:16px 16px 24px;align-items:start;min-height:calc(100vh - var(--rail-h))}
+  .sidebar{padding:16px;position:sticky;top:calc(var(--rail-h) + 16px);align-self:start}
+  .sidebar .eyebrow{display:block;margin:0 0 10px}
+  .back-btn{display:flex;align-items:center;gap:8px;padding:10px 12px;margin-bottom:14px;width:100%}
+  .dropdown-btn{padding:11px 12px;margin-bottom:7px;font-size:12.5px !important}
+  .dropdown-btn:disabled{opacity:.48;cursor:not-allowed;transform:none !important;box-shadow:none !important}
+  .dropdown-panel{display:none;margin:0 0 8px;padding:6px;max-height:220px;overflow-y:auto}
+  .search-group{padding:2px 2px 6px}
+  .search-group input{width:100%;padding:8px 10px !important;font-size:12.5px !important}
+  .dropdown-item{padding:8px 11px;cursor:pointer;font-size:12.5px}
+  .content{background:none !important;border:0 !important;box-shadow:none !important;backdrop-filter:none !important;padding:0 !important;display:grid;gap:14px}
+  .content::before,.content::after{display:none !important}
+  .hero h1{margin:6px 0 5px}.hero p{color:var(--ink-2);margin:0}
+  .row-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+  .row-2{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:14px}
+  .card{padding:16px 18px}
+  .card h3{margin:0 0 4px;font-size:13px}
+  .why{font-size:11px;color:var(--ink-3);margin:0 0 10px;line-height:1.45}
+  .muted{color:var(--ink-2);font-size:12px}
+  .viz-svg{width:148px;height:148px;display:block;margin:0 auto}
+  .viz-spark{width:100%;height:86px;display:block}
+  .viz-center{fill:var(--ink);font:700 22px 'JetBrains Mono',monospace}
+  .viz-center-sm{font-size:18px}
+  .viz-unit{fill:var(--ink-3);font:10px 'JetBrains Mono',monospace;letter-spacing:.08em}
+  .viz-cap{text-align:center;font-size:11px;color:var(--ink-2);margin-top:6px}
+  .viz-legend{display:flex;flex-direction:column;gap:6px;margin-top:10px;font-size:12px;color:var(--ink-2)}
+  .viz-legend i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px}
+  .viz-meter{height:10px;border-radius:99px;background:rgba(148,163,184,.12);overflow:hidden;border:1px solid var(--edge)}
+  .viz-meter > i{display:block;height:100%;border-radius:99px;transition:width .8s ease}
+  .res{display:flex;flex-direction:column;gap:16px}
+  .res-row .lab{display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px;color:var(--ink-2)}
+  .res-row .lab b{font-family:'JetBrains Mono',monospace;color:var(--ink)}
+  .stat{font:700 28px 'JetBrains Mono',monospace;color:var(--cyan)}
+  @media(max-width:1100px){.page{grid-template-columns:1fr}.sidebar{position:static}.row-3,.row-2{grid-template-columns:1fr}}
+</style>
+</head>
+<body data-scope-domain="Server">
+<div class="page">
+  <aside class="sidebar panel" aria-label="Sidebar">
+    <a href="dashboard.html" class="back-btn">← Back to Dashboard</a>
+    <span class="eyebrow">View</span>
+    <button id="globalBtn" class="dropdown-btn" onclick="selectMode('global')">🌎 Global</button>
+    <button id="siteBtn" class="dropdown-btn" onclick="toggleSiteSpecific()">📍 Site specific</button>
+    <div id="siteSpecificPanel" style="display:none;margin-top:14px;">
+      <span class="eyebrow">Scope</span>
+      <button id="regionBtn" class="dropdown-btn" onclick="togglePanel('regionPanel')">🌐 Region</button>
+      <div id="regionPanel" class="dropdown-panel">
+        <div class="search-group"><input type="text" id="regionSearch" placeholder="Search region" oninput="filterDropdown('region')"></div>
+      </div>
+      <button id="countryBtn" class="dropdown-btn" onclick="togglePanel('countryPanel')" disabled>📡 Country</button>
+      <div id="countryPanel" class="dropdown-panel">
+        <div class="search-group"><input type="text" id="countrySearch" placeholder="Search country" oninput="filterDropdown('country')"></div>
+      </div>
+      <button id="siteBtnSelect" class="dropdown-btn" onclick="togglePanel('sitePanel')" disabled>🛠 Site ID</button>
+      <div id="sitePanel" class="dropdown-panel">
+        <div class="search-group"><input type="text" id="siteSearch" placeholder="Search site" oninput="filterDropdown('site')"></div>
+      </div>
+    </div>
+  </aside>
+  <main class="content">
+    <div class="hero">
+      <span class="eyebrow" id="scopeEyebrow">Global view / Server</span>
+      <h1 class="gradient-text">Server Operations</h1>
+      <p id="scopeSub">Whole-globe server information.</p>
+    </div>
+
+    <section class="row-3">
+      <div class="card panel">
+        <h3>Server health</h3>
+        <p class="why">A donut shows how close the fleet is to a perfect health score.</p>
+        <div id="v-health"></div>
+      </div>
+      <div class="card panel">
+        <h3>Servers online</h3>
+        <p class="why">A pie splits the 248 hosts into healthy vs still being monitored.</p>
+        <div id="v-fleet"></div>
+      </div>
+      <div class="card panel">
+        <h3>Capacity used</h3>
+        <p class="why">A ring is the right read for a single utilization percentage.</p>
+        <div id="v-cap"></div>
+      </div>
+    </section>
+
+    <section class="row-2">
+      <div class="card panel">
+        <h3>Host resources</h3>
+        <p class="why">Bars compare CPU, memory, and storage on the same 0–100% scale.</p>
+        <div class="res">
+          <div class="res-row"><div class="lab"><span>CPU load</span><b>58%</b></div><div id="m-cpu"></div></div>
+          <div class="res-row"><div class="lab"><span>Memory used</span><b>72%</b></div><div id="m-mem"></div></div>
+          <div class="res-row"><div class="lab"><span>Storage usage</span><b>41%</b></div><div id="m-disk"></div></div>
+        </div>
+      </div>
+      <div class="card panel">
+        <h3>Patch compliance</h3>
+        <p class="why">Compliance is another score, so it uses the same donut language as health.</p>
+        <div id="v-patch"></div>
+      </div>
+    </section>
+
+    <section class="row-3">
+      <div class="card panel">
+        <h3>Critical services</h3>
+        <p class="why">A sparkline shows whether the 3 critical services are a spike or a plateau.</p>
+        <div class="stat">3</div>
+        <div id="v-crit"></div>
+        <div class="muted">Require operator follow-up</div>
+      </div>
+      <div class="card panel">
+        <h3>Incident backlog</h3>
+        <p class="why">Daily bars make the 5-item backlog easy to scan as a queue, not a score.</p>
+        <div class="stat" style="color:var(--amber)">5</div>
+        <div id="v-inc"></div>
+        <div class="muted">Pending review across clustered nodes</div>
+      </div>
+      <div class="card panel">
+        <h3>Load trend</h3>
+        <p class="why">An area graph is for change over time — last 24 samples of fleet CPU.</p>
+        <div id="v-trend"></div>
+        <div class="muted">Average across production hosts</div>
+      </div>
+    </section>
+  </main>
+</div>
+<script src="scope-sidebar.js"></script>
+<script src="ops-viz.js"></script>
+<script>
+  var V = window.OpsViz, C = V.colors;
+  V.donut(document.getElementById("v-health"), 98.6, C.emerald, "Fleet health score", "%");
+  V.pie(document.getElementById("v-fleet"), [
+    { value: 236, color: C.emerald, label: "Healthy" },
+    { value: 12, color: C.amber, label: "Monitoring" }
+  ]);
+  V.donut(document.getElementById("v-cap"), 64, C.cyan, "Used capacity", "%");
+  V.meter(document.getElementById("m-cpu"), 58, C.cyan);
+  V.meter(document.getElementById("m-mem"), 72, C.violet);
+  V.meter(document.getElementById("m-disk"), 41, C.teal);
+  V.donut(document.getElementById("v-patch"), 98, C.emerald, "Windows + Linux baseline", "%");
+  V.spark(document.getElementById("v-crit"), V.walk(24, 3, 1.4, 1, 6), C.rose);
+  V.bars(document.getElementById("v-inc"), [2, 4, 3, 5, 6, 4, 5], C.amber);
+  V.spark(document.getElementById("v-trend"), V.walk(24, 58, 8, 40, 78), C.cyan);
+</script>
+</body>
+</html>
