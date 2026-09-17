@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Changes | Smart NetOps Hub</title>
+<script src="activity-tracker.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="cxo.css">
+<script src="theme.js"></script>
+</head>
+<body>
+<div class="aurora"><i></i><i></i><i></i><i></i></div>
+<div class="mesh"></div>
+<div class="grain"></div>
+<div class="vignette"></div>
+
+<main class="cxo-page">
+  <header class="cxo-head">
+    <div>
+      <a href="dashboard.html" class="back-btn" style="display:inline-flex;gap:8px;padding:9px 13px;margin-bottom:12px;">&larr; Back to Dashboard</a>
+      <span class="eyebrow">Executive view / Changes</span>
+      <h1 class="gradient-text">Changes</h1>
+      <p class="lede">How much the estate moves, how often movement breaks it, and whether the approval process is catching anything. Delivery velocity against stability.</p>
+      <div class="cxo-meta"><span class="chip">Changes in period <b id="x-vol">&mdash;</b></span>
+        <span class="chip">Success rate <b id="x-success">&mdash;</b></span>
+        <span class="chip">Change-caused incidents <b id="x-caused">&mdash;</b></span>
+        <span class="chip">Updated <b id="x-updated">&mdash;</b></span></div>
+    </div>
+  </header>
+
+  <div id="controls"></div>
+  <div id="notice-slot"></div>
+
+  <section class="cxo-hero" id="hero">
+    <div class="hero-stat skel"><span class="k">Loading</span><span class="v">&mdash;</span><span class="sub">&mdash;</span></div>
+  </section>
+  <section class="cxo-grid wide-left">
+      <div class="card">
+        <header><h3>Change volume and outcome</h3></header>
+        <p class="why">Successful, rolled back and failed. A rising rollback rate is an early warning that testing is not keeping pace with delivery.</p>
+        <div class="" id="chart-volume"></div>
+      </div>
+      <div class="card">
+        <header><h3>Velocity against stability</h3></header>
+        <p class="why">The trade-off stated plainly. Moving faster is only a problem if the failure rate moves with it.</p>
+        <div class="stack" id="tradeoff"></div>
+      </div>
+  </section>
+  <section class="cxo-grid c4">
+      <div class="card">
+        <header><h3>By type</h3></header>
+        <p class="why">Standard, normal and emergency.</p>
+        <div class="stack" id="by-type"></div>
+      </div>
+      <div class="card">
+        <header><h3>By risk</h3></header>
+        <p class="why">Declared risk against realised outcome.</p>
+        <div class="stack" id="by-risk"></div>
+      </div>
+      <div class="card">
+        <header><h3>Emergency changes</h3></header>
+        <p class="why">Bypassed the normal approval path.</p>
+        <div class="stack" id="emergency"></div>
+      </div>
+      <div class="card">
+        <header><h3>Automation coverage</h3></header>
+        <p class="why">Automated versus manual execution.</p>
+        <div class="stack" id="automation"></div>
+      </div>
+  </section>
+  <section class="cxo-grid wide-right">
+      <div class="card">
+        <header><h3>Freeze calendar</h3></header>
+        <p class="why">Business-critical windows where change is restricted.</p>
+        <div class="stack" id="freeze"></div>
+      </div>
+      <div class="card">
+        <header><h3>Change register</h3></header>
+        <p class="why">Every change in the period with outcome and linked incidents.</p>
+        <div class="cxo-table-wrap"><table class="cxo" id="register"><tbody></tbody></table></div>
+      </div>
+  </section>
+
+</main>
+
+<script src="cxo.js"></script>
+<script>
+(function () {
+  "use strict";
+  var ctl = CXO.controls("controls", load);
+  var SOURCE = "the ITSM change module (ServiceNow) and the automation execution log";
+
+  function load() {
+    ctl.status("Awaiting integration");
+    ["x-vol","x-success","x-caused","x-updated"].forEach(function (i) {
+      document.getElementById(i).textContent = "\u2014";
+    });
+    document.getElementById("notice-slot").innerHTML =
+      '<div class="notice">Change records are not yet connected. Panels are built ' +
+      'against ' + SOURCE + '.</div>';
+
+    document.getElementById("hero").innerHTML =
+      CXO.heroStat({ label: "Changes executed", value: "\u2014", band: "idle", sub: "In the period" }) +
+      CXO.heroStat({ label: "Success rate", value: "\u2014", unit: "%", band: "idle", sub: "Completed without rollback" }) +
+      CXO.heroStat({ label: "Change-caused incidents", value: "\u2014", band: "idle", sub: "Self-inflicted" }) +
+      CXO.heroStat({ label: "Emergency changes", value: "\u2014", band: "idle", sub: "Bypassed normal approval" }) +
+      CXO.heroStat({ label: "Automated execution", value: "\u2014", unit: "%", band: "idle", sub: "Versus manual" });
+
+    ["chart-volume","tradeoff","by-type","by-risk","emergency","automation","freeze"]
+      .forEach(function (i) { document.getElementById(i).innerHTML = CXO.pendingState(SOURCE); });
+    document.querySelector("#register tbody").innerHTML =
+      '<tr><td>' + CXO.pendingState(SOURCE) + '</td></tr>';
+  }
+  load();
+})();
+</script>
+</body>
+</html>

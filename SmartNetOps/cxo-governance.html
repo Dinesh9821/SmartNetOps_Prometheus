@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Governance | Smart NetOps Hub</title>
+<script src="activity-tracker.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="cxo.css">
+<script src="theme.js"></script>
+</head>
+<body>
+<div class="aurora"><i></i><i></i><i></i><i></i></div>
+<div class="mesh"></div>
+<div class="grain"></div>
+<div class="vignette"></div>
+
+<main class="cxo-page">
+  <header class="cxo-head">
+    <div>
+      <a href="dashboard.html" class="back-btn" style="display:inline-flex;gap:8px;padding:9px 13px;margin-bottom:12px;">&larr; Back to Dashboard</a>
+      <span class="eyebrow">Executive view / Governance</span>
+      <h1 class="gradient-text">Governance</h1>
+      <p class="lede">Whether the estate would survive an audit. Control coverage, policy exceptions, data residency and the contractual commitments behind them.</p>
+      <div class="cxo-meta"><span class="chip">Control coverage <b id="x-controls">&mdash;</b></span>
+        <span class="chip">Open exceptions <b id="x-exceptions">&mdash;</b></span>
+        <span class="chip">Audit readiness <b id="x-audit">&mdash;</b></span>
+        <span class="chip">Updated <b id="x-updated">&mdash;</b></span></div>
+    </div>
+  </header>
+
+  <div id="controls"></div>
+  <div id="notice-slot"></div>
+
+  <section class="cxo-hero" id="hero">
+    <div class="hero-stat skel"><span class="k">Loading</span><span class="v">&mdash;</span><span class="sub">&mdash;</span></div>
+  </section>
+  <section class="cxo-grid wide-right">
+      <div class="card">
+        <header><h3>Audit readiness</h3></header>
+        <p class="why">Evidence collected against evidence required, per control family. The gap is the work outstanding before the next audit window.</p>
+        <div class="" id="readiness"></div>
+      </div>
+      <div class="card">
+        <header><h3>Control coverage by framework</h3></header>
+        <p class="why">The same estate assessed against each framework it is bound by.</p>
+        <div class="stack" id="frameworks"></div>
+      </div>
+  </section>
+  <section class="cxo-grid c3">
+      <div class="card">
+        <header><h3>Policy exceptions</h3></header>
+        <p class="why">Accepted risks with an owner and an expiry. An expired exception is an unowned risk.</p>
+        <div class="stack" id="exceptions"></div>
+      </div>
+      <div class="card">
+        <header><h3>Data residency</h3></header>
+        <p class="why">Where regulated data physically sits, against where policy says it may sit.</p>
+        <div class="stack" id="residency"></div>
+      </div>
+      <div class="card">
+        <header><h3>Asset attestation</h3></header>
+        <p class="why">Assets with a confirmed owner and a current review date.</p>
+        <div class="stack" id="attestation"></div>
+      </div>
+  </section>
+  <section class="cxo-grid wide-left">
+      <div class="card">
+        <header><h3>Contractual commitments</h3></header>
+        <p class="why">Every SLA the organisation has signed, and current attainment against it. Breach exposure is stated in credits, not percentages.</p>
+        <div class="cxo-table-wrap"><table class="cxo" id="commitments"><tbody></tbody></table></div>
+      </div>
+      <div class="card">
+        <header><h3>Requires sign-off</h3></header>
+        <p class="why">Items awaiting an accountable decision.</p>
+        <div class="stack" id="signoff"></div>
+      </div>
+  </section>
+
+</main>
+
+<script src="cxo.js"></script>
+<script>
+(function () {
+  "use strict";
+  var ctl = CXO.controls("controls", load, { noRange: false });
+  var SOURCE = "the GRC platform, the CMDB attestation records and the contract register";
+
+  function load() {
+    ctl.status("Partially live");
+    document.getElementById("x-updated").textContent = "\u2014";
+    ["x-controls","x-exceptions","x-audit"].forEach(function (i) {
+      document.getElementById(i).textContent = "\u2014";
+    });
+    document.getElementById("notice-slot").innerHTML =
+      '<div class="notice">Governance sources are not yet connected. Availability ' +
+      'attainment below is live from Prometheus; the remaining panels populate once ' +
+      SOURCE + ' is wired in.</div>';
+
+    document.getElementById("hero").innerHTML =
+      CXO.heroStat({ label: "Control coverage", value: "\u2014", unit: "%", band: "idle", sub: "Implemented and evidenced" }) +
+      CXO.heroStat({ label: "Open exceptions", value: "\u2014", band: "idle", sub: "Accepted risks in force" }) +
+      CXO.heroStat({ label: "Expired exceptions", value: "\u2014", band: "idle", sub: "Past their review date" }) +
+      CXO.heroStat({ label: "Residency conformance", value: "\u2014", unit: "%", band: "idle", sub: "Data in permitted regions" }) +
+      CXO.heroStat({ label: "SLA breach exposure", value: "\u2014", band: "idle", sub: "Credits at risk this period" });
+
+    ["readiness","frameworks","exceptions","residency","attestation","signoff"]
+      .forEach(function (i) { document.getElementById(i).innerHTML = CXO.pendingState(SOURCE); });
+
+    // The availability commitment is measurable today, so show it rather than
+    // marking the whole page pending.
+    CXO.network({ withRegions: true }).then(function (r) {
+      var d = r.body || {}, k = d.kpis || {};
+      var av = k.reachability && k.reachability.value;
+      var wan = k.wan_availability && k.wan_availability.value;
+      document.getElementById("x-updated").textContent = CXO.ago(d.scraped_at || d.last_updated);
+      var rows = [
+        ["Network availability", "99.5%", av, 99.5, "Internal service commitment"],
+        ["WAN circuit availability", "99.0%", wan, 99, "Carrier contracted"],
+        ["Overlay tunnel health", "99.0%",
+          k.bfd_up && k.bfd_up.total ? (100 * k.bfd_up.value / k.bfd_up.total) : null, 99,
+          "Internal service commitment"]
+      ];
+      document.querySelector("#commitments tbody").innerHTML =
+        "<tr><th>Commitment</th><th>Target</th><th>Attainment</th><th>Status</th><th>Basis</th></tr>" +
+        rows.map(function (x) {
+          var b = CXO.band(x[2], x[3], x[3] - 2);
+          return "<tr><td>" + CXO.esc(x[0]) + "</td><td class='n'>" + x[1] +
+            "</td><td class='n'>" + (x[2] === null || x[2] === undefined ? "\u2014" : CXO.pct(x[2], 2)) +
+            "</td><td>" + CXO.pill(x[2] === null || x[2] === undefined ? "no data"
+              : x[2] >= x[3] ? "met" : "breached", b) +
+            "</td><td>" + CXO.esc(x[4]) + "</td></tr>";
+        }).join("");
+    });
+  }
+  load();
+})();
+</script>
+</body>
+</html>

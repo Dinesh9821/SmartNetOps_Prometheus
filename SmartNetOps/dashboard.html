@@ -1,0 +1,1251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Dashboard | Smart NetOps Hub</title>
+<script src="activity-tracker.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="theme.css">
+
+<style>
+  .page{ display:grid; grid-template-columns:272px minmax(0,1fr); gap:20px;
+         width:100%; max-width:none; margin:0; padding:22px 22px 40px; align-items:start; }
+
+  /* ── SIDEBAR ── */
+  .sidebar{ padding:16px; position:sticky; top:calc(var(--rail-h) + 20px); }
+  .sidebar .eyebrow{ display:block; margin:0 0 10px; }
+  .back-btn{ display:flex; align-items:center; gap:8px; padding:10px 12px;
+             margin-bottom:14px; width:100%; }
+  /* ── SCOPE DROPDOWNS ──────────────────────────────────────────
+     Sized up from 12.5px/11px. These are the primary controls on the
+     page, so they now read as controls rather than as caption text:
+     14px label, 44px hit target, chevron affordance, clear open state. */
+  .dropdown-btn{
+    position:relative;
+    display:flex; align-items:center; gap:10px;
+    width:100%; min-height:44px;
+    padding:12px 34px 12px 14px !important;
+    margin-bottom:8px;
+    font-size:14px !important; font-weight:500; line-height:1.25;
+    text-align:left;
+    border-radius:var(--r-sm);
+    letter-spacing:-.005em;
+  }
+  /* chevron — pure CSS, no glyph dependency */
+  .dropdown-btn::after{
+    content:""; position:absolute; right:14px; top:50%;
+    width:7px; height:7px; margin-top:-5px;
+    border-right:1.6px solid var(--ink-3);
+    border-bottom:1.6px solid var(--ink-3);
+    transform:rotate(45deg);
+    transition:transform .2s var(--swift), border-color .2s var(--ease);
+  }
+  .dropdown-btn:hover::after{ border-color:var(--ink); }
+  .dropdown-btn[aria-expanded="true"]::after,
+  .dropdown-btn.open::after{ transform:rotate(-135deg); margin-top:-2px; }
+  .dropdown-btn:hover{ border-color:var(--edge-hot); }
+  .dropdown-btn:disabled{
+    opacity:.42; cursor:not-allowed;
+    transform:none !important; box-shadow:none !important;
+  }
+  .dropdown-btn:disabled::after{ opacity:.5; }
+
+  /* Global sub-menu — reads as a grouped list, not stray links */
+  .global-options{
+    display:none; gap:3px; flex-direction:column;
+    margin:-2px 0 12px 12px; padding:7px;
+    border-left:2px solid var(--edge-hot);
+    border-radius:0 var(--r-sm) var(--r-sm) 0;
+    background:var(--glass);
+  }
+  .global-options a{
+    display:flex; align-items:center; gap:10px;
+    padding:10px 12px; border-radius:var(--r-xs);
+    color:var(--ink-2) !important; font-size:13.5px; font-weight:500;
+    transition:background .16s var(--ease), color .16s var(--ease),
+               padding-left .16s var(--swift);
+  }
+  .global-options a:hover{
+    background:var(--glass-hi); color:var(--ink) !important;
+    padding-left:15px;
+  }
+
+  .dropdown-panel{
+    display:none; margin:-2px 0 10px; padding:7px;
+    max-height:300px; overflow-y:auto;
+    border-radius:var(--r-sm);
+    background:var(--glass); border:1px solid var(--edge);
+    box-shadow:var(--e2);
+  }
+  .search-group{ padding:2px 2px 7px; position:sticky; top:-7px;
+                 background:var(--surface); z-index:2; margin:-7px -7px 4px;
+                 padding:9px 9px 7px; border-radius:var(--r-sm) var(--r-sm) 0 0; }
+  .search-group input{
+    width:100%; padding:10px 12px !important;
+    font-size:13.5px !important; border-radius:var(--r-xs);
+  }
+  .dropdown-item{
+    padding:10px 12px; cursor:pointer;
+    font-size:13.5px; border-radius:var(--r-xs);
+    transition:background .14s var(--ease), color .14s var(--ease);
+  }
+  .dropdown-item:hover{ background:var(--glass-hi); color:var(--ink); }
+
+  /* ── CONTENT ── */
+  .content{ background:none !important; border:0 !important; box-shadow:none !important;
+            backdrop-filter:none !important; padding:0 !important; display:grid; gap:16px; }
+  .content::before,.content::after{ display:none !important; }
+
+  .top-row{ display:flex; align-items:flex-end; justify-content:space-between;
+            gap:18px; flex-wrap:wrap; }
+  .title{ font-size:clamp(24px,2.4vw,32px); margin:5px 0 4px; }
+  .subtitle{ color:var(--ink-2); font-size:13.5px; }
+  .toolbar{ display:flex; gap:8px; flex-wrap:wrap; }
+  .toolbar button{ padding:8px 13px; }
+
+  /* ── KPI STRIP ── */
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(5, minmax(0,1fr));
+    gap:12px;
+    width:100%;
+  }
+  .kpi{
+    --kpi-accent: var(--cyan);
+    min-width:0; min-height:168px; height:100%;
+    padding:16px 16px 12px !important;
+    display:flex; flex-direction:column; gap:6px;
+    overflow:hidden;
+    background:
+      linear-gradient(180deg, color-mix(in srgb, var(--kpi-accent) 18%, transparent), transparent 46%),
+      linear-gradient(168deg, rgba(255,255,255,.075) 0%, rgba(255,255,255,.022) 42%, rgba(255,255,255,.012) 100%) !important;
+    box-shadow: var(--e2), inset 0 2px 0 var(--kpi-accent), 0 0 36px -16px var(--kpi-accent) !important;
+  }
+  .kpi h3{ font-size:10.5px !important; font-weight:700 !important;
+           text-transform:uppercase; letter-spacing:.14em;
+           color:var(--ink-3) !important; font-family:'Inter',sans-serif !important; margin:0; }
+  .kpi .big{
+    font-size:clamp(22px,1.9vw,34px); font-weight:700; line-height:1.05;
+    color:var(--kpi-accent) !important;
+    text-shadow:0 0 22px color-mix(in srgb, var(--kpi-accent) 55%, transparent);
+    margin:4px 0 2px;
+  }
+  .kpi .foot{ display:flex; align-items:center; gap:6px; font-size:11px; color:var(--ink-2); flex-wrap:wrap; }
+  .delta{ font-family:'JetBrains Mono',monospace; font-size:10.5px; font-weight:600;
+          padding:1px 6px; border-radius:5px; }
+  .delta.up{ color:var(--emerald); background:rgba(52,211,153,.12); }
+  .delta.down{ color:var(--rose); background:rgba(251,113,133,.12); }
+  .delta.flat{ color:var(--kpi-accent); background:color-mix(in srgb, var(--kpi-accent) 16%, transparent); }
+  .spark{ margin-top:auto; width:100%; height:34px; }
+  .spark svg{ width:100% !important; height:34px !important; }
+  .kpi-health{ --kpi-accent: var(--emerald); }
+  .kpi-devices{ --kpi-accent: var(--cyan); }
+  .kpi-uptime{ --kpi-accent: var(--teal); }
+  .kpi-clients{ --kpi-accent: var(--violet); }
+  .kpi-latency{ --kpi-accent: var(--amber); }
+  html[data-theme="light"] .kpi{
+    background:
+      linear-gradient(180deg, color-mix(in srgb, var(--kpi-accent) 14%, #fff), rgba(255,255,255,.9) 50%) !important;
+  }
+  html[data-theme="light"] .kpi .big{ color:var(--kpi-accent) !important; text-shadow:none; }
+
+  /* ── PANELS ── */
+  .card{ padding:18px 20px; }
+  .card > header{ display:flex; align-items:center; justify-content:space-between;
+                  gap:12px; margin-bottom:14px; }
+  .card > header h3{ margin:0; }
+  .card > header .muted{ font-size:12px; }
+  .hd{ display:flex; flex-direction:column; gap:1px; }
+
+  .row-2{ display:grid; grid-template-columns:minmax(0,2fr) minmax(280px,1fr); gap:16px; align-items:stretch; }
+  .row-dc[hidden]{ display:none !important; }
+  #stream{ min-height:210px; }
+  .row-3{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+  .gauges{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+
+  /* resource meters */
+  .res{ display:flex; flex-direction:column; gap:13px; }
+  .res-row .lab{ display:flex; justify-content:space-between;
+                 font-size:12.5px; margin-bottom:6px; color:var(--ink-2); }
+  .res-row .lab b{ font-family:'JetBrains Mono',monospace; color:var(--ink); font-weight:600; }
+  .meter > i{ width:0; }
+
+  /* heatmap */
+  .hm{ display:grid; grid-template-columns:14px repeat(24,1fr); gap:2.5px; }
+  .hm i{ aspect-ratio:1; border-radius:2.5px; display:block; cursor:crosshair;
+         transition:transform .14s var(--ease); }
+  .hm i:hover{ transform:scale(1.45); outline:1px solid rgba(255,255,255,.5); z-index:2; }
+  .hm-day{ font-family:'JetBrains Mono',monospace; font-size:8.5px;
+           color:var(--ink-3); display:grid; place-items:center; }
+  .hm-key{ display:flex; align-items:center; gap:4px; margin-top:11px;
+           font-size:10px; color:var(--ink-3); font-family:'JetBrains Mono',monospace; }
+  .hm-key i{ width:11px; height:11px; border-radius:3px; display:block; }
+
+  /* AI insights */
+  .ai{ background:linear-gradient(150deg,rgba(167,139,250,.13),rgba(34,211,238,.05) 60%,transparent) !important; }
+  .ai .ins{ display:flex; gap:11px; padding:12px; border-radius:var(--r);
+            background:rgba(4,6,10,.42); border:1px solid var(--edge);
+            margin-bottom:9px; }
+  .ai .ins:last-child{ margin-bottom:0; }
+  .ai .ins-i{ width:26px; height:26px; flex:0 0 auto; border-radius:8px;
+              display:grid; place-items:center; font-size:12px;
+              background:rgba(167,139,250,.16); border:1px solid rgba(167,139,250,.3); }
+  .ai .ins-t{ font-size:12.5px; color:var(--ink); line-height:1.5; }
+  .ai .ins-a{ font-size:11px; color:var(--violet); margin-top:5px;
+              font-weight:600; cursor:pointer; display:inline-block; }
+  .ai .ins-a:hover{ color:#DDD6FE; }
+
+  .note{ font-size:11px; color:var(--ink-3); text-align:center;
+         padding:14px; border-top:1px solid var(--edge); margin-top:6px; }
+
+  .dc-chart{
+    display:flex; flex-direction:column; gap:8px;
+    max-height:min(48vh, 520px); overflow:auto; padding-right:4px;
+  }
+  .dc-chart.compact{ max-height:none; overflow:visible; }
+  .dc-empty{ padding:28px 12px; text-align:center; color:var(--ink-3); font-size:13px; }
+  .dc-row{ display:grid; grid-template-columns:minmax(92px,150px) 1fr 52px; gap:8px 10px; align-items:center; }
+  .dc-name{ font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--ink-2);
+            overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .dc-track{ height:9px; border-radius:999px; background:rgba(4,6,10,.75); border:1px solid var(--edge); overflow:hidden; }
+  .dc-track > i{ display:block; height:100%; border-radius:999px; width:0;
+                 transition:width 1s var(--swift); }
+  .dc-track > i.ok{ background:linear-gradient(90deg,var(--blue),var(--emerald)); box-shadow:0 0 12px rgba(52,211,153,.55); }
+  .dc-track > i.warn{ background:linear-gradient(90deg,#F59E0B,var(--amber)); box-shadow:0 0 12px rgba(251,191,36,.5); }
+  .dc-track > i.crit{ background:linear-gradient(90deg,#F43F5E,var(--rose)); box-shadow:0 0 12px rgba(251,113,133,.5); }
+  .dc-track > i.unk{ background:rgba(148,163,184,.35); }
+  .dc-val{ font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:600; color:var(--ink); text-align:right; }
+  .dc-meta{ grid-column:2 / 3; font-size:10px; color:var(--ink-3); margin-top:-4px; }
+  html[data-theme="light"] .dc-track{ background:rgba(226,232,240,.9); }
+
+  @media (max-width:1250px){ .row-3{ grid-template-columns:1fr; } }
+  @media (max-width:1050px){
+    .page{ grid-template-columns:1fr; }
+    .sidebar{ position:static; }
+    .row-2{ grid-template-columns:1fr; }
+  }
+  @media (max-width:900px){
+    .grid{ grid-template-columns:repeat(2, minmax(0,1fr)); }
+    .grid .kpi:last-child{ grid-column:1 / -1; }
+  }
+</style>
+</head>
+<body data-dash-live>
+
+<div class="page">
+
+  <!-- ── SCOPE SIDEBAR (ids preserved for the original JS) ── -->
+  <aside class="sidebar panel" aria-label="Sidebar">
+    <a href="landing page.html" class="back-btn">← Back to Home</a>
+
+    <span class="eyebrow">View</span>
+    <button id="globalBtn" class="dropdown-btn" onclick="toggleGlobalOptions()">🌎 Global</button>
+    <div id="globalOptions" class="global-options" aria-label="Global views">
+      <a href="server-global.html">▤ Server</a>
+      <a href="network-global.html">⬡ Network</a>
+      <a href="cloud-global.html">◌ Cloud</a>
+      <a href="global-map.html">◈ Global site map</a>
+      <a href="diagnostics.html">◆ Telemetry diagnostics</a>
+    </div>
+    <button id="siteBtn" class="dropdown-btn" onclick="toggleSiteSpecific()">📍 Site specific</button>
+
+    <span class="eyebrow" style="margin-top:18px">Executive</span>
+    <button id="cxoBtn" class="dropdown-btn" onclick="toggleCxoOptions()">◎ CXO dashboards</button>
+    <div id="cxoOptions" class="global-options" aria-label="Executive dashboards">
+      <a href="cxo-network.html">⬡ Network</a>
+      <a href="cxo-cloud.html">◌ Cloud</a>
+      <a href="cxo-incidents.html">◬ Incidents</a>
+      <a href="cxo-applications.html">▦ Applications</a>
+      <a href="cxo-security.html">⛊ Security</a>
+      <a href="cxo-performance.html">◷ Performance</a>
+      <a href="cxo-report.html">▤ Report</a>
+      <a href="cxo-changes.html">⇄ Changes</a>
+      <a href="cxo-alerts.html">◉ Alerts</a>
+      <a href="cxo-governance.html">⚖ Governance</a>
+    </div>
+
+    <div id="siteSpecificPanel" style="display:none; margin-top:14px;">
+      <span class="eyebrow">Scope</span>
+
+      <button id="regionBtn" class="dropdown-btn" onclick="togglePanel('regionPanel')">🌐 Region</button>
+      <div id="regionPanel" class="dropdown-panel">
+        <div class="search-group"><input type="text" id="regionSearch" placeholder="Search region" oninput="filterDropdown('region')"></div>
+      </div>
+
+      <button id="countryBtn" class="dropdown-btn" onclick="togglePanel('countryPanel')" disabled>📡 Country</button>
+      <div id="countryPanel" class="dropdown-panel">
+        <div class="search-group"><input type="text" id="countrySearch" placeholder="Search country" oninput="filterDropdown('country')"></div>
+      </div>
+
+      <button id="siteBtnSelect" class="dropdown-btn" onclick="togglePanel('sitePanel')" disabled>🛠 Site ID</button>
+      <div id="sitePanel" class="dropdown-panel">
+        <div class="search-group"><input type="text" id="siteSearch" placeholder="Search site" oninput="filterDropdown('site')"></div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ── CONTENT ── -->
+  <main class="content">
+
+    <div class="top-row">
+      <div>
+        <span class="eyebrow">Live telemetry</span>
+        <h1 class="title gradient-text">Dashboard</h1>
+        <div class="subtitle" id="dash-subtitle">Fleet health and throughput from Prometheus — global or site scoped.</div>
+        <div class="ctx" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:10px;">
+          <span class="chip">Last updated <b id="dash-updated">—</b></span>
+          <span class="chip">Scraped <b id="dash-scraped">—</b></span>
+          <span class="chip">Next refresh <b id="dash-next">60s</b></span>
+        </div>
+      </div>
+      <div class="toolbar">
+        <button onclick="NetOps.palette()">⌘K Search</button>
+        <button onclick="NetOps.toast('Snapshot exported')">↧ Export</button>
+        <button class="primary" onclick="location.reload()">⟳ Refresh</button>
+      </div>
+    </div>
+
+    <!-- KPI STRIP -->
+    <section class="grid">
+      <div class="card kpi stat-card reveal kpi-health">
+        <h3>Overall health</h3>
+        <div class="big" id="kpi-health">—</div>
+        <div class="foot" id="kpi-health-foot"><span class="delta flat">Fleet</span> site health</div>
+        <div class="spark" id="sp-health"></div>
+      </div>
+      <div class="card kpi stat-card reveal kpi-devices">
+        <h3>Total devices</h3>
+        <div class="big" id="kpi-devices">—</div>
+        <div class="foot" id="kpi-devices-foot"><span class="delta flat">Prometheus</span> device_info</div>
+        <div class="spark" id="sp-servers"></div>
+      </div>
+      <div class="card kpi stat-card reveal kpi-uptime">
+        <h3>Uptime</h3>
+        <div class="big" id="kpi-uptime">—</div>
+        <div class="foot" id="kpi-uptime-foot"><span class="delta flat">site health</span> devices up / total</div>
+        <div class="spark" id="sp-uptime"></div>
+      </div>
+      <div class="card kpi stat-card reveal kpi-clients">
+        <h3>Active clients</h3>
+        <div class="big" id="kpi-clients">—</div>
+        <div class="foot" id="kpi-clients-foot"><span class="delta flat">Meraki</span> switch client count</div>
+        <div class="spark" id="sp-users"></div>
+      </div>
+      <div class="card kpi stat-card reveal kpi-latency">
+        <h3>p95 latency</h3>
+        <div class="big" id="kpi-latency">—</div>
+        <div class="foot" id="kpi-latency-foot"><span class="delta flat">WAN</span> quantile across links</div>
+        <div class="spark" id="sp-latency"></div>
+      </div>
+    </section>
+
+    <!-- GLOBAL MAP + GAUGES -->
+    <section class="row-2">
+      <div class="card reveal">
+        <header>
+          <div class="hd">
+            <h3>Global site map</h3>
+            <span class="muted" id="map-muted">Site IDs placed geographically · coloured by live reachability</span>
+          </div>
+          <a href="global-map.html" class="chip" style="text-decoration:none">Open full map →</a>
+        </header>
+        <div id="dash-map-wrap" style="position:relative;min-height:300px;border-radius:var(--r);overflow:hidden;border:1px solid var(--edge);">
+          <div id="dash-map" style="position:absolute;inset:0"></div>
+          <div id="dash-map-state" style="position:absolute;inset:0;display:grid;place-items:center;padding:20px;text-align:center;background:var(--surface);font-size:13px;color:var(--ink-3);line-height:1.6">
+            Loading site inventory…
+          </div>
+          <div id="dash-map-legend" style="position:absolute;bottom:9px;left:9px;display:none;gap:11px;padding:7px 10px;border-radius:8px;background:rgba(8,9,11,.86);border:1px solid var(--edge);font-size:10.5px;color:var(--ink-2);backdrop-filter:blur(12px)">
+            <span><i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#7FC9A0;margin-right:5px"></i>Healthy</span>
+            <span><i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#D9B26A;margin-right:5px"></i>Degraded</span>
+            <span><i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#D68C92;margin-right:5px"></i>Critical</span>
+            <span><i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#8A9098;margin-right:5px"></i>No data</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card reveal">
+        <header><div class="hd"><h3>Service levels</h3>
+          <span class="muted" id="gauges-muted">Rolling 24h</span></div></header>
+        <div class="gauges">
+          <div id="g-health"></div>
+          <div id="g-latency"></div>
+          <div id="g-error"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card reveal row-dc" id="dc-card">
+      <header>
+        <div class="hd">
+          <h3>Data centers</h3>
+          <span class="muted" id="dc-muted">Health across sites worldwide</span>
+        </div>
+        <span class="chip" id="dc-chip">—</span>
+      </header>
+      <div class="dc-chart" id="datacenters"></div>
+    </section>
+
+    <!-- TOPOLOGY + RESOURCES -->
+    <section class="row-3">
+      <div class="card reveal">
+        <header><div class="hd"><h3>Topology</h3>
+          <span class="muted" id="topo-muted">Live path health</span></div>
+          <span class="chip" id="topo-chip">—</span>
+        </header>
+        <div id="topology"></div>
+      </div>
+
+      <div class="card reveal">
+        <header><div class="hd"><h3>Resources</h3>
+          <span class="muted">Device average from Prometheus</span></div></header>
+        <div class="res">
+          <div class="res-row">
+            <div class="lab"><span>CPU</span><b id="res-cpu-val">—</b></div>
+            <div class="meter"><i id="res-cpu-bar" data-w="0"></i></div>
+          </div>
+          <div class="res-row">
+            <div class="lab"><span>Memory</span><b id="res-memory-val">—</b></div>
+            <div class="meter violet"><i id="res-memory-bar" data-w="0"></i></div>
+          </div>
+          <div class="res-row">
+            <div class="lab"><span>Disk</span><b id="res-disk-val">—</b></div>
+            <div class="meter emerald"><i id="res-disk-bar" data-w="0"></i></div>
+          </div>
+          <div class="res-row">
+            <div class="lab"><span>Network</span><b id="res-network-val">—</b></div>
+            <div class="meter amber"><i id="res-network-bar" data-w="0"></i></div>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- HEATMAP + AI -->
+    <section class="row-3">
+      <div class="card reveal">
+        <header><div class="hd"><h3>Load pattern</h3>
+          <span class="muted" id="heatmap-muted">Past 7 days by hour</span></div></header>
+        <div id="heatmap"></div>
+      </div>
+
+      <div class="card ai reveal">
+        <header><div class="hd"><h3>AI insights</h3>
+          <span class="muted">Derived from Prometheus events and KPIs</span></div>
+          <span class="chip info" id="insights-chip">—</span>
+        </header>
+        <div id="insights"></div>
+      </div>
+
+    </section>
+
+    <div class="note" id="dash-note">
+      Charts, gauges, topology, and heatmap are queried from Prometheus through the proxy.
+      Region, country, and site selection still run against your live site-list APIs.
+    </div>
+
+  </main>
+</div>
+
+<script src="theme.js"></script>
+<script defer src="viz.js"></script>
+<script>
+  const DASH_MODE_KEY = "dashboardMode";
+  const DASH_REGION_KEY = "dashboardSelectedRegion";
+  const DASH_COUNTRY_KEY = "dashboardSelectedCountry";
+  const DASH_SITE_KEY = "dashboardSelectedSite";
+  const DASH_SITE_INFO_KEY = "dashboardSelectedSiteInfo";
+
+  function closeScopeDropdowns(){
+    ["regionPanel", "countryPanel", "sitePanel"].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.style.display = "none";
+    });
+  }
+
+  function paintModeButtons(mode, sitePanelOpen){
+    document.getElementById("globalBtn").style.background =
+      mode === "global" ? "rgba(255,255,255,0.26)" : "rgba(255,255,255,0.18)";
+    document.getElementById("siteBtn").style.background =
+      sitePanelOpen ? "rgba(255,255,255,0.26)" : "rgba(255,255,255,0.18)";
+  }
+
+  function selectMode(mode, opts){
+    opts = opts || {};
+    var panel = document.getElementById("siteSpecificPanel");
+    var globalOptions = document.getElementById("globalOptions");
+
+    if (mode === "global") {
+      localStorage.setItem(DASH_MODE_KEY, "global");
+      panel.style.display = "none";
+      closeScopeDropdowns();
+      paintModeButtons("global", false);
+      if (!opts.skipLoad) loadDashboard();
+      return;
+    }
+
+    if (globalOptions) globalOptions.style.display = "none";
+    localStorage.setItem(DASH_MODE_KEY, "site");
+    panel.style.display = "block";
+    paintModeButtons("site", true);
+    if (!opts.skipLoad) loadDashboard();
+  }
+
+  function toggleSiteSpecific(){
+    var panel = document.getElementById("siteSpecificPanel");
+    var isOpen = panel.style.display === "block";
+    if (isOpen) {
+      panel.style.display = "none";
+      closeScopeDropdowns();
+      paintModeButtons(currentDashMode(), false);
+      return;
+    }
+    selectMode("site");
+  }
+
+  function toggleGlobalOptions(){
+    var options = document.getElementById('globalOptions');
+    var isOpen = options.style.display === 'flex';
+    options.style.display = isOpen ? 'none' : 'flex';
+    var cxo = document.getElementById('cxoOptions');
+    if (cxo) cxo.style.display = 'none';
+    selectMode('global');
+  }
+
+  /* Executive dashboards are a navigation group, not a scope mode, so this
+     deliberately does NOT call selectMode() and leaves the site scope alone. */
+  function toggleCxoOptions(){
+    var options = document.getElementById('cxoOptions');
+    if (!options) return;
+    var isOpen = options.style.display === 'flex';
+    options.style.display = isOpen ? 'none' : 'flex';
+    var g = document.getElementById('globalOptions');
+    if (g) g.style.display = 'none';
+  }
+  window.toggleCxoOptions = toggleCxoOptions;
+
+  function proxyOrigin() {
+    try {
+      if (location.protocol === "http:" || location.protocol === "https:") {
+        if (location.port === "8080") return "";
+        return location.protocol + "//" + location.hostname + ":8080";
+      }
+    } catch (e) {}
+    return "http://cussya5w.carcgl.com:8080";
+  }
+
+  const COUNTRY_SITES_API = proxyOrigin() + "/proxy1";
+  const SITE_INFO_API = "/api/site-info";
+  const SITE_LIST_CACHE_KEY = "netops_site_lists";
+
+  const regionData = {
+  APAC: {
+    "China": ["CHN-BJS-DC-001"],
+    "Japan": ["JPN-TYO-DC-002"],
+    "Korea, Republic of": [],
+    "Taiwan": ["TWN-TPE-DC-006"],
+    "Malaysia": ["MYS-KUL-DC-008"],
+    "Singapore": ["SGP-SGP-DC-009"],
+    "Thailand": ["THA-BKK-DC-010"],
+    "Vietnam": ["VNM-HAN-DC-012"],
+    "Brunei Darussalam": ["BRN-BWN-DC-016"],
+
+    "India": ["IND-MUM-DC-018"],
+    "Australia": ["AUS-SYD-DC-026"],
+    "Guam": [],
+    "Hong Kong": [],
+    "Macau": [],
+    "New Zealand": []
+  },
+
+  EMEA: {
+    "United Kingdom": ["London-45", "Manchester-12"],
+    "Germany": ["Berlin-7", "Munich-10"],
+    "Italy": ["Rome-2", "Milan-6"],
+    "Czech Republic": [],
+    "Spain": ["ESP-MAD-DC-001"],
+    "South Africa": ["ZAF-JHB-BR-014"],
+    "Saudi Arabia": ["KSA-RYD-DC-004"],
+    "UAE": ["UAE-DXB-POP-005"],
+
+    "Austria": ["AUT-VIE-DC-001"],
+    "Belgium": ["BEL-BRU-DC-002"],
+    "Netherlands": ["NLD-AMS-DC-003"],
+    "Poland": ["POL-WAW-DC-004"],
+    "Sweden": ["SWE-STO-DC-005"],
+    "Turkey": ["TUR-IST-DC-015"],
+    "Bulgaria": [],
+    "Switzerland": [],
+    "Denmark": [],
+    "Finland": [],
+    "Greece": [],
+    "France": [],
+    "Croatia": [],
+    "Hungary": [],
+    "Ireland": [],
+    "Kuwait": [],
+    "Lithuania": [],
+    "Luxembourg": [],
+    "Latvia": [],
+    "Norway": [],
+    "Portugal": [],
+    "Romania": [],
+    "Serbia": [],
+    "Russian Federation": [],
+    "Slovenia": [],
+    "Slovakia": [],
+    "Ukraine": []
+  },
+
+  AMER: {
+    "Canada": ["CAN-TOR-DC-001"],
+    "United States": ["USA-NYC-DC-002"],
+    "United States of America": ["USA-NV-LAS-001"],
+    "Mexico": ["MEX-MEX-DC-003"],
+
+    "Argentina": ["ARG-BUE-DC-024"],
+    "Brazil": ["BRA-GRU-DC-026"]
+  }
+};
+
+  const regionPanel = document.getElementById('regionPanel');
+  const countryPanel = document.getElementById('countryPanel');
+  const sitePanel = document.getElementById('sitePanel');
+
+  function siteCacheKey(region, country) {
+    return region + "::" + country;
+  }
+
+  function readSiteListCache() {
+    try {
+      const cache = JSON.parse(sessionStorage.getItem(SITE_LIST_CACHE_KEY) || "{}");
+      return cache && typeof cache === "object" && !Array.isArray(cache) ? cache : {};
+    } catch (error) {
+      return {};
+    }
+  }
+
+  function writeSiteListCache(region, country, sites) {
+    try {
+      const cache = readSiteListCache();
+      cache[siteCacheKey(region, country)] = sites;
+      sessionStorage.setItem(SITE_LIST_CACHE_KEY, JSON.stringify(cache));
+    } catch (error) {}
+  }
+
+  function normalizeSiteLabel(s) {
+    if (typeof s === "string") return s.trim();
+    if (typeof s === "object" && s) {
+      const parts = [
+        s.U_SITE_ID,
+        s.U_STREET_ADDRESS,
+        s.U_CITY,
+        s.U_STATE,
+        s.U_COUNTRY,
+        s.U_PINCODE
+      ].filter(function (val) { return val && String(val).trim() !== ""; });
+      return parts.length ? parts.join(" | ") : "";
+    }
+    return String(s).trim();
+  }
+
+  function populateRegions(){
+    Object.keys(regionData).forEach(r=>{
+      const el = document.createElement('div');
+      el.className='dropdown-item';
+      el.textContent = r;
+      el.onclick = ()=> selectRegion(r);
+      regionPanel.appendChild(el);
+    });
+  }
+
+  function loadCountries(region){
+    countryPanel.innerHTML='<div class="search-group"><input type="text" id="countrySearch" placeholder="Search Country" oninput="filterDropdown(\'country\')"></div>';
+    sitePanel.innerHTML='<div class="search-group"><input type="text" id="siteSearch" placeholder="Search Site" oninput="filterDropdown(\'site\')"></div>';
+    Object.keys(regionData[region]||{}).forEach(c=>{
+      const el = document.createElement('div');
+      el.className='dropdown-item';
+      el.textContent = c;
+      el.onclick = ()=> selectCountry(region,c);
+      countryPanel.appendChild(el);
+    });
+  }
+
+  function loadSites(region,country){
+    sitePanel.innerHTML='<div class="search-group"><input type="text" id="siteSearch" placeholder="Search Site" oninput="filterDropdown(\'site\')"></div>';
+    (regionData[region][country]||[]).forEach(s=>{
+      const el = document.createElement('div');
+      el.className='dropdown-item';
+      el.textContent = s;
+      el.onclick = ()=> selectSite(s);
+      sitePanel.appendChild(el);
+    });
+  }
+
+  function togglePanel(panelId){
+    const p = document.getElementById(panelId);
+    const control = panelId === 'regionPanel' ? document.getElementById('regionBtn')
+      : panelId === 'countryPanel' ? document.getElementById('countryBtn')
+      : document.getElementById('siteBtnSelect');
+    if (control && control.disabled) return;
+    p.style.display = p.style.display === 'block' ? 'none' : 'block';
+  }
+
+  function updatePickerAvailability(){
+    document.getElementById('countryBtn').disabled = !localStorage.getItem(DASH_REGION_KEY);
+    document.getElementById('siteBtnSelect').disabled = !(
+      localStorage.getItem(DASH_REGION_KEY) && localStorage.getItem(DASH_COUNTRY_KEY)
+    );
+  }
+
+  function selectRegion(region){
+    document.getElementById("regionBtn").textContent = "🌐 Region: " + region;
+    document.getElementById("regionPanel").style.display = "none";
+    document.getElementById("countryBtn").textContent = "📡 Country";
+    document.getElementById("siteBtnSelect").textContent = "🛠 Site ID";
+    
+    // Save to localStorage
+    localStorage.setItem(DASH_REGION_KEY, region);
+    localStorage.removeItem(DASH_COUNTRY_KEY);
+    localStorage.removeItem(DASH_SITE_KEY);
+    localStorage.removeItem(DASH_SITE_INFO_KEY);
+    updatePickerAvailability();
+    
+    loadCountries(region);
+  }
+
+  /* ---------------------------
+     fetchSitesForCountry (API Integration)
+     --------------------------- */
+  async function fetchSitesForCountry(region, country) {
+    const sitePanelEl = document.getElementById("sitePanel");
+    if (sitePanelEl) {
+      sitePanelEl.innerHTML = '<div class="search-group"><input type="text" id="siteSearch" placeholder="Search Site" oninput="filterDropdown(\'site\')"></div><div class="dropdown-item">Loading sites for ' + country + '...</div>';
+    }
+
+    const cachedSites = readSiteListCache()[siteCacheKey(region, country)];
+    if (Array.isArray(cachedSites) && cachedSites.length) {
+      regionData[region][country] = cachedSites;
+      loadSites(region, country);
+      if (sitePanelEl) sitePanelEl.style.display = "block";
+      return;
+    }
+
+    try {
+      const res = await fetch(COUNTRY_SITES_API, {
+        method: "POST",
+        mode: "cors",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ region: region, country: country })
+      });
+      const text = await res.text();
+      let data = null;
+      try { data = JSON.parse(text); } catch (e) {}
+
+      let sites = [];
+      if (Array.isArray(data)) sites = data;
+      else if (Array.isArray(data && data.sites)) sites = data.sites;
+      else if (Array.isArray(data && data.data)) sites = data.data;
+      else if (Array.isArray(data && data.result)) sites = data.result;
+      else if (data && typeof data === "object") {
+        const vals = Object.values(data).flat();
+        if (Array.isArray(vals)) sites = vals;
+      }
+
+      const normalized = sites.map(normalizeSiteLabel).filter(Boolean);
+      const sortedSites = [...new Set(normalized)].sort(function (a, b) {
+        return a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" });
+      });
+
+      if (!sortedSites.length) throw new Error("API returned no usable site IDs");
+
+      regionData[region][country] = sortedSites;
+      writeSiteListCache(region, country, sortedSites);
+      loadSites(region, country);
+      if (sitePanelEl) sitePanelEl.style.display = "block";
+    } catch (err) {
+      if (sitePanelEl) {
+        sitePanelEl.innerHTML = '<div class="search-group"><input type="text" id="siteSearch" placeholder="Search Site" oninput="filterDropdown(\'site\')"></div><div class="dropdown-item" style="color:#ffb3b3;">Error loading sites: ' + err.message + '</div>';
+      }
+      if (regionData[region] && regionData[region][country] && regionData[region][country].length) {
+        loadSites(region, country);
+        if (sitePanelEl) sitePanelEl.style.display = "block";
+      }
+    }
+  }
+
+  /* ---------------------------
+     fetchSiteInfo (API Integration)
+     --------------------------- */
+  async function fetchSiteInfo(region, country, site) {
+    if (!region || !country || !site) return;
+    try {
+      const res = await fetch(SITE_INFO_API, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ region, country, site })
+      });
+      if (!res.ok) throw new Error(`Status ${res.status}`);
+      const data = await res.json();
+      localStorage.setItem(DASH_SITE_INFO_KEY, JSON.stringify(data));
+    } catch (err) { 
+      console.error("Site info fetch failed", err); 
+    }
+  }
+
+  async function selectCountry(region,country){
+    document.getElementById("countryBtn").textContent = "📡 Country: " + country;
+    document.getElementById("countryPanel").style.display = "none";
+    document.getElementById("siteBtnSelect").textContent = "🛠 Site ID";
+    
+    // Save to localStorage
+    localStorage.setItem(DASH_COUNTRY_KEY, country);
+    localStorage.removeItem(DASH_SITE_KEY);
+    localStorage.removeItem(DASH_SITE_INFO_KEY);
+    updatePickerAvailability();
+    
+    // Fetch sites from API (with fallback to local data)
+    await fetchSitesForCountry(region, country);
+  }
+
+  function selectSite(site){
+    document.getElementById("siteBtnSelect").textContent = "🛠 Site: " + site;
+    document.getElementById("sitePanel").style.display = "none";
+    localStorage.setItem(DASH_MODE_KEY, "site");
+    
+    // Get selected region and country from button text or localStorage
+    const regionBtn = document.getElementById("regionBtn");
+    const countryBtn = document.getElementById("countryBtn");
+    let region = regionBtn.textContent.replace("🌐 Region: ", "").replace("🌐 Region", "").trim();
+    let country = countryBtn.textContent.replace("📡 Country: ", "").replace("📡 Country", "").trim();
+    
+    // Fallback to localStorage if button text doesn't have values
+    if (!region || region === "") {
+      region = localStorage.getItem(DASH_REGION_KEY);
+    }
+    if (!country || country === "") {
+      country = localStorage.getItem(DASH_COUNTRY_KEY);
+    }
+    
+    // Save to localStorage
+    localStorage.setItem(DASH_SITE_KEY, site);
+    if (region) {
+      localStorage.setItem(DASH_REGION_KEY, region);
+    }
+    if (country) {
+      localStorage.setItem(DASH_COUNTRY_KEY, country);
+    }
+    
+    // Fetch site info if we have all three values
+    if (region && country && site) {
+      fetchSiteInfo(region, country, site);
+    }
+    updatePickerAvailability();
+    loadDashboard();
+  }
+
+  function filterDropdown(kind){
+    let input, filter, panel, items;
+    if(kind==='region'){
+      input = document.getElementById('regionSearch'); panel = regionPanel;
+    } else if(kind==='country'){
+      input = document.getElementById('countrySearch'); panel = countryPanel;
+    } else {
+      input = document.getElementById('siteSearch'); panel = sitePanel;
+    }
+    filter = input.value.toLowerCase();
+    items = Array.from(panel.getElementsByClassName('dropdown-item'));
+    items.forEach(it => it.style.display = it.textContent.toLowerCase().includes(filter) ? '' : 'none');
+  }
+
+  const DASH_API = proxyOrigin() + "/api/dashboard";
+  const C = { cyan: '#22D3EE', emerald: '#34D399', violet: '#A78BFA', amber: '#FBBF24' };
+
+  function extractSiteId(raw) {
+    if (!raw) return "";
+    return String(raw).split("|")[0].trim();
+  }
+
+  function esc(s) {
+    return String(s == null ? "" : s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+
+  function formatStamp(input) {
+    if (input == null || input === "") return "—";
+    var d = typeof input === "number" ? new Date(input * 1000) : new Date(input);
+    if (isNaN(d.getTime())) return "—";
+    var pad = function (n) { return String(n).padStart(2, "0"); };
+    return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()) +
+      " " + pad(d.getHours()) + ":" + pad(d.getMinutes()) + ":" + pad(d.getSeconds());
+  }
+
+  function padSeries(arr) {
+    if (!arr || !arr.length) return [0, 0];
+    if (arr.length === 1) return [arr[0], arr[0]];
+    return arr;
+  }
+
+  function sparkOrEmpty(id, data, color) {
+    var el = document.getElementById(id);
+    if (!el || !window.NetOpsViz) return;
+    var series = (data && data.length) ? data : [0, 0];
+    NetOpsViz.sparkline(el, series, color);
+  }
+
+  function setRes(key, rec) {
+    var valEl = document.getElementById("res-" + key + "-val");
+    var bar = document.getElementById("res-" + key + "-bar");
+    if (!valEl || !bar) return;
+    if (!rec || !rec.available) {
+      valEl.textContent = rec && rec.reason ? "n/a" : "—";
+      bar.style.width = "0%";
+      bar.dataset.w = "0";
+      return;
+    }
+    valEl.textContent = rec.value + "%";
+    bar.dataset.w = String(rec.value);
+    bar.style.width = Math.max(0, Math.min(100, rec.value)) + "%";
+  }
+
+  function currentDashMode() {
+    return localStorage.getItem(DASH_MODE_KEY) === "site" ? "site" : "global";
+  }
+
+  function applyDashboard(data) {
+    var V = window.NetOpsViz;
+    if (!data) return;
+    var k = data.kpis || {};
+    var sub = document.getElementById("dash-subtitle");
+    var note = document.getElementById("dash-note");
+    var scopeLabel = data.scope === "site" ? ("Site " + (data.site_id || "")) : "Global fleet";
+    var updated = formatStamp(data.last_updated);
+    var scraped = formatStamp(data.scraped_at || data.last_updated);
+    if (sub) {
+      sub.textContent = scopeLabel + " · last updated " + updated;
+    }
+    var uChip = document.getElementById("dash-updated");
+    var sChip = document.getElementById("dash-scraped");
+    var nChip = document.getElementById("dash-next");
+    if (uChip) uChip.textContent = updated;
+    if (sChip) sChip.textContent = scraped;
+    if (nChip) nChip.textContent = "60s";
+    var win = data.window || {};
+    var tpMuted = document.getElementById("throughput-muted");
+    if (tpMuted) {
+      tpMuted.textContent = data.scope === "site" ? "This site · last hour" : "Global fleet · last hour";
+    }
+    var dcCard = document.getElementById("dc-card");
+    var dcChart = document.getElementById("datacenters");
+    var dcMuted = document.getElementById("dc-muted");
+    var dcs = data.datacenters || {};
+    var dcItems = dcs.items || [];
+    var showDc = data.scope !== "site" || dcItems.length > 0;
+    if (dcCard) {
+      if (showDc) dcCard.removeAttribute("hidden");
+      else dcCard.setAttribute("hidden", "");
+    }
+    if (dcMuted) {
+      dcMuted.textContent = data.scope === "site"
+        ? (dcItems.length === 1 ? "This site" : (dcItems.length + " data centers at this site"))
+        : (dcItems.length + " sites worldwide");
+    }
+    var dcChip = document.getElementById("dc-chip");
+    if (dcChip) {
+      dcChip.textContent = (dcs.total || dcItems.length || 0) + " DCs";
+    }
+    if (dcChart) {
+      dcChart.classList.toggle("compact", dcItems.length > 0 && dcItems.length <= 6);
+    }
+    var gMuted = document.getElementById("gauges-muted");
+    if (gMuted) gMuted.textContent = "As of " + scraped;
+    var hMuted = document.getElementById("heatmap-muted");
+    if (hMuted) hMuted.textContent = "Hourly · " + formatStamp(win.heatmap_start) + " → " + formatStamp(win.heatmap_end);
+    if (note) {
+      note.textContent = data.prometheus_unavailable
+        ? "Prometheus is unavailable. Site pickers still use your live APIs."
+        : "Charts, gauges, topology, and heatmap are queried from Prometheus through the proxy. Disk has no Prometheus metric.";
+    }
+
+    var hEl = document.getElementById("kpi-health");
+    var dEl = document.getElementById("kpi-devices");
+    var uEl = document.getElementById("kpi-uptime");
+    var cEl = document.getElementById("kpi-clients");
+    var lEl = document.getElementById("kpi-latency");
+    var healthKpi = k.health && k.health.available ? k.health : k.uptime;
+    if (hEl) hEl.textContent = healthKpi && healthKpi.available ? healthKpi.value + "%" : "—";
+    if (dEl) dEl.textContent = k.devices && k.devices.available ? String(Math.round(k.devices.value)) : "—";
+    if (uEl) uEl.textContent = k.uptime && k.uptime.available ? k.uptime.value + "%" : "—";
+    if (cEl) cEl.textContent = k.clients && k.clients.available ? String(Math.round(k.clients.value)) : "—";
+    if (lEl) lEl.textContent = k.latency && k.latency.available ? k.latency.value + " ms" : "—";
+
+    sparkOrEmpty("sp-health", (data.sparks || {}).health || (data.sparks || {}).uptime, C.emerald);
+    sparkOrEmpty("sp-servers", (data.sparks || {}).devices, C.cyan);
+    sparkOrEmpty("sp-uptime", (data.sparks || {}).uptime, C.emerald);
+    sparkOrEmpty("sp-users", (data.sparks || {}).clients, C.violet);
+    sparkOrEmpty("sp-latency", (data.sparks || {}).latency, C.amber);
+
+    var g = data.gauges || {};
+    if (V) {
+      if (document.getElementById("g-health")) {
+        V.gauge(document.getElementById("g-health"), g.health != null ? Math.round(g.health) : 0, "Fleet health", "SCORE", C.emerald);
+      }
+      if (document.getElementById("g-latency")) {
+        var lat = g.latency != null ? Math.round(g.latency) : 0;
+        V.gauge(document.getElementById("g-latency"), lat, "p95 latency", "MS", C.cyan);
+      }
+      if (document.getElementById("g-error")) {
+        var err = g.error != null ? Math.round(g.error) : 0;
+        V.gauge(document.getElementById("g-error"), err, "WAN down", "%", "#FB7185");
+      }
+      var tp = data.throughput || {};
+      if (document.getElementById("stream") && V.Stream) {
+        new V.Stream(document.getElementById("stream"), [
+          { name: "Ingress", color: C.cyan, data: padSeries(tp.ingress), min: 0, max: 100, vol: 0 },
+          { name: "Egress", color: C.violet, data: padSeries(tp.egress), min: 0, max: 100, vol: 0 }
+        ], { static: true, times: tp.times || [] });
+      }
+      if (showDc && document.getElementById("datacenters") && V.datacenters) {
+        V.datacenters(document.getElementById("datacenters"), dcs);
+      }
+      if (document.getElementById("heatmap")) V.heatmap(document.getElementById("heatmap"), data.heatmap);
+      if (document.getElementById("topology")) V.topology(document.getElementById("topology"), data.topology);
+    }
+
+    var chip = document.getElementById("topo-chip");
+    var crit = data.topology && data.topology.critical || 0;
+    if (chip) {
+      chip.textContent = crit ? (crit + " critical") : "healthy";
+      chip.className = crit ? "chip crit" : "chip";
+    }
+    var tm = document.getElementById("topo-muted");
+    if (tm) tm.textContent = data.scope === "site" ? "Devices and WAN at this site" : "Regions and telemetry sources";
+
+    var res = data.resources || {};
+    setRes("cpu", res.cpu);
+    setRes("memory", res.memory);
+    setRes("disk", res.disk);
+    setRes("network", res.network);
+
+    var box = document.getElementById("insights");
+    var ichip = document.getElementById("insights-chip");
+    var insights = data.insights || [];
+    if (ichip) ichip.textContent = insights.length ? (insights.length + " item" + (insights.length === 1 ? "" : "s")) : "none";
+    if (box) {
+      box.innerHTML = insights.length ? insights.map(function (ins) {
+        return '<div class="ins"><div class="ins-i">◈</div><div><div class="ins-t">' + esc(ins.t) + '</div>' +
+               '<span class="ins-a" onclick="location.href=\'monitoring.html\'">' + esc(ins.a || "Open Monitoring") + " →</span></div></div>";
+      }).join("") : '<div class="ins"><div class="ins-i">◈</div><div><div class="ins-t">No derived insights for this Prometheus snapshot.</div></div></div>';
+    }
+
+  }
+
+  async function loadDashboard() {
+    var mode = currentDashMode();
+    var sid = extractSiteId(localStorage.getItem(DASH_SITE_KEY));
+    var url = DASH_API;
+    if (mode === "site") {
+      if (!sid) {
+        document.getElementById("dash-subtitle").textContent = "Site specific — select a Site ID to load Prometheus telemetry.";
+        return;
+      }
+      url = DASH_API + "/" + encodeURIComponent(sid);
+    }
+    try {
+      var res = await fetch(url, { headers: { Accept: "application/json" } });
+      var data = await res.json().catch(function () { return null; });
+      if (!data) throw new Error("empty");
+      applyDashboard(data);
+    } catch (err) {
+      document.getElementById("dash-subtitle").textContent = "Could not reach the Prometheus dashboard API.";
+      document.getElementById("dash-note").textContent = "Start the proxy so /api/dashboard can query Prometheus.";
+    }
+  }
+
+  function bootDash() {
+    if (!window.NetOpsViz) {
+      document.addEventListener("DOMContentLoaded", bootDash);
+      return;
+    }
+    var mode = currentDashMode();
+    if (mode === "site" || localStorage.getItem(DASH_SITE_KEY)) {
+      if (mode === "site") selectMode("site");
+      else selectMode("global");
+    } else {
+      selectMode("global");
+    }
+    setInterval(loadDashboard, 60000);
+  }
+  
+  async function restoreSiteSelection(){
+    var savedRegion = localStorage.getItem(DASH_REGION_KEY);
+    var savedCountry = localStorage.getItem(DASH_COUNTRY_KEY);
+    var savedSite = localStorage.getItem(DASH_SITE_KEY);
+
+    if (savedRegion && regionData[savedRegion]) {
+      document.getElementById('regionBtn').textContent = '🌐 Region: ' + savedRegion;
+      loadCountries(savedRegion);
+    }
+    if (savedCountry && savedRegion) {
+      document.getElementById('countryBtn').textContent = '📡 Country: ' + savedCountry;
+      await fetchSitesForCountry(savedRegion, savedCountry);
+    }
+    if (savedSite) {
+      document.getElementById('siteBtnSelect').textContent = '🛠 Site: ' + savedSite;
+    }
+    updatePickerAvailability();
+    document.getElementById('regionPanel').style.display = 'none';
+    document.getElementById('countryPanel').style.display = 'none';
+    document.getElementById('sitePanel').style.display = 'none';
+  }
+
+  populateRegions();
+  restoreSiteSelection().then(function () { bootDash(); });
+</script>
+
+<!-- ── GLOBAL SITE MAP (replaces the former live-utilization stream) ──
+     Self-contained: adds no globals the existing dashboard code touches,
+     and degrades to a readable message when no Maps key is configured. -->
+<script src="cxo.js"></script>
+<script>
+(function () {
+  "use strict";
+  var COLOR = { HEALTHY:"#7FC9A0", DEGRADED:"#D9B26A", CRITICAL:"#D68C92",
+                DOWN:"#D68C92", NO_DATA:"#8A9098" };
+  var DARK = [
+    { elementType:"geometry", stylers:[{color:"#0C0E10"}] },
+    { elementType:"labels.text.stroke", stylers:[{color:"#08090B"}] },
+    { elementType:"labels.text.fill", stylers:[{color:"#848A92"}] },
+    { featureType:"administrative", elementType:"geometry", stylers:[{color:"#2B2F34"}] },
+    { featureType:"administrative.country", elementType:"geometry.stroke", stylers:[{color:"#3E444B"}] },
+    { featureType:"landscape", elementType:"geometry", stylers:[{color:"#131518"}] },
+    { featureType:"poi", stylers:[{visibility:"off"}] },
+    { featureType:"road", stylers:[{visibility:"off"}] },
+    { featureType:"transit", stylers:[{visibility:"off"}] },
+    { featureType:"water", elementType:"geometry", stylers:[{color:"#050506"}] }
+  ];
+  var LIGHT = [
+    { featureType:"poi", stylers:[{visibility:"off"}] },
+    { featureType:"transit", stylers:[{visibility:"off"}] },
+    { featureType:"road", elementType:"labels", stylers:[{visibility:"off"}] }
+  ];
+
+  var map = null, info = null, pins = [];
+  var stateEl = document.getElementById("dash-map-state");
+  var legendEl = document.getElementById("dash-map-legend");
+  if (!stateEl) return;
+
+  function say(html) { stateEl.style.display = "grid"; stateEl.innerHTML = html; }
+  function hide() { stateEl.style.display = "none"; if (legendEl) legendEl.style.display = "flex"; }
+  function dark() { return document.documentElement.getAttribute("data-theme") !== "light"; }
+
+  CXO.mapsConfig().then(function (r) {
+    var cfg = (r && r.body) || {};
+    if (!cfg.browser_key) {
+      say('<div>Map key not configured.<br><span style="font-size:11.5px">' +
+          'Set <code style="font-family:JetBrains Mono,monospace">GOOGLE_MAPS_BROWSER_KEY</code>' +
+          ' on the proxy host, then restart.<br>' +
+          '<a href="global-map.html" style="color:var(--cyan)">Open the full map page</a>' +
+          ' for setup detail.</span></div>');
+      return;
+    }
+    var s = document.createElement("script");
+    s.src = "https://maps.googleapis.com/maps/api/js?key=" +
+      encodeURIComponent(cfg.browser_key) +
+      (cfg.map_id ? "&map_ids=" + encodeURIComponent(cfg.map_id) : "") +
+      "&v=weekly&callback=__dashMapReady";
+    s.async = true; s.defer = true;
+    s.onerror = function () { say("Google Maps failed to load. Check the key restrictions."); };
+    window.__dashMapReady = function () { init(cfg.map_id); loadSites(); };
+    document.head.appendChild(s);
+  });
+
+  function init(mapId) {
+    var opts = {
+      center: { lat: 20, lng: 5 }, zoom: 2, minZoom: 1, maxZoom: 16,
+      mapTypeControl: false, streetViewControl: false, fullscreenControl: false,
+      rotateControl: true, gestureHandling: "cooperative",
+      backgroundColor: dark() ? "#08090B" : "#F5F8FC"
+    };
+    if (mapId) opts.mapId = mapId; else opts.styles = dark() ? DARK : LIGHT;
+    map = new google.maps.Map(document.getElementById("dash-map"), opts);
+    info = new google.maps.InfoWindow();
+    new MutationObserver(function () {
+      if (map && !mapId) map.setOptions({ styles: dark() ? DARK : LIGHT });
+    }).observe(document.documentElement, { attributes:true, attributeFilter:["data-theme"] });
+  }
+
+  function loadSites() {
+    CXO.siteMap("", false).then(function (r) {
+      var d = (r && r.body) || {};
+      var sites = (d.sites || []).filter(function (s) { return s.lat !== null; });
+      if (!sites.length) {
+        say("No sites returned by the site API.<br>" +
+            '<span style="font-size:11.5px">Check <code>/proxy1</code> connectivity.</span>');
+        return;
+      }
+      hide();
+      pins.forEach(function (p) { p.setMap(null); });
+      pins = [];
+
+      // Cluster into coarse buckets so hundreds of pins stay legible at zoom 2.
+      var groups = {};
+      sites.forEach(function (s) {
+        var k = Math.round(s.lat / 6) + "," + Math.round(s.lng / 6);
+        (groups[k] = groups[k] || []).push(s);
+      });
+
+      Object.keys(groups).forEach(function (k) {
+        var g = groups[k];
+        var lat = g.reduce(function (a, s) { return a + s.lat; }, 0) / g.length;
+        var lng = g.reduce(function (a, s) { return a + s.lng; }, 0) / g.length;
+        var order = ["DOWN","CRITICAL","DEGRADED","NO_DATA","HEALTHY"];
+        var worst = "NO_DATA";
+        for (var i = 0; i < order.length; i++) {
+          if (g.some(function (s) { return s.status === order[i]; })) { worst = order[i]; break; }
+        }
+        var mk = new google.maps.Marker({
+          position: { lat: lat, lng: lng }, map: map,
+          label: g.length > 1
+            ? { text: String(g.length), color: "#08090B",
+                fontFamily: "JetBrains Mono, monospace", fontSize: "10px", fontWeight: "700" }
+            : undefined,
+          icon: {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: g.length > 1 ? Math.min(20, 9 + Math.log(g.length) * 4) : 6,
+            fillColor: COLOR[worst] || "#8A9098", fillOpacity: .9,
+            strokeColor: "#000", strokeWeight: 1.3, strokeOpacity: .5
+          }
+        });
+        mk.addListener("click", function () {
+          var lines = g.slice(0, 10).map(function (s) {
+            return "<div style='display:flex;justify-content:space-between;gap:14px'>" +
+              "<span style=\"font-family:'JetBrains Mono',monospace\">" + CXO.esc(s.site_id) + "</span>" +
+              "<span>" + (s.availability === null ? "—" : CXO.pct(s.availability, 0)) + "</span></div>";
+          }).join("");
+          info.setContent("<div style='font-family:Inter,sans-serif;color:#111;min-width:190px;font-size:12px'>" +
+            "<b>" + g.length + " site" + (g.length > 1 ? "s" : "") + "</b><div style='margin-top:6px'>" +
+            lines + (g.length > 10 ? "<div style='color:#888;margin-top:4px'>+" + (g.length - 10) + " more</div>" : "") +
+            "</div><a href='global-map.html' style='display:inline-block;margin-top:8px;color:#0b6'>Open full map →</a></div>");
+          info.open(map, mk);
+        });
+        pins.push(mk);
+      });
+
+      var muted = document.getElementById("map-muted");
+      if (muted) {
+        muted.textContent = CXO.num(d.total) + " sites · " +
+          CXO.num(d.monitored) + " with live telemetry";
+      }
+    });
+  }
+
+  setInterval(function () {
+    if (map && document.visibilityState === "visible") loadSites();
+  }, 180000);
+})();
+</script>
+
+</body>
+</html>

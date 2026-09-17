@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Dashboard | Smart NetOps Hub</title>
+<script src="activity-tracker.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="theme.css">
+
+<style>
+  .page{ display:grid; grid-template-columns:272px 1fr; gap:20px;
+         max-width:1620px; margin:0 auto; padding:22px 20px 60px; align-items:start; }
+
+  /* ── SIDEBAR ── */
+  .sidebar{ padding:16px; position:sticky; top:calc(var(--rail-h) + 20px); }
+  .sidebar .eyebrow{ display:block; margin:0 0 10px; }
+  .back-btn{ display:flex; align-items:center; gap:8px; padding:10px 12px;
+             margin-bottom:14px; width:100%; }
+  .dropdown-btn{ padding:11px 12px; margin-bottom:7px; font-size:12.5px !important; }
+  .dropdown-panel{ display:none; margin:0 0 8px; padding:6px;
+                   max-height:220px; overflow-y:auto; }
+  .search-group{ padding:2px 2px 6px; }
+  .search-group input{ width:100%; padding:8px 10px !important; font-size:12.5px !important; }
+  .dropdown-item{ padding:8px 11px; cursor:pointer; font-size:12.5px; }
+
+  /* ── CONTENT ── */
+  .content{ background:none !important; border:0 !important; box-shadow:none !important;
+            backdrop-filter:none !important; padding:0 !important; display:grid; gap:16px; }
+  .content::before,.content::after{ display:none !important; }
+
+  .top-row{ display:flex; align-items:flex-end; justify-content:space-between;
+            gap:18px; flex-wrap:wrap; }
+  .title{ font-size:clamp(24px,2.4vw,32px); margin:5px 0 4px; }
+  .subtitle{ color:var(--ink-2); font-size:13.5px; }
+  .toolbar{ display:flex; gap:8px; flex-wrap:wrap; }
+  .toolbar button{ padding:8px 13px; }
+
+  /* ── KPI STRIP ── */
+  .grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(215px,1fr)); gap:14px; }
+  .kpi{ padding:16px 18px; display:flex; flex-direction:column; gap:5px; }
+  .kpi h3{ font-size:11px !important; font-weight:700 !important;
+           text-transform:uppercase; letter-spacing:.13em;
+           color:var(--ink-3) !important; font-family:'Inter',sans-serif !important; margin:0; }
+  .kpi .big{ font-size:30px; font-weight:700; line-height:1.1; }
+  .kpi .foot{ display:flex; align-items:center; gap:6px; font-size:11.5px; color:var(--ink-2); }
+  .delta{ font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:600;
+          padding:1px 6px; border-radius:5px; }
+  .delta.up{ color:var(--emerald); background:rgba(52,211,153,.12); }
+  .delta.down{ color:var(--rose); background:rgba(251,113,133,.12); }
+  .delta.flat{ color:var(--ink-3); background:rgba(148,163,184,.1); }
+  .spark{ margin-top:6px; }
+
+  /* ── PANELS ── */
+  .card{ padding:18px 20px; }
+  .card > header{ display:flex; align-items:center; justify-content:space-between;
+                  gap:12px; margin-bottom:14px; }
+  .card > header h3{ margin:0; }
+  .card > header .muted{ font-size:12px; }
+  .hd{ display:flex; flex-direction:column; gap:1px; }
+
+  .row-2{ display:grid; grid-template-columns:2fr 1fr; gap:16px; }
+  .row-3{ display:grid; grid-template-columns:1.35fr 1fr 1fr; gap:16px; }
+  .gauges{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+
+  /* resource meters */
+  .res{ display:flex; flex-direction:column; gap:13px; }
+  .res-row .lab{ display:flex; justify-content:space-between;
+                 font-size:12.5px; margin-bottom:6px; color:var(--ink-2); }
+  .res-row .lab b{ font-family:'JetBrains Mono',monospace; color:var(--ink); font-weight:600; }
+  .meter > i{ width:0; }
+
+  /* heatmap */
+  .hm{ display:grid; grid-template-columns:14px repeat(24,1fr); gap:2.5px; }
+  .hm i{ aspect-ratio:1; border-radius:2.5px; display:block; cursor:crosshair;
+         transition:transform .14s var(--ease); }
+  .hm i:hover{ transform:scale(1.45); outline:1px solid rgba(255,255,255,.5); z-index:2; }
+  .hm-day{ font-family:'JetBrains Mono',monospace; font-size:8.5px;
+           color:var(--ink-3); display:grid; place-items:center; }
+  .hm-key{ display:flex; align-items:center; gap:4px; margin-top:11px;
+           font-size:10px; color:var(--ink-3); font-family:'JetBrains Mono',monospace; }
+  .hm-key i{ width:11px; height:11px; border-radius:3px; display:block; }
+
+  /* event stream */
+  .ev{ display:flex; align-items:flex-start; gap:11px; padding:11px 0;
+       border-bottom:1px solid rgba(148,163,184,.07); }
+  .ev:last-child{ border-bottom:0; }
+  .ev .led{ margin-top:5px; }
+  .ev-body{ min-width:0; flex:1; }
+  .ev-t{ font-size:13px; color:var(--ink); font-weight:500; }
+  .ev-m{ font-size:11.5px; color:var(--ink-3); margin-top:2px; }
+  .ev-time{ font-size:10.5px; color:var(--ink-3); flex:0 0 auto; }
+
+  /* AI insights */
+  .ai{ background:linear-gradient(150deg,rgba(167,139,250,.13),rgba(34,211,238,.05) 60%,transparent) !important; }
+  .ai .ins{ display:flex; gap:11px; padding:12px; border-radius:var(--r);
+            background:rgba(4,6,10,.42); border:1px solid var(--edge);
+            margin-bottom:9px; }
+  .ai .ins:last-child{ margin-bottom:0; }
+  .ai .ins-i{ width:26px; height:26px; flex:0 0 auto; border-radius:8px;
+              display:grid; place-items:center; font-size:12px;
+              background:rgba(167,139,250,.16); border:1px solid rgba(167,139,250,.3); }
+  .ai .ins-t{ font-size:12.5px; color:var(--ink); line-height:1.5; }
+  .ai .ins-a{ font-size:11px; color:var(--violet); margin-top:5px;
+              font-weight:600; cursor:pointer; display:inline-block; }
+  .ai .ins-a:hover{ color:#DDD6FE; }
+
+  /* activity list (original JS renders into this) */
+  .activity-list{ background:none !important; border:0 !important;
+                  box-shadow:none !important; backdrop-filter:none !important;
+                  padding:0 !important; }
+  .activity-list::before,.activity-list::after{ display:none !important; }
+  .activity-list p{ margin:0; padding:10px 0; font-size:12.8px; color:var(--ink-2);
+                    border-bottom:1px solid rgba(148,163,184,.07); }
+  .activity-list p:last-child{ border-bottom:0; }
+
+  .note{ font-size:11px; color:var(--ink-3); text-align:center;
+         padding:14px; border-top:1px solid var(--edge); margin-top:6px; }
+
+  @media (max-width:1250px){ .row-3{ grid-template-columns:1fr; } }
+  @media (max-width:1050px){
+    .page{ grid-template-columns:1fr; }
+    .sidebar{ position:static; }
+    .row-2{ grid-template-columns:1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <!-- ── SCOPE SIDEBAR (ids preserved for the original JS) ── -->
+  <aside class="sidebar panel" aria-label="Sidebar">
+    <a href="landing page.html" class="back-btn">← Operations Home</a>
+
+    <span class="eyebrow">View</span>
+    <button id="globalBtn" class="dropdown-btn" onclick="selectMode('global')">🌎 Global</button>
+    <button id="siteBtn" class="dropdown-btn" onclick="selectMode('site')">📍 Site specific</button>
+
+    <div id="siteSpecificPanel" style="display:none; margin-top:14px;">
+      <span class="eyebrow">Scope</span>
+
+      <button id="regionBtn" class="dropdown-btn" onclick="togglePanel('regionPanel')">🌐 Region</button>
+      <div id="regionPanel" class="dropdown-panel">
+        <div class="search-group"><input type="text" id="regionSearch" placeholder="Search region" oninput="filterDropdown('region')"></div>
+      </div>
+
+      <button id="countryBtn" class="dropdown-btn" onclick="togglePanel('countryPanel')">📡 Country</button>
+      <div id="countryPanel" class="dropdown-panel">
+        <div class="search-group"><input type="text" id="countrySearch" placeholder="Search country" oninput="filterDropdown('country')"></div>
+      </div>
+
+      <button id="siteBtnSelect" class="dropdown-btn" onclick="togglePanel('sitePanel')">🛠 Site ID</button>
+      <div id="sitePanel" class="dropdown-panel">
+        <div class="search-group"><input type="text" id="siteSearch" placeholder="Search site" oninput="filterDropdown('site')"></div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ── CONTENT ── -->
+  <main class="content">
+
+    <div class="top-row">
+      <div>
+        <span class="eyebrow">Live telemetry</span>
+        <h1 class="title gradient-text">Dashboard</h1>
+        <div class="subtitle">Fleet health, throughput, and events — refreshing every 2 seconds.</div>
+      </div>
+      <div class="toolbar">
+        <button onclick="NetOps.palette()">⌘K Search</button>
+        <button onclick="NetOps.toast('Snapshot exported')">↧ Export</button>
+        <button class="primary" onclick="location.reload()">⟳ Refresh</button>
+      </div>
+    </div>
+
+    <!-- KPI STRIP -->
+    <section class="grid">
+      <div class="card kpi stat-card reveal">
+        <h3>Total servers</h3>
+        <div class="big" data-count="45">0</div>
+        <div class="foot"><span class="delta up">+3</span> vs last month</div>
+        <div class="spark" id="sp-servers"></div>
+      </div>
+      <div class="card kpi stat-card reveal">
+        <h3>Uptime</h3>
+        <div class="big" data-count="99.9" data-suffix="%">0</div>
+        <div class="foot"><span class="delta flat">±0.0</span> last 30 days</div>
+        <div class="spark" id="sp-uptime"></div>
+      </div>
+      <div class="card kpi stat-card reveal">
+        <h3>Active users</h3>
+        <div class="big" data-count="127">0</div>
+        <div class="foot"><span class="delta up">+12%</span> vs last week</div>
+        <div class="spark" id="sp-users"></div>
+      </div>
+      <div class="card kpi stat-card reveal">
+        <h3>p95 latency</h3>
+        <div class="big" data-count="62" data-suffix="ms">0</div>
+        <div class="foot"><span class="delta down">+8ms</span> above target</div>
+        <div class="spark" id="sp-latency"></div>
+      </div>
+    </section>
+
+    <!-- THROUGHPUT + GAUGES -->
+    <section class="row-2">
+      <div class="card reveal">
+        <header>
+          <div class="hd">
+            <h3>Throughput</h3>
+            <span class="muted">Ingress and egress, % of provisioned capacity</span>
+          </div>
+          <div style="display:flex;gap:12px;font-size:11px;color:var(--ink-2)">
+            <span><span class="led" style="background:#22D3EE;color:rgba(34,211,238,.5)"></span> Ingress</span>
+            <span><span class="led" style="background:#A78BFA;color:rgba(167,139,250,.5)"></span> Egress</span>
+          </div>
+        </header>
+        <div id="stream"></div>
+      </div>
+
+      <div class="card reveal">
+        <header><div class="hd"><h3>Service levels</h3>
+          <span class="muted">Rolling 24h</span></div></header>
+        <div class="gauges">
+          <div id="g-health"></div>
+          <div id="g-latency"></div>
+          <div id="g-error"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TOPOLOGY + RESOURCES + EVENTS -->
+    <section class="row-3">
+      <div class="card reveal">
+        <header><div class="hd"><h3>Topology</h3>
+          <span class="muted">Live path health</span></div>
+          <span class="chip crit">1 critical</span>
+        </header>
+        <div id="topology"></div>
+      </div>
+
+      <div class="card reveal">
+        <header><div class="hd"><h3>Resources</h3>
+          <span class="muted">Cluster average</span></div></header>
+        <div class="res">
+          <div class="res-row">
+            <div class="lab"><span>CPU</span><b>45%</b></div>
+            <div class="meter"><i data-w="45"></i></div>
+          </div>
+          <div class="res-row">
+            <div class="lab"><span>Memory</span><b>62%</b></div>
+            <div class="meter violet"><i data-w="62"></i></div>
+          </div>
+          <div class="res-row">
+            <div class="lab"><span>Disk</span><b>38%</b></div>
+            <div class="meter emerald"><i data-w="38"></i></div>
+          </div>
+          <div class="res-row">
+            <div class="lab"><span>Network</span><b>71%</b></div>
+            <div class="meter amber"><i data-w="71"></i></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card reveal">
+        <header><div class="hd"><h3>Events</h3>
+          <span class="muted">Newest first</span></div></header>
+        <div id="events"></div>
+      </div>
+    </section>
+
+    <!-- HEATMAP + AI + ACTIVITY -->
+    <section class="row-3">
+      <div class="card reveal">
+        <header><div class="hd"><h3>Load pattern</h3>
+          <span class="muted">Past 7 days by hour</span></div></header>
+        <div id="heatmap"></div>
+      </div>
+
+      <div class="card ai reveal">
+        <header><div class="hd"><h3>AI insights</h3>
+          <span class="muted">Generated from the last hour</span></div>
+          <span class="chip info">3 new</span>
+        </header>
+        <div class="ins">
+          <div class="ins-i">◈</div>
+          <div><div class="ins-t">WAN uplink has flapped 3 times in 5 minutes. The pattern matches the optics failure on this link in March.</div>
+            <span class="ins-a" onclick="NetOps.toast('Opening WAN diagnostics…')">Run diagnostics →</span></div>
+        </div>
+        <div class="ins">
+          <div class="ins-i">◈</div>
+          <div><div class="ins-t">FW-A has held above 80% CPU for 12 minutes. Rule set grew 22% this week.</div>
+            <span class="ins-a" onclick="NetOps.toast('Opening rule analysis…')">Review rules →</span></div>
+        </div>
+        <div class="ins">
+          <div class="ins-i">◈</div>
+          <div><div class="ins-t">Egress will reach provisioned capacity in about 6 weeks at the current trend.</div>
+            <span class="ins-a" onclick="NetOps.toast('Opening capacity plan…')">See forecast →</span></div>
+        </div>
+      </div>
+
+      <div class="card reveal">
+        <header><div class="hd"><h3>Recent activity</h3>
+          <span class="muted">System log</span></div></header>
+        <div id="activityList" class="activity-list"></div>
+      </div>
+    </section>
+
+    <div class="note">
+      Charts, gauges, topology, heatmap, and events render from <code>viz.js</code> demo data.
+      Region, country, and site selection run against your live APIs.
+    </div>
+
+  </main>
+</div>
+
+<script defer src="theme.js"></script>
+<script defer src="viz.js"></script>
+<script>
+// Global / Site Specific toggle
+  function selectMode(mode){
+    if(mode==='global'){
+      document.getElementById('siteSpecificPanel').style.display='none';
+      document.getElementById('globalBtn').style.background='rgba(255,255,255,0.26)';
+      document.getElementById('siteBtn').style.background='rgba(255,255,255,0.18)';
+    } else {
+      document.getElementById('siteSpecificPanel').style.display='block';
+      document.getElementById('siteBtn').style.background='rgba(255,255,255,0.26)';
+      document.getElementById('globalBtn').style.background='rgba(255,255,255,0.18)';
+    }
+  }
+
+  // API endpoints
+  const COUNTRY_SITES_API = "http://localhost:8080/proxy1";
+  const SITE_INFO_API = "/api/site-info";
+
+  const regionData = {
+  APAC: {
+    "China": ["CHN-BJS-DC-001"],
+    "Japan": ["JPN-TYO-DC-002"],
+    "Korea, Republic of": [],
+    "Taiwan": ["TWN-TPE-DC-006"],
+    "Malaysia": ["MYS-KUL-DC-008"],
+    "Singapore": ["SGP-SGP-DC-009"],
+    "Thailand": ["THA-BKK-DC-010"],
+    "Vietnam": ["VNM-HAN-DC-012"],
+    "Brunei Darussalam": ["BRN-BWN-DC-016"],
+
+    "India": ["IND-MUM-DC-018"],
+    "Australia": ["AUS-SYD-DC-026"],
+    "Guam": [],
+    "Hong Kong": [],
+    "Macau": [],
+    "New Zealand": []
+  },
+
+  EMEA: {
+    "United Kingdom": ["London-45", "Manchester-12"],
+    "Germany": ["Berlin-7", "Munich-10"],
+    "Italy": ["Rome-2", "Milan-6"],
+    "Czech Republic": [],
+    "Spain": ["ESP-MAD-DC-001"],
+    "South Africa": ["ZAF-JHB-BR-014"],
+    "Saudi Arabia": ["KSA-RYD-DC-004"],
+    "UAE": ["UAE-DXB-POP-005"],
+
+    "Austria": ["AUT-VIE-DC-001"],
+    "Belgium": ["BEL-BRU-DC-002"],
+    "Netherlands": ["NLD-AMS-DC-003"],
+    "Poland": ["POL-WAW-DC-004"],
+    "Sweden": ["SWE-STO-DC-005"],
+    "Turkey": ["TUR-IST-DC-015"],
+    "Bulgaria": [],
+    "Switzerland": [],
+    "Denmark": [],
+    "Finland": [],
+    "Greece": [],
+    "France": [],
+    "Croatia": [],
+    "Hungary": [],
+    "Ireland": [],
+    "Kuwait": [],
+    "Lithuania": [],
+    "Luxembourg": [],
+    "Latvia": [],
+    "Norway": [],
+    "Portugal": [],
+    "Romania": [],
+    "Serbia": [],
+    "Russian Federation": [],
+    "Slovenia": [],
+    "Slovakia": [],
+    "Ukraine": []
+  },
+
+  AMER: {
+    "Canada": ["CAN-TOR-DC-001"],
+    "United States": ["USA-NYC-DC-002"],
+    "United States of America": ["USA-NV-LAS-001"],
+    "Mexico": ["MEX-MEX-DC-003"],
+
+    "Argentina": ["ARG-BUE-DC-024"],
+    "Brazil": ["BRA-GRU-DC-026"]
+  }
+};
+
+  const regionPanel = document.getElementById('regionPanel');
+  const countryPanel = document.getElementById('countryPanel');
+  const sitePanel = document.getElementById('sitePanel');
+
+  function populateRegions(){
+    Object.keys(regionData).forEach(r=>{
+      const el = document.createElement('div');
+      el.className='dropdown-item';
+      el.textContent = r;
+      el.onclick = ()=> selectRegion(r);
+      regionPanel.appendChild(el);
+    });
+  }
+
+  function loadCountries(region){
+    countryPanel.innerHTML='<div class="search-group"><input type="text" id="countrySearch" placeholder="Search Country" oninput="filterDropdown(\'country\')"></div>';
+    sitePanel.innerHTML='<div class="search-group"><input type="text" id="siteSearch" placeholder="Search Site" oninput="filterDropdown(\'site\')"></div>';
+    Object.keys(regionData[region]||{}).forEach(c=>{
+      const el = document.createElement('div');
+      el.className='dropdown-item';
+      el.textContent = c;
+      el.onclick = ()=> selectCountry(region,c);
+      countryPanel.appendChild(el);
+    });
+  }
+
+  function loadSites(region,country){
+    sitePanel.innerHTML='<div class="search-group"><input type="text" id="siteSearch" placeholder="Search Site" oninput="filterDropdown(\'site\')"></div>';
+    (regionData[region][country]||[]).forEach(s=>{
+      const el = document.createElement('div');
+      el.className='dropdown-item';
+      el.textContent = s;
+      el.onclick = ()=> selectSite(s);
+      sitePanel.appendChild(el);
+    });
+  }
+
+  function togglePanel(panelId){
+    const p = document.getElementById(panelId);
+    p.style.display = p.style.display === 'block' ? 'none' : 'block';
+  }
+
+  function selectRegion(region){
+    document.getElementById("regionBtn").textContent = "🌐 Region: " + region;
+    document.getElementById("regionPanel").style.display = "none";
+    document.getElementById("countryBtn").textContent = "📡 Country";
+    document.getElementById("siteBtnSelect").textContent = "🛠 Site ID";
+    
+    // Save to localStorage
+    localStorage.setItem("selectedRegion", region);
+    localStorage.removeItem("selectedCountry");
+    localStorage.removeItem("selectedSite");
+    
+    loadCountries(region);
+  }
+
+  /* ---------------------------
+     fetchSitesForCountry (API Integration)
+     --------------------------- */
+  async function fetchSitesForCountry(region, country) {
+    const sitePanel = document.getElementById("sitePanel");
+    if (sitePanel) {
+      sitePanel.innerHTML = '<div class="search-group"><input type="text" id="siteSearch" placeholder="Search Site" oninput="filterDropdown(\'site\')"></div><div class="dropdown-item">Loading sites for ' + country + '...</div>';
+    }
+
+    try {
+      console.log(`[fetchSitesForCountry] POST -> ${COUNTRY_SITES_API}`, { region, country });
+
+      const res = await fetch(COUNTRY_SITES_API, {
+        method: "POST",
+        mode: "cors",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ region, country })
+      });
+
+      console.log("[fetchSitesForCountry] status:", res.status, res.statusText);
+      const text = await res.text();
+      console.log("[fetchSitesForCountry] RAW:", text);
+
+      let data = null;
+      try { data = JSON.parse(text); } catch (e) { console.warn("JSON parse failed:", e); }
+
+      let sites = [];
+
+      // auto-detect valid formats
+      if (Array.isArray(data)) sites = data;
+      else if (Array.isArray(data?.sites)) sites = data.sites;
+      else if (Array.isArray(data?.data)) sites = data.data;
+      else if (Array.isArray(data?.result)) sites = data.result;
+      else if (data && typeof data === "object") {
+        const vals = Object.values(data).flat();
+        if (Array.isArray(vals)) sites = vals;
+      }
+
+      // normalize each site
+      const normalized = sites.map(s => {
+        if (typeof s === "string") return s;
+        if (typeof s === "object") return s.site || s.siteId || s.id || s.name || s.label || JSON.stringify(s);
+        return String(s);
+      });
+
+      if (!normalized.length) throw new Error("API returned no usable site IDs");
+
+      // Update regionData with fetched sites
+      regionData[region][country] = normalized;
+      loadSites(region, country);
+
+      // show dropdown automatically
+      if (sitePanel) {
+        sitePanel.style.display = "block";
+      }
+
+    } catch (err) {
+      console.error("[fetchSitesForCountry] ERROR:", err);
+      if (sitePanel) {
+        sitePanel.innerHTML = '<div class="search-group"><input type="text" id="siteSearch" placeholder="Search Site" oninput="filterDropdown(\'site\')"></div><div class="dropdown-item" style="color:#ffb3b3;">Error loading sites: ' + err.message + '</div>';
+      }
+
+      // Fallback to local data if available
+      if (regionData[region]?.[country]?.length) {
+        console.log("Fallback to local data");
+        loadSites(region, country);
+        if (sitePanel) {
+          sitePanel.style.display = "block";
+        }
+      }
+    }
+  }
+
+  /* ---------------------------
+     fetchSiteInfo (API Integration)
+     --------------------------- */
+  async function fetchSiteInfo(region, country, site) {
+    if (!region || !country || !site) return;
+    try {
+      const res = await fetch(SITE_INFO_API, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ region, country, site })
+      });
+      if (!res.ok) throw new Error(`Status ${res.status}`);
+      const data = await res.json();
+      localStorage.setItem("selectedSiteInfo", JSON.stringify(data));
+    } catch (err) { 
+      console.error("Site info fetch failed", err); 
+    }
+  }
+
+  async function selectCountry(region,country){
+    document.getElementById("countryBtn").textContent = "📡 Country: " + country;
+    document.getElementById("countryPanel").style.display = "none";
+    document.getElementById("siteBtnSelect").textContent = "🛠 Site ID";
+    
+    // Save to localStorage
+    localStorage.setItem("selectedCountry", country);
+    localStorage.removeItem("selectedSite");
+    
+    // Fetch sites from API (with fallback to local data)
+    await fetchSitesForCountry(region, country);
+  }
+
+  function selectSite(site){
+    document.getElementById("siteBtnSelect").textContent = "🛠 Site: " + site;
+    document.getElementById("sitePanel").style.display = "none";
+    
+    // Get selected region and country from button text or localStorage
+    const regionBtn = document.getElementById("regionBtn");
+    const countryBtn = document.getElementById("countryBtn");
+    let region = regionBtn.textContent.replace("🌐 Region: ", "").replace("🌐 Region", "").trim();
+    let country = countryBtn.textContent.replace("📡 Country: ", "").replace("📡 Country", "").trim();
+    
+    // Fallback to localStorage if button text doesn't have values
+    if (!region || region === "") {
+      region = localStorage.getItem("selectedRegion");
+    }
+    if (!country || country === "") {
+      country = localStorage.getItem("selectedCountry");
+    }
+    
+    // Save to localStorage
+    localStorage.setItem("selectedSite", site);
+    if (region) {
+      localStorage.setItem("selectedRegion", region);
+    }
+    if (country) {
+      localStorage.setItem("selectedCountry", country);
+    }
+    
+    // Fetch site info if we have all three values
+    if (region && country && site) {
+      fetchSiteInfo(region, country, site);
+    }
+  }
+
+  function filterDropdown(kind){
+    let input, filter, panel, items;
+    if(kind==='region'){
+      input = document.getElementById('regionSearch'); panel = regionPanel;
+    } else if(kind==='country'){
+      input = document.getElementById('countrySearch'); panel = countryPanel;
+    } else {
+      input = document.getElementById('siteSearch'); panel = sitePanel;
+    }
+    filter = input.value.toLowerCase();
+    items = Array.from(panel.getElementsByClassName('dropdown-item'));
+    items.forEach(it => it.style.display = it.textContent.toLowerCase().includes(filter) ? '' : 'none');
+  }
+
+  const activityEvents = [
+    {time:'2 min ago', text:'Server backup completed successfully'},
+    {time:'15 min ago', text:'New user registered: john.doe@example.com'},
+    {time:'1 hour ago', text:'System update deployed to production'},
+    {time:'2 hours ago', text:'Database optimization completed'},
+    {time:'3 hours ago', text:'Security scan passed all checks'}
+  ];
+  const actBox = document.getElementById('activityList');
+  activityEvents.forEach(a=>{
+    const p = document.createElement('p');
+    p.innerHTML = `• ${a.text} <span style="display:block;color:rgba(255,255,255,0.6);font-size:12px;margin-top:4px;">${a.time}</span>`;
+    actBox.appendChild(p);
+  });
+
+  populateRegions();
+</script>
+
+</body>
+</html>

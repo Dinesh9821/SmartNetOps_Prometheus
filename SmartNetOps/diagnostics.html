@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Telemetry Diagnostics | Smart NetOps Hub</title>
+<script src="activity-tracker.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="cxo.css">
+<script src="theme.js"></script>
+<style>
+  .layer-grid{ display:grid; gap:12px; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); }
+  .layer{
+    padding:16px; border-radius:var(--r-lg);
+    background:var(--glass); border:1px solid var(--edge);
+    border-left:3px solid var(--accent,var(--idle));
+    display:flex; flex-direction:column; gap:7px;
+  }
+  .layer.ok{ --accent:var(--ok); } .layer.bad{ --accent:var(--bad); }
+  .layer .ln{ font-family:'JetBrains Mono',monospace; font-size:12px;
+              font-weight:700; letter-spacing:.08em; color:var(--ink); }
+  .layer .lv{ font-family:'JetBrains Mono',monospace; font-size:24px;
+              font-weight:700; line-height:1; }
+  .layer .ld{ font-size:11.5px; color:var(--ink-2); line-height:1.5; }
+  table.probe{ width:100%; border-collapse:collapse; font-size:12px; }
+  table.probe th{
+    text-align:left; padding:8px 10px; border-bottom:1px solid var(--edge);
+    font-family:'JetBrains Mono',monospace; font-size:9.5px; font-weight:600;
+    text-transform:uppercase; letter-spacing:.13em; color:var(--ink-3);
+  }
+  table.probe td{ padding:8px 10px; border-bottom:1px solid var(--edge); color:var(--ink-2); }
+  table.probe td.m{ font-family:'JetBrains Mono',monospace; color:var(--ink); }
+  table.probe td.e{ font-family:'JetBrains Mono',monospace; font-size:10.5px;
+                    color:var(--ink-3); word-break:break-all; }
+  table.probe tr.miss td.m{ color:var(--bad); }
+  .grp-h{ font-family:'JetBrains Mono',monospace; font-size:10px; font-weight:700;
+          letter-spacing:.16em; color:var(--ink-3); padding:16px 10px 6px; }
+</style>
+</head>
+<body>
+<div class="aurora"><i></i><i></i><i></i><i></i></div>
+<div class="mesh"></div><div class="grain"></div><div class="vignette"></div>
+
+<main class="cxo-page">
+  <header class="cxo-head">
+    <div>
+      <a href="dashboard.html" class="back-btn" style="display:inline-flex;gap:8px;padding:9px 13px;margin-bottom:12px;">← Back to Dashboard</a>
+      <span class="eyebrow">Troubleshooting</span>
+      <h1 class="gradient-text">Telemetry Diagnostics</h1>
+      <p class="lede">What Prometheus actually holds, layer by layer. When a dashboard
+        panel is blank, this page names the missing series instead of leaving you to guess.</p>
+      <div class="cxo-meta">
+        <span class="chip">Prometheus <b id="d-base">—</b></span>
+        <span class="chip">Series present <b id="d-present">—</b></span>
+        <span class="chip">Checked <b id="d-when">—</b></span>
+      </div>
+    </div>
+  </header>
+
+  <div id="controls"></div>
+  <div id="hints"></div>
+
+  <section class="card">
+    <header><h3>Metric layers</h3></header>
+    <p class="why">The dashboards read the <b>unified</b> layer, which the recording
+      rules build by fanning Meraki and vManage into one namespace. If unified is
+      empty but a vendor layer is populated, the rules are not loading — that is the
+      fault, not the pages.</p>
+    <div class="layer-grid" id="layers"></div>
+  </section>
+
+  <section class="card">
+    <header><h3>Probe results</h3><span class="hint" id="p-count">—</span></header>
+    <p class="why">Each row is a real query run against your Prometheus just now.</p>
+    <div class="cxo-table-wrap"><table class="probe" id="probes"><tbody></tbody></table></div>
+  </section>
+</main>
+
+<script src="cxo.js"></script>
+<script>
+(function () {
+  "use strict";
+  var ctl = CXO.controls("controls", load, { noRange: true });
+
+  function load() {
+    ctl.status("Probing…");
+    document.getElementById("hints").innerHTML = "";
+    CXO.diagnostics(CXO.getRegion()).then(function (r) {
+      var d = r.body || {};
+      if (d.prometheus_unavailable || d.error) {
+        document.getElementById("hints").innerHTML =
+          '<div class="notice bad"><b>Prometheus unreachable.</b> ' + CXO.esc(d.error || "") +
+          '<br>The proxy tries 127.0.0.1:9090, localhost:9090, cussya5x:9090 then cussya5w:9090. ' +
+          'Set <code>PROMETHEUS_URL</code> on the proxy host if it lives elsewhere.</div>';
+        ctl.status("Unreachable");
+        return;
+      }
+      render(d);
+      ctl.status("Checked " + CXO.ago(d.checked_at));
+    });
+  }
+
+  function render(d) {
+    document.getElementById("d-base").textContent = d.prometheus_base || "—";
+    document.getElementById("d-present").textContent = d.present + " / " + d.total;
+    document.getElementById("d-when").textContent = CXO.ago(d.checked_at);
+
+    var L = d.layers || {};
+    var counts = { UNIFIED: 0, VMANAGE: 0, MERAKI: 0, SDWAN: 0 };
+    var totals = { UNIFIED: 0, VMANAGE: 0, MERAKI: 0, SDWAN: 0 };
+    Object.keys(d.metrics || {}).forEach(function (k) {
+      var pre = k.split(" ")[0];
+      if (totals[pre] === undefined) return;
+      totals[pre]++;
+      if (d.metrics[k].present) counts[pre]++;
+    });
+
+    var desc = {
+      UNIFIED: "Recording rules. This is what every dashboard reads.",
+      SDWAN:   "vManage-derived rollups from vmanage-wan-rules.yml.",
+      VMANAGE: "Raw vManage exporter metrics.",
+      MERAKI:  "Raw Meraki exporter metrics."
+    };
+    document.getElementById("layers").innerHTML =
+      ["UNIFIED", "SDWAN", "VMANAGE", "MERAKI"].map(function (k) {
+        var ok = counts[k] > 0;
+        return '<div class="layer ' + (ok ? "ok" : "bad") + '">' +
+          '<span class="ln">' + k + "</span>" +
+          '<span class="lv" style="color:var(--' + (ok ? "ok" : "bad") + ')">' +
+          counts[k] + " / " + totals[k] + "</span>" +
+          '<span class="ld">' + CXO.esc(desc[k]) + "</span>" +
+          CXO.pill(ok ? "present" : "absent", ok ? "ok" : "bad") + "</div>";
+      }).join("");
+
+    document.getElementById("hints").innerHTML = (d.hints || []).length
+      ? (d.hints || []).map(function (h, i) {
+          return '<div class="notice' + (i === 0 ? " bad" : "") + '">' + h + "</div>";
+        }).join("")
+      : '<div class="notice" style="background:var(--ok-bg);border-color:var(--ok)">' +
+        "Every probed metric family is present. If a panel is still blank the " +
+        "problem is scope, not collection — try Global instead of a single region.</div>";
+
+    var groups = {};
+    Object.keys(d.metrics || {}).forEach(function (k) {
+      var pre = k.split(" ")[0];
+      (groups[pre] = groups[pre] || []).push(k);
+    });
+
+    var html = "";
+    ["UNIFIED", "SDWAN", "VMANAGE", "MERAKI", "ABSENT"].forEach(function (g) {
+      if (!groups[g]) return;
+      html += '<tr><td colspan="4" class="grp-h">' + g + "</td></tr>";
+      if (!html.indexOf("<th")) {}
+      groups[g].forEach(function (k) {
+        var m = d.metrics[k];
+        html += '<tr class="' + (m.present ? "" : "miss") + '">' +
+          '<td class="m">' + CXO.esc(k.split(" ").slice(1).join(" ")) + "</td>" +
+          "<td>" + CXO.pill(m.present ? "present" : "absent", m.present ? "ok" : "bad") + "</td>" +
+          '<td class="m" style="text-align:right">' + CXO.num(m.series) + "</td>" +
+          '<td class="e">' + CXO.esc(m.expr) + "</td></tr>";
+      });
+    });
+    document.querySelector("#probes tbody").innerHTML =
+      "<tr><th>Metric</th><th>State</th><th>Series</th><th>Query</th></tr>" + html;
+    document.getElementById("p-count").textContent = d.present + " of " + d.total + " present";
+  }
+
+  load();
+})();
+</script>
+</body>
+</html>

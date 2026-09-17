@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Network | Smart NetOps Hub</title>
+<script src="activity-tracker.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="cxo.css">
+<script src="theme.js"></script>
+</head>
+<body>
+<div class="aurora"><i></i><i></i><i></i><i></i></div>
+<div class="mesh"></div>
+<div class="grain"></div>
+<div class="vignette"></div>
+
+<main class="cxo-page">
+  <header class="cxo-head">
+    <div>
+      <a href="dashboard.html" class="back-btn" style="display:inline-flex;gap:8px;padding:9px 13px;margin-bottom:12px;">&larr; Back to Dashboard</a>
+      <span class="eyebrow">Executive view / Network</span>
+      <h1 class="gradient-text">Network</h1>
+      <p class="lede">Is the network carrying the business? Availability against commitment, capacity headroom, and the regions and data centres that need a decision.</p>
+      <div class="cxo-meta"><span class="chip">Scope <b id="x-scope">&mdash;</b></span>
+        <span class="chip">Period <b id="x-period">&mdash;</b></span>
+        <span class="chip">Updated <b id="x-updated">&mdash;</b></span>
+        <span class="chip">Source <b id="x-source">&mdash;</b></span></div>
+    </div>
+  </header>
+
+  <div id="controls"></div>
+  <div id="notice-slot"></div>
+
+  <section class="cxo-hero" id="hero">
+    <div class="hero-stat skel"><span class="k">Loading</span><span class="v">&mdash;</span><span class="sub">&mdash;</span></div>
+  </section>
+  <section class="cxo-grid wide-left">
+      <div class="card">
+        <header><h3>Carried traffic</h3></header>
+        <p class="why">Ingress and egress across the WAN estate. The shape matters more than the peak &mdash; a flat line at the top is a capacity decision.</p>
+        <div class="" id="chart-throughput"></div>
+      </div>
+      <div class="card">
+        <header><h3>Availability against commitment</h3></header>
+        <p class="why">Device reachability measured against the 99.5% service commitment. Error budget is what is left before the commitment is breached.</p>
+        <div class="" id="slo-block"></div>
+      </div>
+  </section>
+  <section class="card">
+    <header><h3>Regional posture</h3><span class="hint">Click a region to scope the whole page</span></header>
+    <p class="why">Each region carries its own risk. This strip is always comparative, so a single weak region is visible even while drilled in.</p>
+    <div class="region-strip" id="region-strip"></div>
+  </section>
+  <section class="cxo-grid wide-right">
+      <div class="card">
+        <header><h3>Data centre health</h3></header>
+        <p class="why">Critical-priority sites. These carry shared services, so their availability caps every downstream application.</p>
+        <div class="" id="dc-summary"></div>
+        <div class="stack" id="dc-list"></div>
+      </div>
+      <div class="card">
+        <header><h3>Sites needing attention</h3></header>
+        <p class="why">Ranked by availability, worst first. This is the shortlist for the next operational review.</p>
+        <div class="cxo-table-wrap"><table class="cxo" id="site-table"><tbody></tbody></table></div>
+      </div>
+  </section>
+  <section class="cxo-grid c3">
+      <div class="card">
+        <header><h3>Transport quality</h3></header>
+        <p class="why">Latency, jitter and loss shape the experience of every application running over the WAN.</p>
+        <div class="cxo-grid" id="quality"></div>
+      </div>
+      <div class="card">
+        <header><h3>Overlay integrity</h3></header>
+        <p class="why">Tunnel and routing sessions. A drop here precedes a user-visible outage, so it is a leading indicator, not a lagging one.</p>
+        <div class="stack" id="overlay"></div>
+      </div>
+      <div class="card">
+        <header><h3>Estate composition</h3></header>
+        <p class="why">What is actually under management, by region.</p>
+        <div class="stack" id="composition"></div>
+      </div>
+  </section>
+
+</main>
+
+<script src="cxo.js"></script>
+<script>
+(function () {
+  "use strict";
+  var ctl = CXO.controls("controls", load);
+  var SLO = 99.5;
+
+  function load() {
+    ctl.status("Loading\u2026");
+    document.getElementById("x-scope").textContent = CXO.getRegion() || "Global";
+    CXO.network({ withRegions: true, withDc: true }).then(function (r) {
+      var d = r.body || {};
+      var slot = document.getElementById("notice-slot");
+      if (d.prometheus_unavailable || (!r.ok && !d.kpis)) {
+        slot.innerHTML =
+          '<div class="notice bad"><b>No telemetry for this scope.</b> ' +
+          CXO.esc(d.error || "") + ' <a href="diagnostics.html" style="color:var(--cyan)">' +
+          'Open telemetry diagnostics</a> to see which metric layer is missing.</div>';
+      } else if (d.metrics_resolved !== undefined &&
+                 d.metrics_resolved < (d.metrics_total || 0) * 0.5) {
+        slot.innerHTML =
+          '<div class="notice">Only ' + d.metrics_resolved + ' of ' + d.metrics_total +
+          ' metric families resolved for this scope, so some panels will be sparse. ' +
+          '<a href="diagnostics.html" style="color:var(--cyan)">Telemetry diagnostics</a> ' +
+          'shows exactly which are absent.</div>';
+      } else {
+        slot.innerHTML = "";
+      }
+      render(d);
+      ctl.status("Updated " + CXO.ago(d.scraped_at || d.last_updated));
+    });
+  }
+
+  function render(d) {
+    var k = d.kpis || {};
+    document.getElementById("x-period").textContent = d.range_label || "\u2014";
+    document.getElementById("x-updated").textContent = CXO.ago(d.scraped_at || d.last_updated);
+    document.getElementById("x-source").textContent = d.prometheus_unavailable ? "offline" : "Prometheus";
+
+    var av = k.reachability && k.reachability.value;
+    var wan = k.wan_availability && k.wan_availability.value;
+    var peak = Math.max.apply(null, (d.throughput.ingress || [0]).filter(isFinite).concat([0]));
+
+    document.getElementById("hero").innerHTML =
+      CXO.heroStat({ label: "Network availability", value: av === null || av === undefined ? "\u2014" : av.toFixed(1),
+                     unit: "%", band: CXO.band(av, SLO, 97),
+                     sub: (k.reachability.up || 0) + " of " + (k.reachability.total || 0) + " devices reachable" }) +
+      CXO.heroStat({ label: "WAN circuit availability", value: wan === null || wan === undefined ? "\u2014" : wan.toFixed(1),
+                     unit: "%", band: CXO.band(wan, 99, 95),
+                     sub: (k.wan_links_up.value || 0) + " of " + (k.wan_links_up.total || 0) + " circuits up" }) +
+      CXO.heroStat({ label: "Peak carried traffic", value: CXO.bits(peak), band: "idle",
+                     sub: "Ingress peak over " + (d.range_label || "the period").toLowerCase() }) +
+      CXO.heroStat({ label: "Sites at risk", value: CXO.num(riskCount(d)), band: riskCount(d) ? "warn" : "ok",
+                     sub: "Below the 99% availability floor" }) +
+      CXO.heroStat({ label: "Unreachable devices", value: CXO.num(k.unreachable && k.unreachable.value),
+                     band: (k.unreachable && k.unreachable.value) ? "bad" : "ok",
+                     sub: "Currently not responding" });
+
+    CXO.lineChart(document.getElementById("chart-throughput"),
+      d.throughput.times, [
+        { name: "Ingress", values: d.throughput.ingress, color: "var(--cyan)" },
+        { name: "Egress",  values: d.throughput.egress,  color: "var(--violet)" }
+      ], { fmt: CXO.bits, large: true, dateLabels: /d|m|y/.test(d.range || ""),
+           emptyHint: "No WAN throughput series for this scope." });
+
+    renderSlo(av, wan, k);
+    renderRegions(d.regions || {});
+    renderDc(d.datacenters || {});
+    renderQuality(k);
+    renderOverlay(k);
+    renderComposition(d.regions || {}, k);
+  }
+
+  function riskCount(d) {
+    var dc = (d.datacenters && d.datacenters.sites) || [];
+    return dc.filter(function (s) { return s.availability !== null && s.availability < 99; }).length;
+  }
+
+  function renderSlo(av, wan, k) {
+    function row(name, val, target) {
+      var budget = val === null || val === undefined ? null
+        : Math.max(0, (val - target) / (100 - target) * 100);
+      var b = CXO.band(val, target, target - 2);
+      return '<div class="slo"><div class="st"><span class="sn">' + CXO.esc(name) +
+        '</span><span class="sv" style="color:var(--' +
+        (b === "ok" ? "ok" : b === "warn" ? "warn" : b === "bad" ? "bad" : "idle") + ')">' +
+        (val === null || val === undefined ? "\u2014" : CXO.pct(val)) + '</span></div>' +
+        '<span class="meter"><i class="' + b + '" style="width:' +
+        (val === null || val === undefined ? 0 : Math.min(100, val)) + '%"></i></span>' +
+        '<span class="sm">Commitment ' + target + '% \u00b7 error budget remaining ' +
+        (budget === null ? "\u2014" : budget.toFixed(0) + "%") + '</span></div>';
+    }
+    document.getElementById("slo-block").innerHTML =
+      row("Device reachability", av, SLO) +
+      row("WAN circuit availability", wan, 99) +
+      row("Overlay tunnel health",
+          k.bfd_up && k.bfd_up.total ? (100 * k.bfd_up.value / k.bfd_up.total) : null, 99);
+  }
+
+  function renderRegions(regions) {
+    var keys = Object.keys(regions);
+    var el = document.getElementById("region-strip");
+    if (!keys.length) { el.innerHTML = CXO.emptyState("No regional data", ""); return; }
+    var cur = CXO.getRegion();
+    el.innerHTML = keys.map(function (r) {
+      var x = regions[r], b = CXO.band(x.availability, 99, 95);
+      return '<div class="region-card" role="button" tabindex="0" data-region="' + r +
+        '" aria-pressed="' + (cur === r) + '">' +
+        '<div class="rc-top"><span class="rc-name">' + r + "</span>" +
+        CXO.pill(b === "ok" ? "healthy" : b === "warn" ? "watch" : b === "bad" ? "at risk" : "no data", b) +
+        "</div>" +
+        '<span class="rc-val">' + (x.availability === null ? "\u2014" : CXO.pct(x.availability)) + "</span>" +
+        '<span class="meter"><i class="' + b + '" style="width:' + (x.availability || 0) + '%"></i></span>' +
+        '<span class="rc-sub">' + CXO.num(x.sites) + " sites \u00b7 " + CXO.num(x.devices) +
+        " devices \u00b7 " + (x.latency_ms === null ? "\u2014" : x.latency_ms + " ms") + "</span></div>";
+    }).join("");
+
+    el.querySelectorAll(".region-card").forEach(function (c) {
+      function pick() {
+        var r = c.getAttribute("data-region");
+        CXO.setRegion(CXO.getRegion() === r ? "" : r);
+        document.querySelectorAll('#controls button[data-region]').forEach(function (b) {
+          b.setAttribute("aria-pressed", String(b.getAttribute("data-region") === CXO.getRegion()));
+        });
+        load();
+      }
+      c.addEventListener("click", pick);
+      c.addEventListener("keydown", function (e) {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(); }
+      });
+    });
+  }
+
+  function renderDc(dc) {
+    var sum = document.getElementById("dc-summary");
+    var list = document.getElementById("dc-list");
+    if (!dc || !dc.count) {
+      sum.innerHTML = "";
+      list.innerHTML = CXO.emptyState("No data centres in scope",
+        "Data centres are identified by site priority. Set DC_SITE_IDS on the proxy to pin an explicit list.");
+      return;
+    }
+    sum.innerHTML = CXO.gauge(dc.availability, { cap: "DC AVAILABILITY", suffix: "%", warnAt: 99.5, badAt: 98 }) +
+      '<div class="legend" style="justify-content:center;margin-top:8px">' +
+      '<span><i style="background:var(--ok)"></i>' + dc.healthy + " healthy</span>" +
+      '<span><i style="background:var(--warn)"></i>' + dc.degraded + " degraded</span>" +
+      '<span><i style="background:var(--bad)"></i>' + dc.critical + " critical</span></div>";
+
+    list.innerHTML = dc.sites.slice(0, 8).map(function (s) {
+      var b = CXO.band(s.availability, 99, 95);
+      return '<div class="item ' + b + '"><span></span><div>' +
+        '<p class="it-t">' + CXO.esc(s.site_id) + " " +
+        CXO.pill(s.status.toLowerCase(), b) + "</p>" +
+        '<p class="it-d">' + CXO.esc([s.country, s.region].filter(Boolean).join(" \u00b7 ")) +
+        " \u2014 " + (s.devices_up || 0) + "/" + (s.devices || 0) + " devices, " +
+        (s.wan_links_total ? (s.wan_links_up || 0) + "/" + s.wan_links_total + " circuits" : "no circuit data") +
+        "</p></div>" +
+        '<span class="it-m">' + (s.uptime_days === null ? "\u2014" : s.uptime_days + "d up") + "</span></div>";
+    }).join("");
+  }
+
+  function renderQuality(k) {
+    function g(label, v, warn, bad, suffix) {
+      return '<div>' + CXO.gauge(v, { cap: label, suffix: suffix || "", max: Math.max(100, (v || 0) * 1.5),
+        band: CXO.bandInverse(v, warn, bad), dp: 1 }) + "</div>";
+    }
+    document.getElementById("quality").style.gridTemplateColumns = "repeat(3,minmax(0,1fr))";
+    document.getElementById("quality").innerHTML =
+      g("LATENCY ms", k.latency_ms && k.latency_ms.value, 80, 150) +
+      g("JITTER ms", k.jitter_ms && k.jitter_ms.value, 20, 40) +
+      g("LOSS %", k.loss_percent && k.loss_percent.value, 0.5, 2, "");
+  }
+
+  function renderOverlay(k) {
+    function row(name, up, total) {
+      if (up === null || up === undefined) return "";
+      var pctv = total ? (100 * up / total) : null;
+      return CXO.barRow(name, up || 0, total || 1,
+        CXO.num(up) + (total ? " / " + CXO.num(total) : ""),
+        CXO.band(pctv, 99, 95));
+    }
+    var html =
+      row("BFD tunnels", k.bfd_up && k.bfd_up.value, k.bfd_up && k.bfd_up.total) +
+      row("OMP peers", k.omp_up && k.omp_up.value, k.omp_up && k.omp_up.total) +
+      row("BGP neighbours", k.bgp_established && k.bgp_established.value, k.bgp_established && k.bgp_established.total) +
+      row("WAN circuits", k.wan_links_up && k.wan_links_up.value, k.wan_links_up && k.wan_links_up.total);
+    document.getElementById("overlay").innerHTML = html || CXO.emptyState("No overlay data", "");
+  }
+
+  function renderComposition(regions, k) {
+    var keys = Object.keys(regions);
+    if (!keys.length) {
+      document.getElementById("composition").innerHTML =
+        '<div class="hero-stat" style="box-shadow:none;border:0;background:none;padding:0">' +
+        '<span class="k">SD-WAN devices</span><span class="v">' +
+        CXO.num(k.sdwan_devices && k.sdwan_devices.value) + "</span></div>";
+      return;
+    }
+    var max = Math.max.apply(null, keys.map(function (r) { return regions[r].devices || 0; })) || 1;
+    document.getElementById("composition").innerHTML = keys.map(function (r) {
+      return CXO.barRow(r, regions[r].devices || 0, max,
+        CXO.num(regions[r].devices) + " dev", CXO.band(regions[r].availability, 99, 95));
+    }).join("") +
+    '<p class="why" style="margin-top:6px">' +
+      keys.reduce(function (a, r) { return a + (regions[r].sites || 0); }, 0) +
+      " sites under management across " + keys.length + " regions.</p>";
+  }
+
+  function renderSiteTable(d) {}
+
+  load();
+  setInterval(function () { if (document.visibilityState === "visible") load(); }, 60000);
+
+  // site table is driven by the DC rollup, which is the only per-site feed
+  // exposed to this page; the operational site list lives on monitoring.html
+  var origRender = renderDc;
+  renderDc = function (dc) {
+    origRender(dc);
+    var tb = document.querySelector("#site-table tbody");
+    var rows = (dc && dc.sites) || [];
+    if (!rows.length) {
+      tb.innerHTML = '<tr><td colspan="5">' +
+        CXO.emptyState("No per-site data in scope", "") + "</td></tr>";
+      return;
+    }
+    tb.innerHTML = '<tr><th>Site</th><th>Region</th><th>Avail</th><th>Latency</th><th>Status</th></tr>' +
+      rows.slice(0, 12).map(function (s) {
+        var b = CXO.band(s.availability, 99, 95);
+        return "<tr><td class='id'>" + CXO.esc(s.site_id) + "</td><td>" +
+          CXO.esc(s.region || "\u2014") + "</td><td class='n'>" +
+          (s.availability === null ? "\u2014" : CXO.pct(s.availability, 0)) +
+          "</td><td class='n'>" + (s.latency_ms === null ? "\u2014" : s.latency_ms + " ms") +
+          "</td><td>" + CXO.pill(s.status.toLowerCase(), b) + "</td></tr>";
+      }).join("");
+  };
+})();
+</script>
+</body>
+</html>

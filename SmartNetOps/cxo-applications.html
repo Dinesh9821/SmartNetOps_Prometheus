@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Applications | Smart NetOps Hub</title>
+<script src="activity-tracker.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="cxo.css">
+<script src="theme.js"></script>
+</head>
+<body>
+<div class="aurora"><i></i><i></i><i></i><i></i></div>
+<div class="mesh"></div>
+<div class="grain"></div>
+<div class="vignette"></div>
+
+<main class="cxo-page">
+  <header class="cxo-head">
+    <div>
+      <a href="dashboard.html" class="back-btn" style="display:inline-flex;gap:8px;padding:9px 13px;margin-bottom:12px;">&larr; Back to Dashboard</a>
+      <span class="eyebrow">Executive view / Applications</span>
+      <h1 class="gradient-text">Applications</h1>
+      <p class="lede">The application portfolio as the business experiences it &mdash; tier-1 availability, real user experience, and the dependencies that put revenue at risk.</p>
+      <div class="cxo-meta"><span class="chip">Tier-1 apps <b id="x-t1">&mdash;</b></span>
+        <span class="chip">Portfolio health <b id="x-health">&mdash;</b></span>
+        <span class="chip">Experience score <b id="x-xp">&mdash;</b></span>
+        <span class="chip">Updated <b id="x-updated">&mdash;</b></span></div>
+    </div>
+  </header>
+
+  <div id="controls"></div>
+  <div id="notice-slot"></div>
+
+  <section class="cxo-hero" id="hero">
+    <div class="hero-stat skel"><span class="k">Loading</span><span class="v">&mdash;</span><span class="sub">&mdash;</span></div>
+  </section>
+  <section class="cxo-grid c2">
+      <div class="card">
+        <header><h3>Tier-1 availability against SLA</h3></header>
+        <p class="why">The applications the business cannot trade without. Each measured against its own contractual commitment, not a blanket target.</p>
+        <div class="stack" id="tier1"></div>
+      </div>
+      <div class="card">
+        <header><h3>Real user experience</h3></header>
+        <p class="why">Measured at the user, not the server. A healthy backend with a poor experience score is still an outage to the person using it.</p>
+        <div class="" id="chart-xp"></div>
+      </div>
+  </section>
+  <section class="cxo-grid c3">
+      <div class="card">
+        <header><h3>Portfolio by tier</h3></header>
+        <p class="why">How much of the estate carries critical load.</p>
+        <div class="stack" id="by-tier"></div>
+      </div>
+      <div class="card">
+        <header><h3>Dependency risk</h3></header>
+        <p class="why">Applications with a single point of failure in their path.</p>
+        <div class="stack" id="dependency"></div>
+      </div>
+      <div class="card">
+        <header><h3>Technical debt exposure</h3></header>
+        <p class="why">Unsupported runtimes and end-of-life platforms still carrying production traffic.</p>
+        <div class="stack" id="debt"></div>
+      </div>
+  </section>
+  <section class="cxo-grid wide-left">
+      <div class="card">
+        <header><h3>Transaction throughput</h3></header>
+        <p class="why">Business volume moving through the estate. Correlate a dip here with the incident register before assuming a demand problem.</p>
+        <div class="" id="chart-tx"></div>
+      </div>
+      <div class="card">
+        <header><h3>Applications needing a decision</h3></header>
+        <p class="why">Below commitment, or carrying unacceptable dependency risk.</p>
+        <div class="stack" id="app-risk"></div>
+      </div>
+  </section>
+
+</main>
+
+<script src="cxo.js"></script>
+<script>
+(function () {
+  "use strict";
+  var ctl = CXO.controls("controls", load);
+  var SOURCE = "an APM source (traces, RUM) plus the application service catalogue";
+
+  function load() {
+    ctl.status("Awaiting integration");
+    ["x-t1","x-health","x-xp","x-updated"].forEach(function (i) {
+      document.getElementById(i).textContent = "\u2014";
+    });
+    document.getElementById("notice-slot").innerHTML =
+      '<div class="notice">Application telemetry is not yet connected. This view is ' +
+      'built against ' + SOURCE + ' and needs no frontend changes to go live.</div>';
+
+    document.getElementById("hero").innerHTML =
+      CXO.heroStat({ label: "Tier-1 availability", value: "\u2014", unit: "%", band: "idle", sub: "Weighted by revenue" }) +
+      CXO.heroStat({ label: "Experience score", value: "\u2014", band: "idle", sub: "Real user monitoring" }) +
+      CXO.heroStat({ label: "Apps below SLA", value: "\u2014", band: "idle", sub: "Breaching commitment now" }) +
+      CXO.heroStat({ label: "Single points of failure", value: "\u2014", band: "idle", sub: "In tier-1 paths" }) +
+      CXO.heroStat({ label: "End-of-life platforms", value: "\u2014", band: "idle", sub: "Carrying production load" });
+
+    ["tier1","chart-xp","by-tier","dependency","debt","chart-tx","app-risk"]
+      .forEach(function (i) { document.getElementById(i).innerHTML = CXO.pendingState(SOURCE); });
+  }
+  load();
+})();
+</script>
+</body>
+</html>

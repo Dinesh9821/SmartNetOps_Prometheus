@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sign in | Smart NetOps Hub</title>
+<script src="activity-tracker.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="theme.css">
+<script src="theme.js"></script>
+
+<style>
+  body{ display:grid; place-items:center; min-height:100vh; padding:24px; }
+
+  .auth{
+    display:grid; grid-template-columns:1.05fr .95fr;
+    width:min(940px,100%); border-radius:var(--r-xl);
+    overflow:hidden; isolation:isolate;
+  }
+
+  /* ── LEFT: the live pitch ── */
+  .auth-brand{
+    padding:44px 40px;
+    display:flex; flex-direction:column; gap:26px;
+    background:linear-gradient(158deg, rgba(99,102,241,.16), rgba(34,211,238,.05) 55%, transparent);
+    border-right:1px solid var(--edge);
+  }
+  .mark{
+    width:44px; height:44px; border-radius:13px;
+    background:conic-gradient(from 180deg,var(--cyan),var(--indigo),var(--magenta),var(--cyan));
+    box-shadow:0 0 40px -6px rgba(99,102,241,.95);
+    animation:markspin 9s linear infinite;
+  }
+  .auth-brand h1{ font-size:32px; line-height:1.15; margin:0; }
+  .auth-brand p{ color:var(--ink-2); margin:0; max-width:34ch; font-size:14px; }
+
+  .pulse-row{ display:flex; flex-direction:column; gap:11px; margin-top:auto; }
+  .pulse{
+    display:flex; align-items:center; gap:11px;
+    padding:11px 13px; border-radius:var(--r);
+    background:rgba(255,255,255,.035);
+    border:1px solid var(--edge);
+    font-size:12.5px; color:var(--ink-2);
+  }
+  .pulse .mono{ margin-left:auto; color:var(--ink); font-size:12px; }
+
+  /* ── RIGHT: the form ── */
+  .auth-form{ padding:44px 40px; display:flex; flex-direction:column; justify-content:center; }
+  .auth-form h2{ margin:0 0 4px; font-size:22px; }
+  .auth-form .sub{ color:var(--ink-2); font-size:13px; margin-bottom:28px; }
+
+  .field{ position:relative; margin-bottom:16px; }
+  .field input{
+    width:100%; padding:20px 42px 8px 14px !important;
+    font-size:14px !important; height:56px;
+  }
+  .field label{
+    position:absolute; left:14px; top:18px;
+    font-size:14px; color:var(--ink-3);
+    pointer-events:none;
+    transition:all .2s var(--ease);
+  }
+  .field input:focus + label,
+  .field input:not(:placeholder-shown) + label{
+    top:8px; font-size:10.5px; font-weight:600;
+    letter-spacing:.11em; text-transform:uppercase;
+    color:var(--cyan);
+  }
+  .peek{
+    position:absolute; right:12px; top:16px;
+    cursor:pointer; opacity:.5; font-size:16px; user-select:none;
+    transition:opacity .2s var(--ease);
+  }
+  .peek:hover{ opacity:1; }
+
+  .login-btn{
+    width:100%; height:48px; margin-top:10px;
+    font-size:14px !important; border-radius:var(--r) !important;
+    transition:transform .2s var(--spring) !important;
+  }
+  .auth-links{
+    display:flex; justify-content:center; align-items:center; gap:18px;
+    margin-top:16px;
+  }
+  .auth-links .text-btn{
+    padding:0 !important; border:0 !important; border-radius:0 !important;
+    background:transparent !important; box-shadow:none !important;
+    color:var(--cyan); font:inherit; font-size:12px; cursor:pointer;
+  }
+  .auth-links .text-btn::after{ display:none !important; }
+  .auth-links .text-btn:hover{
+    background:transparent !important; color:var(--ink); transform:none;
+  }
+
+  .error{
+    display:none; margin-top:14px; padding:10px 13px;
+    border-radius:var(--r-sm); font-size:12.5px;
+    color:#FDA4AF; background:rgba(251,113,133,.1);
+    border:1px solid rgba(251,113,133,.32);
+  }
+  .hint{
+    margin-top:22px; padding-top:18px;
+    border-top:1px solid var(--edge);
+    font-size:11.5px; color:var(--ink-3); line-height:1.7;
+  }
+  .hint code{
+    background:rgba(255,255,255,.05) !important; border:0 !important;
+    padding:1px 5px; border-radius:4px; font-size:11px;
+  }
+
+  @media (max-width:780px){
+    .auth{ grid-template-columns:1fr; }
+    .auth-brand{ border-right:0; border-bottom:1px solid var(--edge); padding:32px 28px; }
+    .pulse-row{ display:none; }
+    .auth-form{ padding:32px 28px; }
+  }
+</style>
+</head>
+<body data-no-shell>
+
+<div class="auth login-container">
+
+  <div class="auth-brand">
+    <div class="mark"></div>
+    <div>
+      <h1 class="gradient-text">Smart<br>NetOps Hub</h1>
+      <p>Your network's control plane — telemetry, automation, and AI assistance in one operations center.</p>
+    </div>
+
+    <div class="pulse-row">
+      <div class="pulse"><span class="led"></span> Control plane <span class="mono" id="login-uptime"></span></div>
+      <div class="pulse"><span class="led"></span> Sites reporting <span class="mono" id="login-sites"></span></div>
+      <div class="pulse"><span class="led warn"></span> Open incidents <span class="mono" id="login-incidents"></span></div>
+    </div>
+  </div>
+
+  <div class="auth-form">
+    <button type="button" class="theme-toggle" data-theme-toggle aria-pressed="false" aria-label="Switch theme" title="Switch theme">
+      <span class="theme-icon" aria-hidden="true">◐</span><span data-theme-state>Dark</span>
+    </button>
+    <h2>Sign in</h2>
+    <div class="sub">Use your operator credentials to continue.</div>
+
+    <div class="field input-group">
+      <input type="text" id="username" placeholder=" " required autocomplete="username">
+      <label>Username</label>
+    </div>
+
+    <div class="field input-group">
+      <input type="password" id="password" placeholder=" " required autocomplete="current-password">
+      <label>Password</label>
+      <span class="peek show-pass" onclick="togglePassword()">👁</span>
+    </div>
+
+    <button class="login-btn" id="auth-submit" type="button" onclick="submitAuth()">Sign in</button>
+
+    <div class="error" id="error-msg">Invalid username or password</div>
+
+    <div class="auth-links">
+      <button type="button" class="text-btn" id="forgot-password" onclick="showResetMode()">Forgot password?</button>
+      <button type="button" class="text-btn" id="create-account" onclick="showCreateMode()">Create account</button>
+    </div>
+
+    <div class="hint">
+      Accounts are remembered on this device. Use a registered username and its
+      matching password to sign in.
+    </div>
+  </div>
+
+</div>
+
+<script>
+  function loginProxyOrigin() {
+    try {
+      if (location.protocol === "http:" || location.protocol === "https:") {
+        if (location.port === "8080") return "";
+        return location.protocol + "//" + location.hostname + ":8080";
+      }
+    } catch (error) {}
+    return "http://cussya5w.carcgl.com:8080";
+  }
+
+  function setLoginStat(id, record, suffix) {
+    const element = document.getElementById(id);
+    if (!element) return;
+    element.textContent = record && record.available && record.value != null
+      ? record.value + (suffix || "")
+      : "";
+  }
+
+  async function loadLoginStats() {
+    try {
+      const response = await fetch(loginProxyOrigin() + "/api/landing", {
+        headers: { Accept: "application/json" }
+      });
+      const data = await response.json().catch(() => null);
+      const stats = (data && data.stats) || {};
+      setLoginStat("login-uptime", stats.uptime, "%");
+      setLoginStat("login-sites", stats.sites);
+      setLoginStat("login-incidents", stats.incidents);
+    } catch (error) {
+      setLoginStat("login-uptime");
+      setLoginStat("login-sites");
+      setLoginStat("login-incidents");
+    }
+  }
+
+  loadLoginStats();
+</script>
+
+<script>
+  const ADMIN_PASSWORD = "Admin@123";
+  const userRecords = loadUserRecords();
+  let authMode = "login";
+
+  function loadUserRecords() {
+    try {
+      const records = JSON.parse(localStorage.getItem("userRecords") || "{}");
+      return records && typeof records === "object" && !Array.isArray(records) ? records : {};
+    } catch (error) {
+      return {};
+    }
+  }
+
+  if (!userRecords.Admin) {
+    userRecords.Admin = ADMIN_PASSWORD;
+    localStorage.setItem("userRecords", JSON.stringify(userRecords));
+  }
+
+  function togglePassword() {
+    const pass = document.getElementById("password");
+    pass.type = pass.type === "password" ? "text" : "password";
+  }
+
+  function validateUsername(username) {
+    const lengthValid = username.length >= 3 && username.length <= 20;
+    return { valid: lengthValid, lengthValid };
+  }
+
+  function validatePassword(password) {
+    const lengthValid = password.length >= 6 && password.length <= 20;
+    return { valid: lengthValid, lengthValid };
+  }
+
+  function showError(message) {
+    const error = document.getElementById("error-msg");
+    error.textContent = message;
+    error.style.display = "block";
+  }
+
+  function showCreateMode() {
+    authMode = "create";
+    document.querySelector(".auth-form h2").textContent = "Create account";
+    document.querySelector(".auth-form .sub").textContent = "Create an operator account for this device.";
+    document.getElementById("auth-submit").textContent = "Create account";
+    document.getElementById("forgot-password").textContent = "Back to sign in";
+    document.getElementById("forgot-password").onclick = showLoginMode;
+    document.getElementById("create-account").style.display = "none";
+    document.getElementById("password").autocomplete = "new-password";
+    showError("");
+    document.getElementById("error-msg").style.display = "none";
+  }
+
+  function showResetMode() {
+    if (authMode === "reset") return;
+    authMode = "reset";
+    document.querySelector(".auth-form h2").textContent = "Reset password";
+    document.querySelector(".auth-form .sub").textContent = "Enter a registered username and choose a new password.";
+    document.getElementById("auth-submit").textContent = "Change password";
+    document.getElementById("forgot-password").textContent = "Back to sign in";
+    document.getElementById("forgot-password").onclick = showLoginMode;
+    document.getElementById("create-account").style.display = "none";
+    document.getElementById("password").autocomplete = "new-password";
+    showError("");
+    document.getElementById("error-msg").style.display = "none";
+  }
+
+  function showLoginMode() {
+    authMode = "login";
+    document.querySelector(".auth-form h2").textContent = "Sign in";
+    document.querySelector(".auth-form .sub").textContent = "Use your operator credentials to continue.";
+    document.getElementById("auth-submit").textContent = "Sign in";
+    document.getElementById("forgot-password").textContent = "Forgot password?";
+    document.getElementById("forgot-password").onclick = showResetMode;
+    document.getElementById("create-account").style.display = "inline";
+    document.getElementById("password").autocomplete = "current-password";
+    document.getElementById("error-msg").style.display = "none";
+  }
+
+  function submitAuth() {
+    const user = document.getElementById("username").value.trim();
+    const pass = document.getElementById("password").value;
+    const userCheck = validateUsername(user);
+    const passCheck = validatePassword(pass);
+
+    if (!userCheck.valid) return showError("Username must be 3–20 characters");
+    if (!passCheck.valid) return showError("Password must be 6–20 characters");
+
+    if (authMode === "create") {
+      if (userRecords[user]) return showError("That username is already registered");
+      userRecords[user] = pass;
+      localStorage.setItem("userRecords", JSON.stringify(userRecords));
+      showLoginMode();
+      document.getElementById("username").value = user;
+      showError("Account created. Sign in with your new password.");
+      return;
+    }
+
+    if (authMode === "reset") {
+      if (!userRecords[user]) return showError("Username not found");
+      userRecords[user] = pass;
+      localStorage.setItem("userRecords", JSON.stringify(userRecords));
+      showLoginMode();
+      document.getElementById("username").value = user;
+      showError("Password changed. Sign in with your new password.");
+      return;
+    }
+
+    if (!userRecords[user] || userRecords[user] !== pass) {
+      return showError("Invalid username or password");
+    }
+
+    localStorage.setItem("currentUser", user);
+    localStorage.setItem("username", user);
+    localStorage.setItem("isAdmin", user === "Admin" ? "true" : "false");
+    localStorage.setItem("rememberedUsername", user);
+    localStorage.setItem("rememberedPassword", pass);
+    ["selectedRegion", "selectedCountry", "selectedSite", "selectedSiteInfo"]
+      .forEach((key) => localStorage.removeItem(key));
+    sessionStorage.removeItem("netops_site_lists");
+    if (window.ActivityTracker) window.ActivityTracker.trackLogin(user, user === "Admin");
+
+    document.getElementById("auth-submit").style.transform = "scale(0.95)";
+    document.getElementById("error-msg").style.display = "none";
+    setTimeout(() => {
+      window.location.href = user === "Admin" ? "admin.html" : "landing page.html";
+    }, 400);
+  }
+
+  document.getElementById("username").value = localStorage.getItem("rememberedUsername") || "";
+  document.getElementById("password").value = localStorage.getItem("rememberedPassword") || "";
+
+  document.addEventListener("keydown", function(event) {
+    if (event.key === "Enter") submitAuth();
+  });
+</script>
+
+</body>
+</html>

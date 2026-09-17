@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Security | Smart NetOps Hub</title>
+<script src="activity-tracker.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="cxo.css">
+<script src="theme.js"></script>
+</head>
+<body>
+<div class="aurora"><i></i><i></i><i></i><i></i></div>
+<div class="mesh"></div>
+<div class="grain"></div>
+<div class="vignette"></div>
+
+<main class="cxo-page">
+  <header class="cxo-head">
+    <div>
+      <a href="dashboard.html" class="back-btn" style="display:inline-flex;gap:8px;padding:9px 13px;margin-bottom:12px;">&larr; Back to Dashboard</a>
+      <span class="eyebrow">Executive view / Security</span>
+      <h1 class="gradient-text">Security</h1>
+      <p class="lede">Exposure, not activity. What is reachable, what is unpatched, how quickly we close it, and which of those facts would matter in an audit.</p>
+      <div class="cxo-meta"><span class="chip">Risk posture <b id="x-risk">&mdash;</b></span>
+        <span class="chip">Critical exposure <b id="x-crit">&mdash;</b></span>
+        <span class="chip">Mean time to remediate <b id="x-mttr">&mdash;</b></span>
+        <span class="chip">Updated <b id="x-updated">&mdash;</b></span></div>
+    </div>
+  </header>
+
+  <div id="controls"></div>
+  <div id="notice-slot"></div>
+
+  <section class="cxo-hero" id="hero">
+    <div class="hero-stat skel"><span class="k">Loading</span><span class="v">&mdash;</span><span class="sub">&mdash;</span></div>
+  </section>
+  <section class="cxo-grid wide-right">
+      <div class="card">
+        <header><h3>Risk posture</h3></header>
+        <p class="why">A single composite of exposure, patch currency and control coverage. Directional trend matters more than the absolute score.</p>
+        <div class="" id="posture"></div>
+      </div>
+      <div class="card">
+        <header><h3>Exposure by severity over time</h3></header>
+        <p class="why">Open findings by severity. A flat critical line means remediation is keeping pace with discovery; a rising one means it is not.</p>
+        <div class="" id="chart-exposure"></div>
+      </div>
+  </section>
+  <section class="cxo-grid c4">
+      <div class="card">
+        <header><h3>Patch compliance</h3></header>
+        <p class="why">Estate currency against policy.</p>
+        <div class="stack" id="patch"></div>
+      </div>
+      <div class="card">
+        <header><h3>Perimeter exposure</h3></header>
+        <p class="why">Internet-reachable services and open ports.</p>
+        <div class="stack" id="perimeter"></div>
+      </div>
+      <div class="card">
+        <header><h3>Identity risk</h3></header>
+        <p class="why">Privileged accounts, stale credentials, MFA gaps.</p>
+        <div class="stack" id="identity"></div>
+      </div>
+      <div class="card">
+        <header><h3>Third-party risk</h3></header>
+        <p class="why">Vendor access paths into the estate.</p>
+        <div class="stack" id="vendor"></div>
+      </div>
+  </section>
+  <section class="cxo-grid wide-left">
+      <div class="card">
+        <header><h3>Remediation velocity</h3></header>
+        <p class="why">Time from discovery to closure, by severity. This is the number that determines whether exposure compounds.</p>
+        <div class="" id="velocity"></div>
+      </div>
+      <div class="card">
+        <header><h3>Findings requiring a decision</h3></header>
+        <p class="why">Past policy SLA, or requiring an accepted-risk sign-off.</p>
+        <div class="stack" id="decisions"></div>
+      </div>
+  </section>
+
+</main>
+
+<script src="cxo.js"></script>
+<script>
+(function () {
+  "use strict";
+  var ctl = CXO.controls("controls", load);
+  var SOURCE = "the vulnerability scanner, the firewall policy store and the identity provider";
+
+  function load() {
+    ctl.status("Awaiting integration");
+    ["x-risk","x-crit","x-mttr","x-updated"].forEach(function (i) {
+      document.getElementById(i).textContent = "\u2014";
+    });
+    document.getElementById("notice-slot").innerHTML =
+      '<div class="notice">Security sources are not yet connected. Panels are built ' +
+      'against ' + SOURCE + '.</div>';
+
+    document.getElementById("hero").innerHTML =
+      CXO.heroStat({ label: "Risk posture", value: "\u2014", band: "idle", sub: "Composite score" }) +
+      CXO.heroStat({ label: "Critical findings open", value: "\u2014", band: "idle", sub: "Past policy SLA" }) +
+      CXO.heroStat({ label: "Patch compliance", value: "\u2014", unit: "%", band: "idle", sub: "Against policy window" }) +
+      CXO.heroStat({ label: "Internet-exposed services", value: "\u2014", band: "idle", sub: "Reachable from outside" }) +
+      CXO.heroStat({ label: "Mean time to remediate", value: "\u2014", band: "idle", sub: "Critical severity" });
+
+    ["posture","chart-exposure","patch","perimeter","identity","vendor","velocity","decisions"]
+      .forEach(function (i) { document.getElementById(i).innerHTML = CXO.pendingState(SOURCE); });
+  }
+  load();
+})();
+</script>
+</body>
+</html>

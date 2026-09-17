@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Alerts | Smart NetOps Hub</title>
+<script src="activity-tracker.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="cxo.css">
+<script src="theme.js"></script>
+</head>
+<body>
+<div class="aurora"><i></i><i></i><i></i><i></i></div>
+<div class="mesh"></div>
+<div class="grain"></div>
+<div class="vignette"></div>
+
+<main class="cxo-page">
+  <header class="cxo-head">
+    <div>
+      <a href="dashboard.html" class="back-btn" style="display:inline-flex;gap:8px;padding:9px 13px;margin-bottom:12px;">&larr; Back to Dashboard</a>
+      <span class="eyebrow">Executive view / Alerts</span>
+      <h1 class="gradient-text">Alerts</h1>
+      <p class="lede">Whether monitoring is helping or drowning the team. Signal against noise, how much resolves itself, and what reaches a human at 3am.</p>
+      <div class="cxo-meta"><span class="chip">Alerts in period <b id="x-vol">&mdash;</b></span>
+        <span class="chip">Actionable <b id="x-actionable">&mdash;</b></span>
+        <span class="chip">Auto-resolved <b id="x-auto">&mdash;</b></span>
+        <span class="chip">Updated <b id="x-updated">&mdash;</b></span></div>
+    </div>
+  </header>
+
+  <div id="controls"></div>
+  <div id="notice-slot"></div>
+
+  <section class="cxo-hero" id="hero">
+    <div class="hero-stat skel"><span class="k">Loading</span><span class="v">&mdash;</span><span class="sub">&mdash;</span></div>
+  </section>
+  <section class="cxo-grid wide-left">
+      <div class="card">
+        <header><h3>Alert volume and disposition</h3></header>
+        <p class="why">Actionable, auto-resolved and ignored. Ignored alerts are the ones training the team to ignore the next real one.</p>
+        <div class="" id="chart-volume"></div>
+      </div>
+      <div class="card">
+        <header><h3>Signal quality</h3></header>
+        <p class="why">The proportion of alerts that resulted in action. Below 30% and the alerting policy is the problem, not the estate.</p>
+        <div class="" id="signal"></div>
+      </div>
+  </section>
+  <section class="cxo-grid c3">
+      <div class="card">
+        <header><h3>Noisiest sources</h3></header>
+        <p class="why">Rules generating the most alerts for the least action &mdash; the shortlist for tuning.</p>
+        <div class="stack" id="noisy"></div>
+      </div>
+      <div class="card">
+        <header><h3>Out-of-hours load</h3></header>
+        <p class="why">What reached a human outside working hours.</p>
+        <div class="stack" id="ooh"></div>
+      </div>
+      <div class="card">
+        <header><h3>Auto-remediation</h3></header>
+        <p class="why">Alerts closed by automation without human involvement.</p>
+        <div class="stack" id="auto"></div>
+      </div>
+  </section>
+  <section class="cxo-grid c2">
+      <div class="card">
+        <header><h3>Currently firing</h3></header>
+        <p class="why">Live alert state from the Prometheus rule set.</p>
+        <div class="stack" id="firing"></div>
+      </div>
+      <div class="card">
+        <header><h3>Escalation health</h3></header>
+        <p class="why">Acknowledgement time and unacknowledged alerts by severity.</p>
+        <div class="stack" id="escalation"></div>
+      </div>
+  </section>
+
+</main>
+
+<script src="cxo.js"></script>
+<script>
+(function () {
+  "use strict";
+  var ctl = CXO.controls("controls", load);
+  var SOURCE = "the Alertmanager API and the on-call/paging platform";
+
+  function load() {
+    ctl.status("Awaiting integration");
+    ["x-vol","x-actionable","x-auto","x-updated"].forEach(function (i) {
+      document.getElementById(i).textContent = "\u2014";
+    });
+    document.getElementById("notice-slot").innerHTML =
+      '<div class="notice">Alert history is not yet connected. The rule set already ' +
+      'exists in Prometheus &mdash; connecting ' + SOURCE + ' populates every panel here.</div>';
+
+    document.getElementById("hero").innerHTML =
+      CXO.heroStat({ label: "Alerts raised", value: "\u2014", band: "idle", sub: "In the period" }) +
+      CXO.heroStat({ label: "Actionable share", value: "\u2014", unit: "%", band: "idle", sub: "Led to an action" }) +
+      CXO.heroStat({ label: "Auto-resolved", value: "\u2014", unit: "%", band: "idle", sub: "Closed without a human" }) +
+      CXO.heroStat({ label: "Out-of-hours pages", value: "\u2014", band: "idle", sub: "Reached a human off-shift" }) +
+      CXO.heroStat({ label: "Mean acknowledgement", value: "\u2014", band: "idle", sub: "Critical severity" });
+
+    ["chart-volume","signal","noisy","ooh","auto","firing","escalation"]
+      .forEach(function (i) { document.getElementById(i).innerHTML = CXO.pendingState(SOURCE); });
+  }
+  load();
+})();
+</script>
+</body>
+</html>

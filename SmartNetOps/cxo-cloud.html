@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cloud | Smart NetOps Hub</title>
+<script src="activity-tracker.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="cxo.css">
+<script src="theme.js"></script>
+</head>
+<body>
+<div class="aurora"><i></i><i></i><i></i><i></i></div>
+<div class="mesh"></div>
+<div class="grain"></div>
+<div class="vignette"></div>
+
+<main class="cxo-page">
+  <header class="cxo-head">
+    <div>
+      <a href="dashboard.html" class="back-btn" style="display:inline-flex;gap:8px;padding:9px 13px;margin-bottom:12px;">&larr; Back to Dashboard</a>
+      <span class="eyebrow">Executive view / Cloud</span>
+      <h1 class="gradient-text">Cloud</h1>
+      <p class="lede">What the cloud estate costs, what it delivers, and where committed spend is going unused. Built for the spend-versus-resilience conversation.</p>
+      <div class="cxo-meta"><span class="chip">Providers <b id="x-prov">&mdash;</b></span>
+        <span class="chip">Monthly run rate <b id="x-spend">&mdash;</b></span>
+        <span class="chip">Commitment coverage <b id="x-cov">&mdash;</b></span>
+        <span class="chip">Updated <b id="x-updated">&mdash;</b></span></div>
+    </div>
+  </header>
+
+  <div id="controls"></div>
+  <div id="notice-slot"></div>
+
+  <section class="cxo-hero" id="hero">
+    <div class="hero-stat skel"><span class="k">Loading</span><span class="v">&mdash;</span><span class="sub">&mdash;</span></div>
+  </section>
+  <section class="cxo-grid wide-left">
+      <div class="card">
+        <header><h3>Spend trajectory</h3></header>
+        <p class="why">Run rate against budget. The question is not the absolute number but whether the gradient is one the business chose.</p>
+        <div class="" id="chart-spend"></div>
+      </div>
+      <div class="card">
+        <header><h3>Commitment coverage</h3></header>
+        <p class="why">Reserved and savings-plan coverage against on-demand. Uncovered steady-state workload is money left on the table.</p>
+        <div class="" id="coverage"></div>
+      </div>
+  </section>
+  <section class="cxo-grid c3">
+      <div class="card">
+        <header><h3>Spend by provider</h3></header>
+        <p class="why">Concentration is a negotiating position and a resilience risk at the same time.</p>
+        <div class="stack" id="by-provider"></div>
+      </div>
+      <div class="card">
+        <header><h3>Spend by business unit</h3></header>
+        <p class="why">Showback. Unattributed spend is the line item nobody defends at renewal.</p>
+        <div class="stack" id="by-bu"></div>
+      </div>
+      <div class="card">
+        <header><h3>Waste signals</h3></header>
+        <p class="why">Idle, orphaned and oversized resources &mdash; the fastest reversible savings available.</p>
+        <div class="stack" id="waste"></div>
+      </div>
+  </section>
+  <section class="cxo-grid wide-right">
+      <div class="card">
+        <header><h3>Availability by provider</h3></header>
+        <p class="why">Control-plane and workload availability against each provider's contractual SLA.</p>
+        <div class="stack" id="provider-slo"></div>
+      </div>
+      <div class="card">
+        <header><h3>Workload placement</h3></header>
+        <p class="why">Where the estate actually runs, by region and provider &mdash; the input to any data-residency or exit discussion.</p>
+        <div class="cxo-table-wrap"><table class="cxo" id="placement"><tbody></tbody></table></div>
+      </div>
+  </section>
+
+</main>
+
+<script src="cxo.js"></script>
+<script>
+(function () {
+  "use strict";
+  var ctl = CXO.controls("controls", load);
+  var SOURCE = "a cloud billing export (CUR / Cost Management) and provider health APIs";
+
+  function load() {
+    ctl.status("Awaiting integration");
+    ["x-prov","x-spend","x-cov","x-updated"].forEach(function (i) {
+      document.getElementById(i).textContent = "\u2014";
+    });
+    document.getElementById("notice-slot").innerHTML =
+      '<div class="notice">Cloud billing and provider-health sources are not yet ' +
+      'connected. Every panel below is built and will populate once ' + SOURCE +
+      ' is wired to the proxy &mdash; no further frontend work is required.</div>';
+
+    document.getElementById("hero").innerHTML =
+      CXO.heroStat({ label: "Monthly run rate", value: "\u2014", band: "idle", sub: "Against budget" }) +
+      CXO.heroStat({ label: "Forecast variance", value: "\u2014", band: "idle", sub: "End of period" }) +
+      CXO.heroStat({ label: "Commitment coverage", value: "\u2014", unit: "%", band: "idle", sub: "Reserved vs on-demand" }) +
+      CXO.heroStat({ label: "Identified waste", value: "\u2014", band: "idle", sub: "Reversible this month" }) +
+      CXO.heroStat({ label: "Cloud availability", value: "\u2014", unit: "%", band: "idle", sub: "Weighted across providers" });
+
+    ["chart-spend","coverage","by-provider","by-bu","waste","provider-slo"]
+      .forEach(function (i) {
+        document.getElementById(i).innerHTML = CXO.pendingState(SOURCE);
+      });
+    document.querySelector("#placement tbody").innerHTML =
+      '<tr><td>' + CXO.pendingState(SOURCE) + '</td></tr>';
+  }
+  load();
+})();
+</script>
+</body>
+</html>

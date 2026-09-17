@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Global Site Map | Smart NetOps Hub</title>
+<script src="activity-tracker.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="cxo.css">
+<script src="theme.js"></script>
+<style>
+  .map-layout{
+    display:grid; grid-template-columns:minmax(0,1fr) 340px;
+    gap:16px; align-items:stretch;
+    min-height:min(76vh, 760px);
+  }
+  .map-shell{
+    position:relative; border-radius:var(--r-lg); overflow:hidden;
+    border:1px solid var(--edge); box-shadow:var(--e3);
+    background:var(--surface); min-height:520px;
+  }
+  #gmap{ position:absolute; inset:0; }
+
+  /* floating map controls */
+  .map-tools{
+    position:absolute; top:12px; left:12px; z-index:5;
+    display:flex; flex-direction:column; gap:8px; max-width:250px;
+  }
+  .map-tools .tool{
+    padding:9px 11px; border-radius:var(--r-sm);
+    background:rgba(8,9,11,.86); border:1px solid var(--edge);
+    backdrop-filter:blur(14px); box-shadow:var(--e2);
+    display:flex; flex-direction:column; gap:7px;
+  }
+  html[data-theme="light"] .map-tools .tool{ background:rgba(255,255,255,.93); }
+  .map-tools .row{ display:flex; gap:6px; flex-wrap:wrap; }
+  .map-tools button{
+    appearance:none; cursor:pointer; padding:6px 11px; min-height:32px;
+    border-radius:var(--r-xs); border:1px solid var(--edge);
+    background:var(--glass); color:var(--ink-2);
+    font-family:inherit; font-size:12px; font-weight:500;
+    transition:background .15s var(--ease), color .15s var(--ease);
+  }
+  .map-tools button:hover{ background:var(--glass-hi); color:var(--ink); }
+  .map-tools button[aria-pressed="true"]{
+    background:var(--raised-2); color:var(--ink);
+    box-shadow:inset 0 0 0 1px var(--edge-hot);
+  }
+  .map-tools .lbl{
+    font-family:'JetBrains Mono',monospace; font-size:9.5px; font-weight:600;
+    text-transform:uppercase; letter-spacing:.16em; color:var(--ink-3);
+  }
+  .map-tools select{
+    appearance:none; cursor:pointer; width:100%;
+    padding:7px 26px 7px 10px; min-height:32px;
+    border-radius:var(--r-xs); border:1px solid var(--edge);
+    background:var(--glass) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='7'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%238A9098' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 9px center;
+    color:var(--ink); font-family:inherit; font-size:12px;
+  }
+
+  .map-legend{
+    position:absolute; bottom:12px; left:12px; z-index:5;
+    padding:10px 12px; border-radius:var(--r-sm);
+    background:rgba(8,9,11,.86); border:1px solid var(--edge);
+    backdrop-filter:blur(14px); display:flex; flex-direction:column; gap:6px;
+  }
+  html[data-theme="light"] .map-legend{ background:rgba(255,255,255,.93); }
+  .map-legend .l{ display:flex; align-items:center; gap:8px; font-size:11.5px; color:var(--ink-2); }
+  .map-legend .l i{ width:10px; height:10px; border-radius:50%; flex:0 0 auto; }
+
+  .map-state{
+    position:absolute; inset:0; z-index:8; display:grid; place-items:center;
+    padding:26px; text-align:center; background:var(--surface);
+  }
+  .map-state.hide{ display:none; }
+  .map-state .inner{ max-width:460px; }
+  .map-state h3{ margin:0 0 9px; font-size:16px; color:var(--ink); }
+  .map-state p{ margin:0 0 12px; font-size:13px; color:var(--ink-2); line-height:1.6; }
+  .map-state code{
+    display:block; padding:9px 11px; margin:9px 0; border-radius:var(--r-xs);
+    background:rgba(0,0,0,.4); border:1px solid var(--edge);
+    font-family:'JetBrains Mono',monospace; font-size:11.5px;
+    color:var(--ink); text-align:left; overflow-x:auto; white-space:pre;
+  }
+  html[data-theme="light"] .map-state code{ background:rgba(226,232,240,.8); }
+
+  /* side rail */
+  .map-rail{ display:flex; flex-direction:column; gap:14px; min-width:0; }
+  .rail-card{
+    padding:15px; border-radius:var(--r-lg);
+    background:var(--glass); border:1px solid var(--edge);
+    box-shadow:var(--e2); display:flex; flex-direction:column; gap:11px;
+  }
+  .rail-card h3{ margin:0; font-size:14px; }
+  .site-list{ display:flex; flex-direction:column; gap:6px;
+              max-height:340px; overflow-y:auto; padding-right:3px; }
+  .site-row{
+    display:grid; grid-template-columns:auto 1fr auto; gap:9px;
+    align-items:center; padding:9px 10px; border-radius:var(--r-xs);
+    background:var(--glass); border:1px solid var(--edge);
+    cursor:pointer; transition:border-color .15s var(--ease), background .15s var(--ease);
+  }
+  .site-row:hover{ border-color:var(--edge-hot); background:var(--glass-hi); }
+  .site-row .dot{ width:8px; height:8px; border-radius:50%; }
+  .site-row .sid{ font-family:'JetBrains Mono',monospace; font-size:12px;
+                  font-weight:600; color:var(--ink); }
+  .site-row .loc{ font-size:10.5px; color:var(--ink-3); }
+  .site-row .av{ font-family:'JetBrains Mono',monospace; font-size:11.5px;
+                 font-weight:600; color:var(--ink-2); }
+  .filter-input{
+    width:100%; padding:9px 11px; border-radius:var(--r-xs);
+    background:var(--glass); border:1px solid var(--edge);
+    color:var(--ink); font-family:inherit; font-size:12.5px;
+  }
+  .counts{ display:grid; grid-template-columns:repeat(2,1fr); gap:8px; }
+  .count-box{
+    padding:10px; border-radius:var(--r-xs);
+    background:var(--glass); border:1px solid var(--edge);
+  }
+  .count-box .cv{ font-family:'JetBrains Mono',monospace; font-size:19px;
+                  font-weight:700; color:var(--ink); line-height:1.1; }
+  .count-box .ck{ font-size:10.5px; color:var(--ink-3); }
+
+  @media (max-width:1100px){
+    .map-layout{ grid-template-columns:1fr; }
+    .map-shell{ min-height:440px; }
+  }
+</style>
+</head>
+<body>
+<div class="aurora"><i></i><i></i><i></i><i></i></div>
+<div class="mesh"></div>
+<div class="grain"></div>
+<div class="vignette"></div>
+
+<main class="cxo-page">
+
+  <header class="cxo-head">
+    <div>
+      <a href="dashboard.html" class="back-btn" style="display:inline-flex;gap:8px;padding:9px 13px;margin-bottom:12px;">← Back to Dashboard</a>
+      <span class="eyebrow">Estate view</span>
+      <h1 class="gradient-text">Global Site Map</h1>
+      <p class="lede">Every site ID in the estate, placed geographically and coloured by live
+        reachability. Filter by region, country or state; click a marker for its
+        telemetry.</p>
+      <div class="cxo-meta">
+        <span class="chip">Sites <b id="m-total">—</b></span>
+        <span class="chip">Placed <b id="m-placed">—</b></span>
+        <span class="chip">With telemetry <b id="m-monitored">—</b></span>
+        <span class="chip">Updated <b id="m-updated">—</b></span>
+      </div>
+    </div>
+  </header>
+
+  <div id="controls"></div>
+  <div id="notice-slot"></div>
+
+  <section class="map-layout">
+    <div class="map-shell">
+      <div id="gmap"></div>
+
+      <div class="map-tools">
+        <div class="tool">
+          <span class="lbl">Drill</span>
+          <select id="f-country"><option value="">All countries</option></select>
+          <select id="f-state" style="display:none"><option value="">All states</option></select>
+        </div>
+        <div class="tool">
+          <span class="lbl">View</span>
+          <div class="row">
+            <button type="button" id="b-rotate" aria-pressed="false" title="Continuously rotate the map heading">Rotate</button>
+            <button type="button" id="b-tilt" aria-pressed="false" title="Toggle 45° tilt">Tilt</button>
+            <button type="button" id="b-fit" title="Fit all visible markers">Fit</button>
+          </div>
+          <div class="row">
+            <button type="button" id="b-cluster" aria-pressed="true" title="Group nearby markers">Cluster</button>
+            <button type="button" id="b-refresh" title="Bypass cache and reload">Refresh</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="map-legend">
+        <div class="l"><i style="background:#7FC9A0"></i> Healthy</div>
+        <div class="l"><i style="background:#D9B26A"></i> Degraded</div>
+        <div class="l"><i style="background:#D68C92"></i> Critical / down</div>
+        <div class="l"><i style="background:#8A9098"></i> No telemetry</div>
+      </div>
+
+      <div class="map-state" id="map-state">
+        <div class="inner" id="map-state-inner">
+          <h3>Loading map…</h3>
+          <p>Fetching site inventory and live health.</p>
+        </div>
+      </div>
+    </div>
+
+    <aside class="map-rail">
+      <div class="rail-card">
+        <h3>Estate status</h3>
+        <div class="counts" id="status-counts"></div>
+      </div>
+      <div class="rail-card">
+        <header style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;">
+          <h3>Sites</h3><span class="hint" id="list-count">—</span>
+        </header>
+        <input class="filter-input" id="site-filter" type="text"
+               placeholder="Filter by site ID, city or country" autocomplete="off">
+        <div class="site-list" id="site-list"></div>
+      </div>
+      <div class="rail-card">
+        <h3>Placement accuracy</h3>
+        <p class="why" style="margin:0;font-size:11.5px;color:var(--ink-3);line-height:1.5;">
+          Markers are placed from the address returned by the site API. Where no
+          coordinates exist, a state or country centroid is used and sites are
+          scattered so they do not stack.</p>
+        <div id="precision-mix" class="stack"></div>
+      </div>
+    </aside>
+  </section>
+</main>
+
+<script src="cxo.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  var STATUS_COLOR = {
+    HEALTHY:  "#7FC9A0",
+    DEGRADED: "#D9B26A",
+    CRITICAL: "#D68C92",
+    DOWN:     "#D68C92",
+    NO_DATA:  "#8A9098"
+  };
+  var STATUS_BAND = {
+    HEALTHY: "ok", DEGRADED: "warn", CRITICAL: "bad", DOWN: "bad", NO_DATA: "idle"
+  };
+
+  /* Dark map styling. Kept in sync with the obsidian palette so the map
+     does not read as a bright rectangle punched into a black page. */
+  var DARK_STYLE = [
+    { elementType: "geometry", stylers: [{ color: "#0C0E10" }] },
+    { elementType: "labels.text.stroke", stylers: [{ color: "#08090B" }] },
+    { elementType: "labels.text.fill", stylers: [{ color: "#848A92" }] },
+    { featureType: "administrative", elementType: "geometry",
+      stylers: [{ color: "#2B2F34" }] },
+    { featureType: "administrative.country", elementType: "geometry.stroke",
+      stylers: [{ color: "#3E444B" }] },
+    { featureType: "administrative.province", elementType: "geometry.stroke",
+      stylers: [{ color: "#26292E" }] },
+    { featureType: "administrative.locality", elementType: "labels.text.fill",
+      stylers: [{ color: "#9BA0A7" }] },
+    { featureType: "landscape", elementType: "geometry",
+      stylers: [{ color: "#131518" }] },
+    { featureType: "poi", stylers: [{ visibility: "off" }] },
+    { featureType: "road", stylers: [{ visibility: "off" }] },
+    { featureType: "transit", stylers: [{ visibility: "off" }] },
+    { featureType: "water", elementType: "geometry",
+      stylers: [{ color: "#050506" }] },
+    { featureType: "water", elementType: "labels.text.fill",
+      stylers: [{ color: "#4A5058" }] }
+  ];
+  var LIGHT_STYLE = [
+    { featureType: "poi", stylers: [{ visibility: "off" }] },
+    { featureType: "transit", stylers: [{ visibility: "off" }] },
+    { featureType: "road", elementType: "labels", stylers: [{ visibility: "off" }] }
+  ];
+
+  var map = null, markers = [], infoWindow = null;
+  var data = null, filtered = [];
+  var rotating = false, rotateTimer = null, clustering = true;
+  var ctl = null;
+
+  /* ── boot ───────────────────────────────────────────────── */
+  ctl = CXO.controls("controls", function () { load(); }, { hideChina: false });
+
+  CXO.mapsConfig().then(function (r) {
+    var cfg = r.body || {};
+    if (!cfg.browser_key) { showKeyHelp(); load(true); return; }
+    loadGoogle(cfg.browser_key, cfg.map_id);
+  });
+
+  function loadGoogle(key, mapId) {
+    var s = document.createElement("script");
+    var params = "key=" + encodeURIComponent(key) + "&libraries=marker&v=weekly&callback=__gmapReady";
+    if (mapId) params += "&map_ids=" + encodeURIComponent(mapId);
+    s.src = "https://maps.googleapis.com/maps/api/js?" + params;
+    s.async = true; s.defer = true;
+    s.onerror = function () {
+      setState("<h3>Google Maps failed to load</h3><p>The script could not be " +
+        "fetched. Check the key's HTTP referrer restrictions and that the Maps " +
+        "JavaScript API is enabled for the project.</p>");
+      load(true);
+    };
+    window.__gmapReady = function () { initMap(mapId); load(); };
+    document.head.appendChild(s);
+  }
+
+  function showKeyHelp() {
+    setState(
+      "<h3>Google Maps key not configured</h3>" +
+      "<p>The map needs a browser key with the <b>Maps JavaScript API</b> enabled. " +
+      "It is read from the environment so it never lands in a committed file. " +
+      "Set it on the proxy host and restart:</p>" +
+      "<code>export GOOGLE_MAPS_BROWSER_KEY=\"AIza...\"\n" +
+      "# optional, for vector maps + tilt/rotate:\n" +
+      "export GOOGLE_MAPS_MAP_ID=\"your_map_id\"\n" +
+      "# optional, resolves exact site addresses:\n" +
+      "export GOOGLE_MAPS_SERVER_KEY=\"AIza...\"\n\n" +
+      "node server.js</code>" +
+      "<p>The site list on the right is live regardless — inventory and health " +
+      "are already loading.</p>");
+  }
+
+  function setState(html) {
+    var el = document.getElementById("map-state");
+    document.getElementById("map-state-inner").innerHTML = html;
+    el.classList.remove("hide");
+  }
+  function hideState() { document.getElementById("map-state").classList.add("hide"); }
+
+  function isDark() {
+    return document.documentElement.getAttribute("data-theme") !== "light";
+  }
+
+  function initMap(mapId) {
+    var opts = {
+      center: { lat: 20, lng: 5 },
+      zoom: 2,
+      minZoom: 2,
+      maxZoom: 18,
+      mapTypeControl: false,
+      streetViewControl: false,
+      fullscreenControl: true,
+      rotateControl: true,
+      tilt: 0,
+      gestureHandling: "greedy",
+      backgroundColor: isDark() ? "#08090B" : "#F5F8FC"
+    };
+    if (mapId) opts.mapId = mapId;
+    else opts.styles = isDark() ? DARK_STYLE : LIGHT_STYLE;
+
+    map = new google.maps.Map(document.getElementById("gmap"), opts);
+    infoWindow = new google.maps.InfoWindow();
+
+    // Restyle when the user flips the global theme toggle.
+    new MutationObserver(function () {
+      if (!map || mapId) return;
+      map.setOptions({ styles: isDark() ? DARK_STYLE : LIGHT_STYLE });
+    }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+    wireTools();
+  }
+
+  /* ── data ───────────────────────────────────────────────── */
+  function load(skipMap) {
+    if (ctl) ctl.status("Loading…");
+    CXO.siteMap(CXO.getRegion(), false).then(function (r) {
+      data = r.body || {};
+      if (!r.ok && !(data.sites || []).length) {
+        notice("bad", "Site inventory unavailable. " +
+          CXO.esc(data.error || data.detail || "The site API did not respond."));
+      } else {
+        notices(data);
+      }
+      populateCountries();
+      apply(skipMap);
+      if (ctl) ctl.status("Updated " + CXO.ago(data.generated_at));
+    });
+  }
+
+  function notice(kind, html) {
+    document.getElementById("notice-slot").innerHTML =
+      '<div class="notice ' + (kind === "bad" ? "bad" : "") + '">' + html + "</div>";
+  }
+
+  function notices(d) {
+    var msgs = [];
+    if ((d.source_errors || []).length) {
+      msgs.push("Site API errors: " + d.source_errors.map(function (e) {
+        return CXO.esc(e.region);
+      }).join(", ") + ".");
+    }
+    if (d.prometheus_error) {
+      msgs.push("Live health unavailable — markers show inventory only.");
+    }
+    if (!d.geocoding_enabled && d.precision_counts &&
+        (d.precision_counts["state-centroid"] || d.precision_counts["country-centroid"])) {
+      msgs.push("Exact coordinates not configured; showing centroid placement. " +
+        "Set <code>GOOGLE_MAPS_SERVER_KEY</code> to geocode real addresses once and cache them.");
+    }
+    if (msgs.length) notice("warn", msgs.join(" "));
+    else document.getElementById("notice-slot").innerHTML = "";
+  }
+
+  /* ── filters ────────────────────────────────────────────── */
+  function populateCountries() {
+    var sel = document.getElementById("f-country");
+    var prev = sel.value;
+    var counts = (data && data.by_country) || {};
+    var names = Object.keys(counts).sort();
+    sel.innerHTML = '<option value="">All countries</option>' +
+      names.map(function (n) {
+        return '<option value="' + CXO.esc(n) + '">' + CXO.esc(n) +
+          " (" + counts[n] + ")</option>";
+      }).join("");
+    if (names.indexOf(prev) >= 0) sel.value = prev;
+    syncStates();
+  }
+
+  function syncStates() {
+    var country = document.getElementById("f-country").value;
+    var sel = document.getElementById("f-state");
+    var states = {};
+    ((data && data.sites) || []).forEach(function (s) {
+      if (country && s.country !== country) return;
+      if (s.state) states[s.state] = (states[s.state] || 0) + 1;
+    });
+    var keys = Object.keys(states).sort();
+    if (!keys.length) { sel.style.display = "none"; sel.value = ""; return; }
+    sel.style.display = "";
+    var prev = sel.value;
+    sel.innerHTML = '<option value="">All states</option>' +
+      keys.map(function (k) {
+        return '<option value="' + CXO.esc(k) + '">' + CXO.esc(k) +
+          " (" + states[k] + ")</option>";
+      }).join("");
+    if (keys.indexOf(prev) >= 0) sel.value = prev;
+  }
+
+  function apply(skipMap) {
+    var country = document.getElementById("f-country").value;
+    var state = document.getElementById("f-state").value;
+    var term = (document.getElementById("site-filter").value || "").trim().toLowerCase();
+
+    filtered = ((data && data.sites) || []).filter(function (s) {
+      if (country && s.country !== country) return false;
+      if (state && s.state !== state) return false;
+      if (term) {
+        var hay = [s.site_id, s.city, s.country, s.state, s.region]
+          .filter(Boolean).join(" ").toLowerCase();
+        if (hay.indexOf(term) < 0) return false;
+      }
+      return true;
+    });
+
+    renderCounts();
+    renderList();
+    renderPrecision();
+    if (!skipMap && map) renderMarkers();
+    if (map && data && data.view && !country && !state && !term) {
+      map.setCenter({ lat: data.view.center[0], lng: data.view.center[1] });
+      map.setZoom(data.view.zoom);
+    }
+  }
+
+  /* ── render: rail ───────────────────────────────────────── */
+  function renderCounts() {
+    var c = { HEALTHY: 0, DEGRADED: 0, CRITICAL: 0, DOWN: 0, NO_DATA: 0 };
+    filtered.forEach(function (s) { c[s.status] = (c[s.status] || 0) + 1; });
+    document.getElementById("status-counts").innerHTML =
+      box(c.HEALTHY, "Healthy", "#7FC9A0") +
+      box(c.DEGRADED, "Degraded", "#D9B26A") +
+      box(c.CRITICAL + c.DOWN, "Critical", "#D68C92") +
+      box(c.NO_DATA, "No telemetry", "#8A9098");
+
+    document.getElementById("m-total").textContent = CXO.num(data && data.total);
+    document.getElementById("m-placed").textContent = CXO.num(data && data.placed);
+    document.getElementById("m-monitored").textContent = CXO.num(data && data.monitored);
+    document.getElementById("m-updated").textContent = CXO.ago(data && data.generated_at);
+  }
+  function box(v, k, col) {
+    return '<div class="count-box"><div class="cv" style="color:' + col + '">' +
+      CXO.num(v) + '</div><div class="ck">' + CXO.esc(k) + "</div></div>";
+  }
+
+  function renderList() {
+    var el = document.getElementById("site-list");
+    document.getElementById("list-count").textContent =
+      filtered.length + " of " + ((data && data.total) || 0);
+    if (!filtered.length) {
+      el.innerHTML = CXO.emptyState("No sites match", "Clear the filters to see the full estate.");
+      return;
+    }
+    el.innerHTML = filtered.slice(0, 400).map(function (s) {
+      var loc = [s.city, s.state, s.country].filter(Boolean).join(", ");
+      return '<div class="site-row" data-site="' + CXO.esc(s.site_id) + '">' +
+        '<span class="dot" style="background:' + (STATUS_COLOR[s.status] || "#8A9098") + '"></span>' +
+        '<span><span class="sid">' + CXO.esc(s.site_id) + "</span><br>" +
+        '<span class="loc">' + CXO.esc(loc || "Location unknown") + "</span></span>" +
+        '<span class="av">' + (s.availability === null ? "—" : CXO.pct(s.availability, 0)) +
+        "</span></div>";
+    }).join("");
+  }
+
+  function renderPrecision() {
+    var mix = (data && data.precision_counts) || {};
+    var labels = {
+      "exact": "Exact coordinates from the site API",
+      "geocoded": "Geocoded from the street address",
+      "cached": "Previously geocoded and cached",
+      "state-centroid": "Placed at the state centroid",
+      "country-centroid": "Placed at the country centroid",
+      "unresolved": "Could not be placed"
+    };
+    var bands = {
+      "exact": "ok", "geocoded": "ok", "cached": "ok",
+      "state-centroid": "warn", "country-centroid": "warn", "unresolved": "bad"
+    };
+    var keys = Object.keys(mix);
+    document.getElementById("precision-mix").innerHTML = keys.length
+      ? keys.map(function (k) {
+          return '<div class="item ' + (bands[k] || "idle") + '">' +
+            '<span></span><div><p class="it-t">' + CXO.num(mix[k]) + " sites</p>" +
+            '<p class="it-d">' + CXO.esc(labels[k] || k) + "</p></div>" +
+            '<span class="it-m">' + CXO.esc(k) + "</span></div>";
+        }).join("")
+      : CXO.emptyState("No placement data", "");
+  }
+
+  /* ── render: markers ────────────────────────────────────── */
+  function clearMarkers() {
+    markers.forEach(function (m) { m.setMap(null); });
+    markers = [];
+  }
+
+  function renderMarkers() {
+    if (!map) return;
+    clearMarkers();
+    var placed = filtered.filter(function (s) { return s.lat !== null && s.lng !== null; });
+    if (!placed.length) {
+      setState("<h3>No sites to plot</h3><p>The current filters match no placed sites.</p>");
+      return;
+    }
+    hideState();
+
+    // Cluster by rounded coordinate at low zoom so 212 US pins stay legible.
+    var groups = {};
+    if (clustering && map.getZoom() <= 4) {
+      placed.forEach(function (s) {
+        var k = Math.round(s.lat / 4) + "," + Math.round(s.lng / 4);
+        (groups[k] = groups[k] || []).push(s);
+      });
+    } else {
+      placed.forEach(function (s, i) { groups["s" + i] = [s]; });
+    }
+
+    Object.keys(groups).forEach(function (k) {
+      var g = groups[k];
+      if (g.length === 1) return addPin(g[0]);
+      addCluster(g);
+    });
+
+    if (map.getZoom() <= 3) fit();
+  }
+
+  function worstOf(group) {
+    var order = ["DOWN", "CRITICAL", "DEGRADED", "NO_DATA", "HEALTHY"];
+    for (var i = 0; i < order.length; i++) {
+      if (group.some(function (s) { return s.status === order[i]; })) return order[i];
+    }
+    return "NO_DATA";
+  }
+
+  function addPin(s) {
+    var col = STATUS_COLOR[s.status] || "#8A9098";
+    var mk = new google.maps.Marker({
+      position: { lat: s.lat, lng: s.lng },
+      map: map,
+      title: s.site_id,
+      icon: {
+        path: google.maps.SymbolPath.CIRCLE,
+        scale: s.priority === "P1" ? 8 : 6,
+        fillColor: col, fillOpacity: .92,
+        strokeColor: "#000000", strokeWeight: 1.4,
+        strokeOpacity: .55
+      },
+      zIndex: s.status === "HEALTHY" ? 1 : 5
+    });
+    mk.addListener("click", function () { openInfo(s, mk); });
+    markers.push(mk);
+  }
+
+  function addCluster(group) {
+    var lat = group.reduce(function (a, s) { return a + s.lat; }, 0) / group.length;
+    var lng = group.reduce(function (a, s) { return a + s.lng; }, 0) / group.length;
+    var col = STATUS_COLOR[worstOf(group)] || "#8A9098";
+    var r = Math.min(26, 11 + Math.log(group.length) * 4.5);
+    var mk = new google.maps.Marker({
+      position: { lat: lat, lng: lng },
+      map: map,
+      label: { text: String(group.length), color: "#08090B",
+               fontFamily: "JetBrains Mono, monospace",
+               fontSize: "11px", fontWeight: "700" },
+      icon: {
+        path: google.maps.SymbolPath.CIRCLE,
+        scale: r, fillColor: col, fillOpacity: .88,
+        strokeColor: "#000000", strokeWeight: 1.5, strokeOpacity: .5
+      },
+      zIndex: 10
+    });
+    mk.addListener("click", function () {
+      map.setCenter({ lat: lat, lng: lng });
+      map.setZoom(Math.min(18, map.getZoom() + 3));
+    });
+    markers.push(mk);
+  }
+
+  function openInfo(s, mk) {
+    var loc = [s.street, s.city, s.state, s.country, s.postcode].filter(Boolean).join(", ");
+    var rows = [
+      ["Region", s.region || "—"],
+      ["Priority", s.priority || "—"],
+      ["Devices", s.devices === null ? "—" : s.devices_up + " / " + s.devices],
+      ["Availability", s.availability === null ? "—" : CXO.pct(s.availability)],
+      ["WAN links", s.wan_links_total === null ? "—" : (s.wan_links_up || 0) + " / " + s.wan_links_total],
+      ["Tunnels", s.bfd_total === null ? "—" : (s.bfd_up || 0) + " / " + s.bfd_total],
+      ["Latency", s.latency_ms === null ? "—" : s.latency_ms + " ms"],
+      ["Loss", s.loss_percent === null ? "—" : CXO.pct(s.loss_percent)],
+      ["Uptime", s.uptime_days === null ? "—" : s.uptime_days + " d"]
+    ];
+    infoWindow.setContent(
+      '<div style="font-family:Inter,sans-serif;min-width:244px;color:#111;">' +
+      '<div style="font:700 15px \'JetBrains Mono\',monospace;margin-bottom:3px;">' +
+        CXO.esc(s.site_id) + "</div>" +
+      '<div style="font-size:11.5px;color:#555;margin-bottom:9px;">' +
+        CXO.esc(loc || "Address unavailable") + "</div>" +
+      '<table style="font-size:12px;border-collapse:collapse;width:100%">' +
+      rows.map(function (r) {
+        return '<tr><td style="padding:2px 10px 2px 0;color:#666;">' + CXO.esc(r[0]) +
+          '</td><td style="padding:2px 0;font-family:\'JetBrains Mono\',monospace;' +
+          'text-align:right;font-weight:600;">' + CXO.esc(r[1]) + "</td></tr>";
+      }).join("") + "</table>" +
+      '<div style="margin-top:9px;font-size:10.5px;color:#888;">Placement: ' +
+        CXO.esc(s.precision) + "</div>" +
+      (s.monitored ? '<a href="monitoring.html" style="display:inline-block;margin-top:8px;' +
+        'font-size:12px;color:#0b6;">Open monitoring →</a>' : "") +
+      "</div>");
+    infoWindow.open(map, mk);
+  }
+
+  function fit() {
+    if (!map) return;
+    var placed = filtered.filter(function (s) { return s.lat !== null; });
+    if (!placed.length) return;
+    var b = new google.maps.LatLngBounds();
+    placed.forEach(function (s) { b.extend({ lat: s.lat, lng: s.lng }); });
+    map.fitBounds(b, 48);
+  }
+
+  /* ── tools ──────────────────────────────────────────────── */
+  function wireTools() {
+    document.getElementById("b-fit").addEventListener("click", fit);
+
+    document.getElementById("b-rotate").addEventListener("click", function () {
+      rotating = !rotating;
+      this.setAttribute("aria-pressed", String(rotating));
+      if (rotating) {
+        if (map.getTilt() === 0) map.setTilt(45);
+        rotateTimer = setInterval(function () {
+          map.setHeading(((map.getHeading() || 0) + 1.2) % 360);
+        }, 55);
+      } else {
+        clearInterval(rotateTimer); rotateTimer = null;
+      }
+    });
+
+    document.getElementById("b-tilt").addEventListener("click", function () {
+      var on = map.getTilt() === 0;
+      map.setTilt(on ? 45 : 0);
+      this.setAttribute("aria-pressed", String(on));
+    });
+
+    document.getElementById("b-cluster").addEventListener("click", function () {
+      clustering = !clustering;
+      this.setAttribute("aria-pressed", String(clustering));
+      renderMarkers();
+    });
+
+    document.getElementById("b-refresh").addEventListener("click", function () {
+      if (ctl) ctl.status("Refreshing…");
+      CXO.siteMap(CXO.getRegion(), true).then(function (r) {
+        data = r.body || {}; notices(data);
+        populateCountries(); apply();
+        if (ctl) ctl.status("Updated " + CXO.ago(data.generated_at));
+      });
+    });
+
+    // Re-cluster when zoom crosses the threshold.
+    var lastZoom = map.getZoom();
+    map.addListener("idle", function () {
+      var z = map.getZoom();
+      if (clustering && ((lastZoom <= 4) !== (z <= 4))) renderMarkers();
+      lastZoom = z;
+    });
+  }
+
+  document.getElementById("f-country").addEventListener("change", function () {
+    syncStates(); apply();
+  });
+  document.getElementById("f-state").addEventListener("change", function () { apply(); });
+
+  var filterTimer = null;
+  document.getElementById("site-filter").addEventListener("input", function () {
+    clearTimeout(filterTimer);
+    filterTimer = setTimeout(function () { apply(); }, 200);
+  });
+
+  document.getElementById("site-list").addEventListener("click", function (ev) {
+    var row = ev.target.closest(".site-row");
+    if (!row || !map) return;
+    var sid = row.getAttribute("data-site");
+    var s = filtered.filter(function (x) { return x.site_id === sid; })[0];
+    if (!s || s.lat === null) return;
+    map.setCenter({ lat: s.lat, lng: s.lng });
+    map.setZoom(Math.max(map.getZoom(), 9));
+    clustering = false;
+    document.getElementById("b-cluster").setAttribute("aria-pressed", "false");
+    renderMarkers();
+    var mk = markers.filter(function (m) { return m.getTitle() === sid; })[0];
+    if (mk) openInfo(s, mk);
+  });
+
+  setInterval(function () { if (document.visibilityState === "visible") load(); }, 120000);
+})();
+</script>
+</body>
+</html>

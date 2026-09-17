@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Incidents | Smart NetOps Hub</title>
+<script src="activity-tracker.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="cxo.css">
+<script src="theme.js"></script>
+</head>
+<body>
+<div class="aurora"><i></i><i></i><i></i><i></i></div>
+<div class="mesh"></div>
+<div class="grain"></div>
+<div class="vignette"></div>
+
+<main class="cxo-page">
+  <header class="cxo-head">
+    <div>
+      <a href="dashboard.html" class="back-btn" style="display:inline-flex;gap:8px;padding:9px 13px;margin-bottom:12px;">&larr; Back to Dashboard</a>
+      <span class="eyebrow">Executive view / Incidents</span>
+      <h1 class="gradient-text">Incidents</h1>
+      <p class="lede">How often the business is interrupted, how long it stays interrupted, and what it costs. Detection and recovery time, not ticket counts.</p>
+      <div class="cxo-meta"><span class="chip">Open P1/P2 <b id="x-major">&mdash;</b></span>
+        <span class="chip">MTTR <b id="x-mttr">&mdash;</b></span>
+        <span class="chip">Impact hours <b id="x-impact">&mdash;</b></span>
+        <span class="chip">Updated <b id="x-updated">&mdash;</b></span></div>
+    </div>
+  </header>
+
+  <div id="controls"></div>
+  <div id="notice-slot"></div>
+
+  <section class="cxo-hero" id="hero">
+    <div class="hero-stat skel"><span class="k">Loading</span><span class="v">&mdash;</span><span class="sub">&mdash;</span></div>
+  </section>
+  <section class="cxo-grid wide-left">
+      <div class="card">
+        <header><h3>Incident volume and severity</h3></header>
+        <p class="why">Volume alone is noise. Severity mix is the signal &mdash; rising P1 share means the estate is getting more fragile, not busier.</p>
+        <div class="" id="chart-volume"></div>
+      </div>
+      <div class="card">
+        <header><h3>Detection and recovery</h3></header>
+        <p class="why">MTTD versus MTTR. A long MTTD means the business found out before monitoring did, which is a different problem to a slow fix.</p>
+        <div class="" id="mttr-block"></div>
+      </div>
+  </section>
+  <section class="cxo-grid c4">
+      <div class="card">
+        <header><h3>By service</h3></header>
+        <p class="why">Which services generate the interruptions.</p>
+        <div class="stack" id="by-service"></div>
+      </div>
+      <div class="card">
+        <header><h3>By region</h3></header>
+        <p class="why">Geographic concentration of impact.</p>
+        <div class="stack" id="by-region"></div>
+      </div>
+      <div class="card">
+        <header><h3>By root cause</h3></header>
+        <p class="why">Change, capacity, hardware, third party, unknown.</p>
+        <div class="stack" id="by-cause"></div>
+      </div>
+      <div class="card">
+        <header><h3>Repeat offenders</h3></header>
+        <p class="why">Same cause, more than once, this quarter.</p>
+        <div class="stack" id="repeat"></div>
+      </div>
+  </section>
+  <section class="cxo-grid wide-right">
+      <div class="card">
+        <header><h3>Business impact</h3></header>
+        <p class="why">Impact hours converted to the measures the business recognises: users affected, transactions lost, SLA credits exposed.</p>
+        <div class="stack" id="impact"></div>
+      </div>
+      <div class="card">
+        <header><h3>Major incident register</h3></header>
+        <p class="why">Every P1 and P2 in the period, with owner and post-incident review status.</p>
+        <div class="cxo-table-wrap"><table class="cxo" id="major"><tbody></tbody></table></div>
+      </div>
+  </section>
+
+</main>
+
+<script src="cxo.js"></script>
+<script>
+(function () {
+  "use strict";
+  var ctl = CXO.controls("controls", load);
+  var SOURCE = "the ITSM incident feed (ServiceNow) plus the alerting pipeline";
+
+  function load() {
+    ctl.status("Awaiting integration");
+    ["x-major","x-mttr","x-impact","x-updated"].forEach(function (i) {
+      document.getElementById(i).textContent = "\u2014";
+    });
+    document.getElementById("notice-slot").innerHTML =
+      '<div class="notice">The ITSM endpoint is still a placeholder. This view is ' +
+      'complete and will populate once ' + SOURCE + ' is connected.</div>';
+
+    document.getElementById("hero").innerHTML =
+      CXO.heroStat({ label: "Open major incidents", value: "\u2014", band: "idle", sub: "P1 and P2" }) +
+      CXO.heroStat({ label: "Mean time to detect", value: "\u2014", band: "idle", sub: "Across all severities" }) +
+      CXO.heroStat({ label: "Mean time to restore", value: "\u2014", band: "idle", sub: "Service restored, not root-caused" }) +
+      CXO.heroStat({ label: "Business impact hours", value: "\u2014", band: "idle", sub: "Weighted by service tier" }) +
+      CXO.heroStat({ label: "Change-caused share", value: "\u2014", unit: "%", band: "idle", sub: "Self-inflicted incidents" });
+
+    ["chart-volume","mttr-block","by-service","by-region","by-cause","repeat","impact"]
+      .forEach(function (i) { document.getElementById(i).innerHTML = CXO.pendingState(SOURCE); });
+    document.querySelector("#major tbody").innerHTML =
+      '<tr><td>' + CXO.pendingState(SOURCE) + '</td></tr>';
+  }
+  load();
+})();
+</script>
+</body>
+</html>

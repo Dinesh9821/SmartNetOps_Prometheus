@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Report | Smart NetOps Hub</title>
+<script src="activity-tracker.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="cxo.css">
+<script src="theme.js"></script>
+</head>
+<body>
+<div class="aurora"><i></i><i></i><i></i><i></i></div>
+<div class="mesh"></div>
+<div class="grain"></div>
+<div class="vignette"></div>
+
+<main class="cxo-page">
+  <header class="cxo-head">
+    <div>
+      <a href="dashboard.html" class="back-btn" style="display:inline-flex;gap:8px;padding:9px 13px;margin-bottom:12px;">&larr; Back to Dashboard</a>
+      <span class="eyebrow">Executive view / Report</span>
+      <h1 class="gradient-text">Report</h1>
+      <p class="lede">The board pack, assembled from live data. Period-over-period attainment, the exceptions worth a paragraph, and an export that does not need reformatting.</p>
+      <div class="cxo-meta"><span class="chip">Period <b id="x-period">&mdash;</b></span>
+        <span class="chip">Scope <b id="x-scope">&mdash;</b></span>
+        <span class="chip">Generated <b id="x-generated">&mdash;</b></span>
+        <span class="chip">Sections <b id="x-sections">&mdash;</b></span></div>
+    </div>
+  </header>
+
+  <div id="controls"></div>
+  <div id="notice-slot"></div>
+
+  <section class="card">
+    <header><h3>Report builder</h3><span class="hint">Selections apply to the preview below</span></header>
+    <p class="why">Choose the period and sections. The preview is the deliverable &mdash; what you see is what exports.</p>
+    <div id="builder" class="cxo-controls" style="box-shadow:none"></div>
+  </section>
+  <section class="cxo-hero" id="hero">
+    <div class="hero-stat skel"><span class="k">Loading</span><span class="v">&mdash;</span><span class="sub">&mdash;</span></div>
+  </section>
+  <section class="cxo-grid wide-left">
+      <div class="card">
+        <header><h3>Executive summary</h3></header>
+        <p class="why">Generated from the period's telemetry. Edit before circulating &mdash; this is a first draft, not a final statement.</p>
+        <div class="stack" id="summary"></div>
+      </div>
+      <div class="card">
+        <header><h3>Attainment</h3></header>
+        <p class="why">Each commitment against its target for the period.</p>
+        <div class="stack" id="attainment"></div>
+      </div>
+  </section>
+  <section class="cxo-grid c2">
+      <div class="card">
+        <header><h3>Period comparison</h3></header>
+        <p class="why">This period against the last. Direction is the story.</p>
+        <div class="cxo-table-wrap"><table class="cxo" id="compare"><tbody></tbody></table></div>
+      </div>
+      <div class="card">
+        <header><h3>Exceptions</h3></header>
+        <p class="why">What broke, what it cost, and who owns the follow-up.</p>
+        <div class="stack" id="exceptions"></div>
+      </div>
+  </section>
+  <section class="card">
+    <header><h3>Export</h3></header>
+    <p class="why">The export carries the current scope and period. JSON is the full dataset; the printable view is the formatted pack.</p>
+    <div class="cxo-controls" style="box-shadow:none">
+      <div class="grp">
+        <button class="seg" style="padding:0"><span></span></button>
+      </div>
+      <div class="seg">
+        <button type="button" id="ex-json">Download JSON</button>
+        <button type="button" id="ex-print">Printable view</button>
+        <button type="button" id="ex-copy">Copy summary</button>
+      </div>
+      <span class="spacer"></span>
+      <span class="lbl" id="ex-status">Ready</span>
+    </div>
+  </section>
+
+</main>
+
+<script src="cxo.js"></script>
+<script>
+(function () {
+  "use strict";
+  var ctl = CXO.controls("controls", load);
+  var snapshot = null;
+
+  function load() {
+    ctl.status("Building\u2026");
+    document.getElementById("x-scope").textContent = CXO.getRegion() || "Global";
+    CXO.network({ withRegions: true, withDc: true }).then(function (r) {
+      snapshot = r.body || {};
+      render(snapshot);
+      ctl.status("Built " + CXO.ago(snapshot.last_updated));
+    });
+  }
+
+  function render(d) {
+    var k = d.kpis || {};
+    var av = k.reachability && k.reachability.value;
+    var wan = k.wan_availability && k.wan_availability.value;
+    document.getElementById("x-period").textContent = d.range_label || "\u2014";
+    document.getElementById("x-generated").textContent = new Date().toLocaleString();
+    document.getElementById("x-sections").textContent = "4";
+
+    document.getElementById("hero").innerHTML =
+      CXO.heroStat({ label: "Network availability", value: av === null || av === undefined ? "\u2014" : av.toFixed(2),
+                     unit: "%", band: CXO.band(av, 99.5, 97), sub: "Period average" }) +
+      CXO.heroStat({ label: "WAN availability", value: wan === null || wan === undefined ? "\u2014" : wan.toFixed(2),
+                     unit: "%", band: CXO.band(wan, 99, 95), sub: "Circuits up" }) +
+      CXO.heroStat({ label: "Sites reported", value: CXO.num(sites(d)), band: "idle", sub: "In scope this period" }) +
+      CXO.heroStat({ label: "DC availability", value: d.datacenters && d.datacenters.availability !== null
+                       ? d.datacenters.availability : "\u2014", unit: "%",
+                     band: CXO.band(d.datacenters && d.datacenters.availability, 99.5, 98),
+                     sub: "Critical sites" });
+
+    document.getElementById("summary").innerHTML =
+      '<div class="item ' + CXO.band(av, 99.5, 97) + '"><span></span><div>' +
+      '<p class="it-t">Availability</p><p class="it-d">' +
+      "Network availability across " + CXO.esc(CXO.getRegion() || "all regions") + " was " +
+      (av === null || av === undefined ? "not measurable" : CXO.pct(av, 2)) +
+      " for " + CXO.esc((d.range_label || "the period").toLowerCase()) + ", against a 99.5% commitment. " +
+      (av !== null && av !== undefined && av >= 99.5
+        ? "The commitment was met."
+        : "The commitment was not met; see exceptions.") +
+      "</p></div><span class='it-m'>auto</span></div>" +
+      '<div class="item idle"><span></span><div><p class="it-t">Capacity</p>' +
+      '<p class="it-d">Peak carried traffic reached ' +
+      CXO.bits(Math.max.apply(null, (d.throughput.ingress || [0]).filter(isFinite).concat([0]))) +
+      ". Utilisation against provisioned capacity requires circuit capacity data." +
+      "</p></div><span class='it-m'>auto</span></div>" +
+      '<div class="item idle"><span></span><div><p class="it-t">Incidents, change and security</p>' +
+      '<p class="it-d">Narrative for these sections is generated once the ITSM and ' +
+      'security feeds are connected.</p></div><span class="it-m">pending</span></div>';
+
+    document.getElementById("attainment").innerHTML =
+      row("Device reachability", av, 99.5) +
+      row("WAN circuit availability", wan, 99) +
+      row("Overlay tunnel health",
+          k.bfd_up && k.bfd_up.total ? (100 * k.bfd_up.value / k.bfd_up.total) : null, 99);
+
+    var regions = d.regions || {};
+    var tb = document.querySelector("#compare tbody");
+    var keys = Object.keys(regions);
+    tb.innerHTML = keys.length
+      ? "<tr><th>Region</th><th>Sites</th><th>Devices</th><th>Availability</th><th>Latency</th></tr>" +
+        keys.map(function (rk) {
+          var x = regions[rk];
+          return "<tr><td class='id'>" + rk + "</td><td class='n'>" + CXO.num(x.sites) +
+            "</td><td class='n'>" + CXO.num(x.devices) + "</td><td class='n'>" +
+            (x.availability === null ? "\u2014" : CXO.pct(x.availability)) +
+            "</td><td class='n'>" + (x.latency_ms === null ? "\u2014" : x.latency_ms + " ms") +
+            "</td></tr>";
+        }).join("")
+      : "<tr><td>" + CXO.emptyState("No regional data", "") + "</td></tr>";
+
+    var bad = ((d.datacenters && d.datacenters.sites) || [])
+      .filter(function (s) { return s.availability !== null && s.availability < 99; });
+    document.getElementById("exceptions").innerHTML = bad.length
+      ? bad.slice(0, 8).map(function (s) {
+          return '<div class="item ' + CXO.band(s.availability, 99, 95) + '"><span></span><div>' +
+            '<p class="it-t">' + CXO.esc(s.site_id) + " below commitment</p>" +
+            '<p class="it-d">' + CXO.pct(s.availability) + " availability, " +
+            (s.devices_up || 0) + "/" + (s.devices || 0) + " devices reachable. " +
+            CXO.esc([s.country, s.region].filter(Boolean).join(", ")) + "</p></div>" +
+            '<span class="it-m">' + CXO.esc(s.status.toLowerCase()) + "</span></div>";
+        }).join("")
+      : '<div class="item ok"><span></span><div><p class="it-t">No exceptions</p>' +
+        '<p class="it-d">Every critical site met its availability commitment for this period.' +
+        "</p></div><span class='it-m'>clean</span></div>";
+  }
+
+  function row(name, val, target) {
+    var b = CXO.band(val, target, target - 2);
+    return '<div class="slo"><div class="st"><span class="sn">' + CXO.esc(name) +
+      '</span><span class="sv" style="color:var(--' +
+      (b === "ok" ? "ok" : b === "warn" ? "warn" : b === "bad" ? "bad" : "idle") + ')">' +
+      (val === null || val === undefined ? "\u2014" : CXO.pct(val, 2)) + "</span></div>" +
+      '<span class="meter"><i class="' + b + '" style="width:' +
+      (val === null || val === undefined ? 0 : Math.min(100, val)) + '%"></i></span>' +
+      '<span class="sm">Target ' + target + "% \u00b7 " +
+      (val !== null && val !== undefined && val >= target ? "met" : "not met") + "</span></div>";
+  }
+
+  function sites(d) {
+    var regions = d.regions || {};
+    return Object.keys(regions).reduce(function (a, r) { return a + (regions[r].sites || 0); }, 0);
+  }
+
+  function status(t) { document.getElementById("ex-status").textContent = t; }
+
+  document.getElementById("ex-json").addEventListener("click", function () {
+    if (!snapshot) return status("Nothing to export yet");
+    var blob = new Blob([JSON.stringify(snapshot, null, 2)], { type: "application/json" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "netops-report-" + (CXO.getRegion() || "global") + "-" +
+      (snapshot.range || "") + "-" + new Date().toISOString().slice(0, 10) + ".json";
+    a.click(); URL.revokeObjectURL(a.href);
+    status("JSON downloaded");
+  });
+
+  document.getElementById("ex-print").addEventListener("click", function () {
+    window.print(); status("Sent to print");
+  });
+
+  document.getElementById("ex-copy").addEventListener("click", function () {
+    var t = document.getElementById("summary").innerText || "";
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(t).then(function () { status("Summary copied"); },
+        function () { status("Copy blocked by the browser"); });
+    } else status("Clipboard unavailable");
+  });
+
+  load();
+})();
+</script>
+</body>
+</html>
